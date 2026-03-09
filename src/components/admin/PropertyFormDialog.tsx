@@ -11,6 +11,7 @@ import { useBuildings } from "@/hooks/use-buildings";
 import { toast } from "sonner";
 import { useEffect, useState } from "react";
 import type { PropertyInsert } from "@/types/real-estate";
+import PropertyImageUpload from "./PropertyImageUpload";
 
 interface Props {
   open: boolean;
@@ -43,6 +44,10 @@ const PropertyFormDialog = ({ open, onOpenChange, propertyId }: Props) => {
   const createMut = useCreateProperty();
   const updateMut = useUpdateProperty();
   const [form, setForm] = useState<PropertyInsert>(defaultForm);
+  // After creating a new property, store its id to show image upload
+  const [createdId, setCreatedId] = useState<string | null>(null);
+
+  const activePropertyId = propertyId ?? createdId;
 
   useEffect(() => {
     if (propertyId && existing) {
@@ -67,10 +72,18 @@ const PropertyFormDialog = ({ open, onOpenChange, propertyId }: Props) => {
         latitude: existing.latitude ? Number(existing.latitude) : undefined,
         longitude: existing.longitude ? Number(existing.longitude) : undefined,
       });
-    } else {
+    } else if (!propertyId) {
       setForm(defaultForm);
+      setCreatedId(null);
     }
   }, [propertyId, existing]);
+
+  // Reset on close
+  useEffect(() => {
+    if (!open) {
+      setCreatedId(null);
+    }
+  }, [open]);
 
   const set = <K extends keyof PropertyInsert>(key: K, value: PropertyInsert[K]) =>
     setForm((f) => ({ ...f, [key]: value }));
@@ -90,9 +103,15 @@ const PropertyFormDialog = ({ open, onOpenChange, propertyId }: Props) => {
       if (propertyId) {
         await updateMut.mutateAsync({ id: propertyId, ...payload });
         toast.success("Bien mis à jour");
+      } else if (createdId) {
+        // Already created, just update
+        await updateMut.mutateAsync({ id: createdId, ...payload });
+        toast.success("Bien mis à jour");
       } else {
-        await createMut.mutateAsync(payload);
-        toast.success("Bien créé");
+        const result = await createMut.mutateAsync(payload);
+        setCreatedId(result.id);
+        toast.success("Bien créé — ajoutez des photos ci-dessous");
+        return; // Don't close, let user add images
       }
       onOpenChange(false);
     } catch (err: any) {
@@ -102,15 +121,17 @@ const PropertyFormDialog = ({ open, onOpenChange, propertyId }: Props) => {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="font-display">{propertyId ? "Modifier le bien" : "Nouveau bien"}</DialogTitle>
+          <DialogTitle className="font-display">
+            {propertyId ? "Modifier le bien" : createdId ? "Compléter le bien" : "Nouveau bien"}
+          </DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="col-span-2">
               <Label>Titre</Label>
-              <Input value={form.title} onChange={(e) => { set("title", e.target.value); if (!propertyId) set("slug", generateSlug(e.target.value)); }} required />
+              <Input value={form.title} onChange={(e) => { set("title", e.target.value); if (!propertyId && !createdId) set("slug", generateSlug(e.target.value)); }} required />
             </div>
             <div>
               <Label>Slug</Label>
@@ -168,9 +189,10 @@ const PropertyFormDialog = ({ open, onOpenChange, propertyId }: Props) => {
             </div>
             <div>
               <Label>Propriétaire</Label>
-              <Select value={form.owner_id ?? ""} onValueChange={(v) => set("owner_id", v || null)}>
+              <Select value={form.owner_id ?? "__none__"} onValueChange={(v) => set("owner_id", v === "__none__" ? null : v)}>
                 <SelectTrigger><SelectValue placeholder="Aucun" /></SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="__none__">Aucun</SelectItem>
                   {(owners ?? []).map((o) => (
                     <SelectItem key={o.id} value={o.id}>{o.full_name}</SelectItem>
                   ))}
@@ -179,14 +201,23 @@ const PropertyFormDialog = ({ open, onOpenChange, propertyId }: Props) => {
             </div>
             <div>
               <Label>Immeuble</Label>
-              <Select value={form.building_id ?? ""} onValueChange={(v) => set("building_id", v || null)}>
+              <Select value={form.building_id ?? "__none__"} onValueChange={(v) => set("building_id", v === "__none__" ? null : v)}>
                 <SelectTrigger><SelectValue placeholder="Aucun" /></SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="__none__">Aucun</SelectItem>
                   {(buildings ?? []).map((b) => (
                     <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+            <div>
+              <Label>Latitude</Label>
+              <Input type="number" step="any" value={form.latitude ?? ""} onChange={(e) => set("latitude", e.target.value ? Number(e.target.value) : undefined)} placeholder="ex: 9.5370" />
+            </div>
+            <div>
+              <Label>Longitude</Label>
+              <Input type="number" step="any" value={form.longitude ?? ""} onChange={(e) => set("longitude", e.target.value ? Number(e.target.value) : undefined)} placeholder="ex: -13.6785" />
             </div>
             <div className="col-span-2">
               <Label>Description</Label>
@@ -201,10 +232,20 @@ const PropertyFormDialog = ({ open, onOpenChange, propertyId }: Props) => {
               <Label>Mis en avant</Label>
             </div>
           </div>
+
+          {/* Image upload — only shown when property exists */}
+          {activePropertyId && (
+            <div className="border-t border-border pt-4">
+              <PropertyImageUpload propertyId={activePropertyId} />
+            </div>
+          )}
+
           <div className="flex justify-end gap-2 pt-2">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Annuler</Button>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              {activePropertyId && !propertyId ? "Terminer" : "Annuler"}
+            </Button>
             <Button type="submit" disabled={createMut.isPending || updateMut.isPending}>
-              {propertyId ? "Mettre à jour" : "Créer"}
+              {propertyId || createdId ? "Mettre à jour" : "Créer"}
             </Button>
           </div>
         </form>
