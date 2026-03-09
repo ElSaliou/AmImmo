@@ -13,8 +13,8 @@ const ContactPage = () => (
     <div className="grid grid-cols-1 lg:grid-cols-5 gap-10">
       <div className="lg:col-span-2 space-y-6">
         {[
-          { icon: MapPin, title: "Adresse", value: "123 Avenue Mohammed V, Casablanca" },
-          { icon: Phone, title: "Téléphone", value: "+212 600 000 000" },
+          { icon: MapPin, title: "Adresse", value: "Quartier Almamya, Kaloum, Conakry" },
+          { icon: Phone, title: "Téléphone", value: "+224 621 000 000" },
           { icon: Mail, title: "Email", value: "contact@immoplate.com" },
           { icon: Clock, title: "Horaires", value: "Lun-Ven : 9h-18h | Sam : 9h-13h" },
         ].map((info) => (

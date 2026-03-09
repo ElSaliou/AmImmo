@@ -23,7 +23,7 @@ const sections = [
     description: "Configuration du site vitrine.",
     fields: [
       { label: "URL du site", placeholder: "https://immoplate.com", value: "" },
-      { label: "Devise par défaut", placeholder: "MAD", value: "MAD" },
+      { label: "Devise par défaut", placeholder: "GNF", value: "GNF" },
     ],
   },
   {

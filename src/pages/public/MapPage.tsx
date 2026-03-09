@@ -47,7 +47,7 @@ const MapPage = () => {
   useEffect(() => {
     if (!mapRef.current || leafletMap.current) return;
     leafletMap.current = L.map(mapRef.current, {
-      center: [33.57, -7.59], // Casablanca default
+      center: [9.5370, -13.6785], // Conakry default
       zoom: 12,
       zoomControl: true,
     });
