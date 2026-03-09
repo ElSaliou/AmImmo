@@ -85,10 +85,33 @@ const SortableImage = ({
       >
         <X className="h-3 w-3" />
       </Button>
+      {/* 360° toggle */}
+      <Button
+        type="button"
+        size="icon"
+        className={`absolute bottom-1.5 right-1.5 h-6 w-6 transition-opacity ${
+          (image as any).is_panorama
+            ? "bg-info text-info-foreground opacity-100"
+            : "bg-foreground/50 text-background opacity-0 group-hover:opacity-100"
+        }`}
+        onClick={(e) => {
+          e.stopPropagation();
+          onTogglePanorama(image.id, !!(image as any).is_panorama);
+        }}
+        title={(image as any).is_panorama ? "Retirer le mode 360°" : "Marquer comme image 360°"}
+      >
+        <Globe className="h-3 w-3" />
+      </Button>
       {/* Cover indicator */}
       {index === 0 && (
         <div className="absolute bottom-1.5 left-1.5 bg-primary/90 backdrop-blur-sm text-primary-foreground text-[10px] font-semibold px-2 py-0.5 rounded">
           Couverture
+        </div>
+      )}
+      {/* 360 badge */}
+      {(image as any).is_panorama && (
+        <div className="absolute top-1.5 right-8 bg-info/90 backdrop-blur-sm text-info-foreground text-[10px] font-semibold px-1.5 py-0.5 rounded">
+          360°
         </div>
       )}
     </div>
