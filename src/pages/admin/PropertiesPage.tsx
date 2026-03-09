@@ -10,6 +10,8 @@ import { useState, useMemo } from "react";
 import PropertyFormDialog from "@/components/admin/PropertyFormDialog";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
+import TableSkeleton from "@/components/admin/TableSkeleton";
+import EmptyState from "@/components/admin/EmptyState";
 
 const statusConfig: Record<string, { label: string; className: string }> = {
   draft: { label: "Brouillon", className: "bg-muted text-muted-foreground" },
@@ -32,15 +34,15 @@ const PropertiesPage = () => {
   const [formOpen, setFormOpen] = useState(false);
   const [editId, setEditId] = useState<string | undefined>();
   const [search, setSearch] = useState("");
-  const [filterType, setFilterType] = useState<string>("");
-  const [filterStatus, setFilterStatus] = useState<string>("");
+  const [filterType, setFilterType] = useState<string>("__all__");
+  const [filterStatus, setFilterStatus] = useState<string>("__all__");
 
   const filtered = useMemo(() => {
     if (!properties) return [];
     return properties.filter((p) => {
       if (search && !p.title.toLowerCase().includes(search.toLowerCase()) && !p.city.toLowerCase().includes(search.toLowerCase())) return false;
-      if (filterType && p.listing_type !== filterType) return false;
-      if (filterStatus && p.status !== filterStatus) return false;
+      if (filterType !== "__all__" && p.listing_type !== filterType) return false;
+      if (filterStatus !== "__all__" && p.status !== filterStatus) return false;
       return true;
     });
   }, [properties, search, filterType, filterStatus]);
@@ -60,17 +62,12 @@ const PropertiesPage = () => {
         <div className="flex flex-col md:flex-row gap-3">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Rechercher par titre ou ville..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="pl-9 h-10"
-            />
+            <Input placeholder="Rechercher par titre ou ville..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 h-10" />
           </div>
           <Select value={filterType} onValueChange={setFilterType}>
             <SelectTrigger className="md:w-48 h-10"><SelectValue placeholder="Type d'offre" /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="">Tous les types</SelectItem>
+              <SelectItem value="__all__">Tous les types</SelectItem>
               <SelectItem value="short_rental">Courte durée</SelectItem>
               <SelectItem value="long_rental">Longue durée</SelectItem>
               <SelectItem value="sale">Vente</SelectItem>
@@ -79,7 +76,7 @@ const PropertiesPage = () => {
           <Select value={filterStatus} onValueChange={setFilterStatus}>
             <SelectTrigger className="md:w-40 h-10"><SelectValue placeholder="Statut" /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="">Tous</SelectItem>
+              <SelectItem value="__all__">Tous</SelectItem>
               <SelectItem value="draft">Brouillon</SelectItem>
               <SelectItem value="published">Publié</SelectItem>
               <SelectItem value="archived">Archivé</SelectItem>
@@ -89,9 +86,9 @@ const PropertiesPage = () => {
       </motion.div>
 
       {isLoading ? (
-        <div className="space-y-3">
-          {Array.from({length: 5}).map((_, i) => <div key={i} className="h-16 bg-card rounded-xl animate-pulse" />)}
-        </div>
+        <TableSkeleton rows={5} columns={6} />
+      ) : filtered.length === 0 ? (
+        <EmptyState icon={Home} title="Aucun bien trouvé" description={search || filterType !== "__all__" || filterStatus !== "__all__" ? "Essayez de modifier vos filtres." : "Ajoutez votre premier bien immobilier."} />
       ) : (
         <div className="premium-card overflow-hidden">
           <Table>
@@ -142,15 +139,8 @@ const PropertiesPage = () => {
                   <TableCell className="text-right">
                     <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                       <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8"
-                        onClick={() => {
-                          togglePublish.mutate(
-                            { id: p.id, published: !p.published },
-                            { onSuccess: () => toast.success(p.published ? "Bien dépublié" : "Bien publié") }
-                          );
-                        }}
+                        variant="ghost" size="icon" className="h-8 w-8"
+                        onClick={() => togglePublish.mutate({ id: p.id, published: !p.published }, { onSuccess: () => toast.success(p.published ? "Bien dépublié" : "Bien publié") })}
                         title={p.published ? "Dépublier" : "Publier"}
                       >
                         {p.published ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4 text-success" />}
@@ -158,26 +148,13 @@ const PropertiesPage = () => {
                       <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setEditId(p.id); setFormOpen(true); }}>
                         <Pencil className="h-4 w-4" />
                       </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8"
-                        onClick={() => deleteProp.mutate(p.id, { onSuccess: () => toast.success("Bien supprimé") })}
-                      >
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => deleteProp.mutate(p.id, { onSuccess: () => toast.success("Bien supprimé") })}>
                         <Trash2 className="h-4 w-4 text-destructive" />
                       </Button>
                     </div>
                   </TableCell>
                 </motion.tr>
               ))}
-              {filtered.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={7} className="text-center py-12">
-                    <Home className="h-10 w-10 text-muted-foreground/20 mx-auto mb-3" />
-                    <p className="text-muted-foreground text-sm">Aucun bien trouvé</p>
-                  </TableCell>
-                </TableRow>
-              )}
             </TableBody>
           </Table>
         </div>
