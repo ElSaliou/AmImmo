@@ -124,6 +124,7 @@ const PropertyImageUpload = ({ propertyId }: Props) => {
   const uploadMut = useUploadPropertyImage();
   const deleteMut = useDeletePropertyImage();
   const reorderMut = useReorderPropertyImages();
+  const togglePanoramaMut = useTogglePanorama();
   const [isDragging, setIsDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
   // Local order for optimistic reorder
