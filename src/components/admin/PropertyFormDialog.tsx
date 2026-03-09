@@ -6,6 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useCreateProperty, useUpdateProperty, useProperty } from "@/hooks/use-properties";
 import { useOwners } from "@/hooks/use-owners";
 import { useBuildings } from "@/hooks/use-buildings";
@@ -13,7 +14,8 @@ import { toast } from "sonner";
 import { useEffect, useState } from "react";
 import type { PropertyInsert } from "@/types/real-estate";
 import PropertyImageUpload from "./PropertyImageUpload";
-import { Home, MapPin, Ruler, Users, Settings2, Plus, Loader2, Tag } from "lucide-react";
+import PropertyVideoUpload from "./PropertyVideoUpload";
+import { Home, MapPin, Ruler, Users, Settings2, Plus, Loader2, Tag, ImageIcon, Video, Globe, Lock } from "lucide-react";
 
 interface Props {
   open: boolean;
