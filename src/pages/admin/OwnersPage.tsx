@@ -3,13 +3,14 @@ import { useOwners, useCreateOwner, useDeleteOwner } from "@/hooks/use-owners";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Trash2, Users, Mail, Phone, Building2, Loader2, FileText } from "lucide-react";
-import { useState } from "react";
+import { Plus, Trash2, Users, Mail, Phone, Building2, Loader2, FileText, Search } from "lucide-react";
+import { useState, useMemo } from "react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
+import { motion } from "framer-motion";
 import TableSkeleton from "@/components/admin/TableSkeleton";
 import EmptyState from "@/components/admin/EmptyState";
 
