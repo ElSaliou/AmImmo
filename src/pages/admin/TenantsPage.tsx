@@ -22,6 +22,19 @@ const TenantsPage = () => {
   const deleteTenant = useDeleteTenant();
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState(initialForm);
+  const [search, setSearch] = useState("");
+
+  const filtered = useMemo(() => {
+    if (!tenants) return [];
+    if (!search) return tenants;
+    const q = search.toLowerCase();
+    return tenants.filter((t) =>
+      t.full_name.toLowerCase().includes(q) ||
+      (t.email && t.email.toLowerCase().includes(q)) ||
+      (t.phone && t.phone.includes(q)) ||
+      (t.id_number && t.id_number.toLowerCase().includes(q))
+    );
+  }, [tenants, search]);
 
   const set = (key: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
     setForm((f) => ({ ...f, [key]: e.target.value }));
