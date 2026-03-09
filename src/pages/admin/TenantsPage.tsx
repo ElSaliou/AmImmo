@@ -57,10 +57,18 @@ const TenantsPage = () => {
       subtitle="Gestion des locataires"
       actions={<Button onClick={() => setOpen(true)}><Plus className="h-4 w-4" /> Ajouter</Button>}
     >
+      {/* Search */}
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="premium-card p-4 mb-6">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input placeholder="Rechercher par nom, email, téléphone ou N° identité..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 h-10" />
+        </div>
+      </motion.div>
+
       {isLoading ? (
         <TableSkeleton rows={4} columns={4} />
-      ) : (tenants ?? []).length === 0 ? (
-        <EmptyState icon={UserCheck} title="Aucun locataire" description="Ajoutez votre premier locataire." />
+      ) : filtered.length === 0 ? (
+        <EmptyState icon={UserCheck} title="Aucun locataire trouvé" description={search ? "Essayez de modifier votre recherche." : "Ajoutez votre premier locataire."} />
       ) : (
         <div className="premium-card overflow-hidden">
           <Table>
@@ -74,8 +82,8 @@ const TenantsPage = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {tenants!.map((t) => (
-                <TableRow key={t.id} className="group hover:bg-muted/30 transition-colors">
+              {filtered.map((t, i) => (
+                <motion.tr key={t.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.02 }} className="group hover:bg-muted/30 transition-colors">
                   <TableCell className="font-medium">{t.full_name}</TableCell>
                   <TableCell className="text-sm text-muted-foreground">{t.email ?? "—"}</TableCell>
                   <TableCell className="text-sm">{t.phone ?? "—"}</TableCell>
@@ -86,7 +94,7 @@ const TenantsPage = () => {
                       <Trash2 className="h-4 w-4 text-destructive" />
                     </Button>
                   </TableCell>
-                </TableRow>
+                </motion.tr>
               ))}
             </TableBody>
           </Table>
