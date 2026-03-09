@@ -47,6 +47,8 @@ const PropertyDetailPage = () => {
   }
 
   const images = listing.images ?? [];
+  const panoramas = images.filter((img: any) => img.is_panorama);
+  const regularImages = images.filter((img: any) => !img.is_panorama);
   const similarFiltered = (similar ?? []).filter(s => s.property_id !== listing.property_id).slice(0, 3);
 
   return (
