@@ -3,13 +3,14 @@ import { useOwners, useCreateOwner, useDeleteOwner } from "@/hooks/use-owners";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Trash2, Users, Mail, Phone, Building2, Loader2, FileText } from "lucide-react";
-import { useState } from "react";
+import { Plus, Trash2, Users, Mail, Phone, Building2, Loader2, FileText, Search } from "lucide-react";
+import { useState, useMemo } from "react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
+import { motion } from "framer-motion";
 import TableSkeleton from "@/components/admin/TableSkeleton";
 import EmptyState from "@/components/admin/EmptyState";
 
@@ -21,6 +22,19 @@ const OwnersPage = () => {
   const deleteOwner = useDeleteOwner();
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState(initialForm);
+  const [search, setSearch] = useState("");
+
+  const filtered = useMemo(() => {
+    if (!owners) return [];
+    if (!search) return owners;
+    const q = search.toLowerCase();
+    return owners.filter((o) =>
+      o.full_name.toLowerCase().includes(q) ||
+      (o.email && o.email.toLowerCase().includes(q)) ||
+      (o.phone && o.phone.includes(q)) ||
+      (o.company && o.company.toLowerCase().includes(q))
+    );
+  }, [owners, search]);
 
   const set = (key: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
     setForm((f) => ({ ...f, [key]: e.target.value }));
@@ -43,10 +57,18 @@ const OwnersPage = () => {
       subtitle="Gestion des propriétaires"
       actions={<Button onClick={() => setOpen(true)}><Plus className="h-4 w-4" /> Ajouter</Button>}
     >
+      {/* Search */}
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="premium-card p-4 mb-6">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input placeholder="Rechercher par nom, email, téléphone ou société..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 h-10" />
+        </div>
+      </motion.div>
+
       {isLoading ? (
         <TableSkeleton rows={4} columns={4} />
-      ) : (owners ?? []).length === 0 ? (
-        <EmptyState icon={Users} title="Aucun propriétaire" description="Ajoutez votre premier propriétaire." />
+      ) : filtered.length === 0 ? (
+        <EmptyState icon={Users} title="Aucun propriétaire trouvé" description={search ? "Essayez de modifier votre recherche." : "Ajoutez votre premier propriétaire."} />
       ) : (
         <div className="premium-card overflow-hidden">
           <Table>
@@ -60,8 +82,8 @@ const OwnersPage = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {owners!.map((o) => (
-                <TableRow key={o.id} className="group hover:bg-muted/30 transition-colors">
+              {filtered.map((o, i) => (
+                <motion.tr key={o.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.02 }} className="group hover:bg-muted/30 transition-colors">
                   <TableCell className="font-medium">{o.full_name}</TableCell>
                   <TableCell className="text-sm text-muted-foreground">{o.email ?? "—"}</TableCell>
                   <TableCell className="text-sm">{o.phone ?? "—"}</TableCell>
@@ -72,7 +94,7 @@ const OwnersPage = () => {
                       <Trash2 className="h-4 w-4 text-destructive" />
                     </Button>
                   </TableCell>
-                </TableRow>
+                </motion.tr>
               ))}
             </TableBody>
           </Table>
