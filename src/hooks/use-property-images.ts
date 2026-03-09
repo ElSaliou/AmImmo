@@ -68,3 +68,18 @@ export const useReorderPropertyImages = () => {
     onSuccess: (data) => qc.invalidateQueries({ queryKey: [KEY, data.propertyId] }),
   });
 };
+
+export const useTogglePanorama = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, propertyId, is_panorama }: { id: string; propertyId: string; is_panorama: boolean }) => {
+      const { error } = await supabase
+        .from("property_images")
+        .update({ is_panorama } as any)
+        .eq("id", id);
+      if (error) throw error;
+      return { propertyId };
+    },
+    onSuccess: (data) => qc.invalidateQueries({ queryKey: [KEY, data.propertyId] }),
+  });
+};
