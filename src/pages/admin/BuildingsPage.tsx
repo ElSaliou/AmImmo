@@ -16,7 +16,7 @@ const BuildingsPage = () => {
   const createBuilding = useCreateBuilding();
   const deleteBuilding = useDeleteBuilding();
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ name: "", address: "", city: "", zip_code: "", country: "Maroc", total_units: 0 });
+  const [form, setForm] = useState({ name: "", address: "", city: "", zip_code: "", country: "Guinée", total_units: 0 });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

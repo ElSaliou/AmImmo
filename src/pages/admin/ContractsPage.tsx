@@ -81,7 +81,7 @@ const ContractsPage = () => {
                     <TableCell className="text-sm">{(l as any).tenant?.full_name ?? "—"}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">{new Date(l.start_date).toLocaleDateString("fr-FR")}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">{l.end_date ? new Date(l.end_date).toLocaleDateString("fr-FR") : "—"}</TableCell>
-                    <TableCell className="font-semibold text-sm">{Number(l.monthly_rent).toLocaleString()} MAD</TableCell>
+                    <TableCell className="font-semibold text-sm">{Number(l.monthly_rent).toLocaleString()} GNF</TableCell>
                     <TableCell><Badge className={`${cfg.className} text-xs border-0`}>{cfg.label}</Badge></TableCell>
                     <TableCell className="text-right">
                       <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => deleteLease.mutate(l.id, { onSuccess: () => toast.success("Supprimé") })}>
