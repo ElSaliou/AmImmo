@@ -277,6 +277,12 @@ const PropertyImageUpload = ({ propertyId }: Props) => {
                   image={img}
                   index={idx}
                   onDelete={handleDelete}
+                  onTogglePanorama={(id, current) => {
+                    togglePanoramaMut.mutate(
+                      { id, propertyId, is_panorama: !current },
+                      { onSuccess: () => toast.success(!current ? "Mode 360° désactivé" : "Image marquée comme 360°") }
+                    );
+                  }}
                   deleting={deleteMut.isPending}
                 />
               ))}
