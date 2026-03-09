@@ -6,6 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useCreateProperty, useUpdateProperty, useProperty } from "@/hooks/use-properties";
 import { useOwners } from "@/hooks/use-owners";
 import { useBuildings } from "@/hooks/use-buildings";
@@ -13,7 +14,8 @@ import { toast } from "sonner";
 import { useEffect, useState } from "react";
 import type { PropertyInsert } from "@/types/real-estate";
 import PropertyImageUpload from "./PropertyImageUpload";
-import { Home, MapPin, Ruler, Users, Settings2, Plus, Loader2, Tag } from "lucide-react";
+import PropertyVideoUpload from "./PropertyVideoUpload";
+import { Home, MapPin, Ruler, Users, Settings2, Plus, Loader2, Tag, ImageIcon, Video, Globe, Lock } from "lucide-react";
 
 interface Props {
   open: boolean;
@@ -295,16 +297,47 @@ const PropertyFormDialog = ({ open, onOpenChange, propertyId }: Props) => {
             </div>
           </div>
 
-          {/* Image upload */}
-          {activePropertyId && (
-            <>
-              <Separator />
-              <div className="space-y-3">
-                <SectionHeader icon={Home} label="Photos & médias" />
-                <PropertyImageUpload propertyId={activePropertyId} />
+          <Separator />
+
+          {/* Media section — always visible */}
+          <div className="space-y-3">
+            <SectionHeader icon={ImageIcon} label="Médias (Photos, Vidéos, 360°)" />
+
+            {activePropertyId ? (
+              <Tabs defaultValue="photos" className="w-full">
+                <TabsList className="grid w-full grid-cols-3">
+                  <TabsTrigger value="photos" className="gap-1.5 text-xs">
+                    <ImageIcon className="h-3.5 w-3.5" /> Photos
+                  </TabsTrigger>
+                  <TabsTrigger value="videos" className="gap-1.5 text-xs">
+                    <Video className="h-3.5 w-3.5" /> Vidéos
+                  </TabsTrigger>
+                  <TabsTrigger value="tour360" className="gap-1.5 text-xs">
+                    <Globe className="h-3.5 w-3.5" /> Visite 360°
+                  </TabsTrigger>
+                </TabsList>
+                <TabsContent value="photos" className="mt-3">
+                  <PropertyImageUpload propertyId={activePropertyId} />
+                </TabsContent>
+                <TabsContent value="videos" className="mt-3">
+                  <PropertyVideoUpload propertyId={activePropertyId} videoType="standard" />
+                </TabsContent>
+                <TabsContent value="tour360" className="mt-3">
+                  <PropertyVideoUpload propertyId={activePropertyId} videoType="tour_360" />
+                </TabsContent>
+              </Tabs>
+            ) : (
+              <div className="rounded-xl border-2 border-dashed border-border p-6 text-center">
+                <Lock className="h-8 w-8 text-muted-foreground/30 mx-auto mb-2" />
+                <p className="text-sm font-medium text-muted-foreground">
+                  Enregistrez le bien d'abord
+                </p>
+                <p className="text-xs text-muted-foreground/60 mt-1">
+                  Cliquez sur « Créer » pour débloquer l'ajout de photos, vidéos et visites 360°
+                </p>
               </div>
-            </>
-          )}
+            )}
+          </div>
 
           <Separator />
 
