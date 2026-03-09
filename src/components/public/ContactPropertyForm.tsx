@@ -14,7 +14,7 @@ interface Props {
 }
 
 const ContactPropertyForm = ({ propertyId, propertyTitle }: Props) => {
-  const createLead = useCreateLead();
+  const createLead = useCreateLeadPublic();
   const [form, setForm] = useState({ full_name: "", email: "", phone: "", message: "" });
 
   const handleSubmit = async (e: React.FormEvent) => {
