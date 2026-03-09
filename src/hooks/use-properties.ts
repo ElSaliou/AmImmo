@@ -8,7 +8,7 @@ export const useProperties = (filters?: { listing_type?: ListingType; status?: P
   useQuery({
     queryKey: [PROPERTIES_KEY, filters],
     queryFn: async () => {
-      let q = supabase.from("properties").select("*, owner:owners(full_name), building:buildings(name)").order("created_at", { ascending: false });
+      let q = supabase.from("properties").select("*, owner:owners(full_name), building:buildings(name), images:property_images(url, position)").order("created_at", { ascending: false });
       if (filters?.listing_type) q = q.eq("listing_type", filters.listing_type);
       if (filters?.status) q = q.eq("status", filters.status);
       const { data, error } = await q;

@@ -114,9 +114,16 @@ const PropertiesPage = () => {
                 >
                   <TableCell>
                     <div className="flex items-center gap-3">
-                      <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center shrink-0">
-                        <Home className="h-4 w-4 text-muted-foreground/40" />
-                      </div>
+                      {(() => {
+                        const cover = p.images?.sort((a: any, b: any) => a.position - b.position)?.[0];
+                        return cover ? (
+                          <img src={cover.url} alt={p.title} className="h-10 w-10 rounded-lg object-cover shrink-0" />
+                        ) : (
+                          <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center shrink-0">
+                            <Home className="h-4 w-4 text-muted-foreground/40" />
+                          </div>
+                        );
+                      })()}
                       <div>
                         <p className="font-medium text-sm">{p.title}</p>
                         <p className="text-xs text-muted-foreground">{Number(p.surface)} m² · {p.rooms} pcs</p>
