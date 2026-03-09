@@ -4,7 +4,7 @@ import type { PropertyInsert, PropertyUpdate, ListingType, PropertyStatus } from
 
 const PROPERTIES_KEY = "properties";
 
-export const useProperties = (filters?: { listing_type?: ListingType; status?: string }) =>
+export const useProperties = (filters?: { listing_type?: ListingType; status?: PropertyStatus }) =>
   useQuery({
     queryKey: [PROPERTIES_KEY, filters],
     queryFn: async () => {
