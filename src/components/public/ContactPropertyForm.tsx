@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { useCreateLead } from "@/hooks/use-leads";
+import { useCreateLeadPublic } from "@/hooks/use-leads";
 import { toast } from "sonner";
 import { Send, Phone, Mail, User } from "lucide-react";
 import { motion } from "framer-motion";
@@ -14,7 +14,7 @@ interface Props {
 }
 
 const ContactPropertyForm = ({ propertyId, propertyTitle }: Props) => {
-  const createLead = useCreateLead();
+  const createLead = useCreateLeadPublic();
   const [form, setForm] = useState({ full_name: "", email: "", phone: "", message: "" });
 
   const handleSubmit = async (e: React.FormEvent) => {

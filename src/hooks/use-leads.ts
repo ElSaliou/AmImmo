@@ -17,6 +17,16 @@ export const useLeads = () =>
     },
   });
 
+/** Public-facing lead creation — no .select() since anon has no SELECT permission */
+export const useCreateLeadPublic = () =>
+  useMutation({
+    mutationFn: async (input: LeadInsert) => {
+      const { error } = await supabase.from("leads").insert(input);
+      if (error) throw error;
+    },
+  });
+
+/** Staff lead creation with returned data */
 export const useCreateLead = () => {
   const qc = useQueryClient();
   return useMutation({
