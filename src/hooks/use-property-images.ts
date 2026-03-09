@@ -52,3 +52,19 @@ export const useDeletePropertyImage = () => {
     onSuccess: (data) => qc.invalidateQueries({ queryKey: [KEY, data.propertyId] }),
   });
 };
+
+export const useReorderPropertyImages = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ propertyId, orderedIds }: { propertyId: string; orderedIds: string[] }) => {
+      // Update each image's position in parallel
+      await Promise.all(
+        orderedIds.map((id, index) =>
+          supabase.from("property_images").update({ position: index }).eq("id", id)
+        )
+      );
+      return { propertyId };
+    },
+    onSuccess: (data) => qc.invalidateQueries({ queryKey: [KEY, data.propertyId] }),
+  });
+};

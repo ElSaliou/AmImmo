@@ -1,42 +1,155 @@
 import { useCallback, useState } from "react";
-import { usePropertyImages, useUploadPropertyImage, useDeletePropertyImage } from "@/hooks/use-property-images";
+import { usePropertyImages, useUploadPropertyImage, useDeletePropertyImage, useReorderPropertyImages } from "@/hooks/use-property-images";
 import { ImagePlus, X, GripVertical, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  rectSortingStrategy,
+  useSortable,
+  arrayMove,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import type { PropertyImage } from "@/types/real-estate";
 
 interface Props {
   propertyId: string;
 }
 
+/* ── Sortable image tile ── */
+const SortableImage = ({
+  image,
+  index,
+  onDelete,
+  deleting,
+}: {
+  image: PropertyImage;
+  index: number;
+  onDelete: (id: string) => void;
+  deleting: boolean;
+}) => {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
+    useSortable({ id: image.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    zIndex: isDragging ? 50 : undefined,
+    opacity: isDragging ? 0.7 : 1,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`group relative aspect-square rounded-lg overflow-hidden border bg-muted
+        ${isDragging ? "ring-2 ring-primary shadow-lg scale-105" : "border-border"}`}
+    >
+      <img
+        src={image.url}
+        alt={image.alt ?? `Photo ${index + 1}`}
+        className="w-full h-full object-cover"
+      />
+      {/* Drag handle */}
+      <button
+        type="button"
+        className="absolute top-1.5 left-1.5 flex items-center gap-0.5 bg-foreground/70 backdrop-blur-sm text-background text-[10px] font-semibold px-1.5 py-0.5 rounded cursor-grab active:cursor-grabbing"
+        {...attributes}
+        {...listeners}
+      >
+        <GripVertical className="h-3 w-3" />
+        {index + 1}
+      </button>
+      {/* Delete */}
+      <Button
+        type="button"
+        variant="destructive"
+        size="icon"
+        className="absolute top-1.5 right-1.5 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+        onClick={(e) => {
+          e.stopPropagation();
+          onDelete(image.id);
+        }}
+        disabled={deleting}
+      >
+        <X className="h-3 w-3" />
+      </Button>
+      {/* Cover indicator */}
+      {index === 0 && (
+        <div className="absolute bottom-1.5 left-1.5 bg-primary/90 backdrop-blur-sm text-primary-foreground text-[10px] font-semibold px-2 py-0.5 rounded">
+          Couverture
+        </div>
+      )}
+    </div>
+  );
+};
+
+/* ── Main component ── */
 const PropertyImageUpload = ({ propertyId }: Props) => {
   const { data: images, isLoading } = usePropertyImages(propertyId);
   const uploadMut = useUploadPropertyImage();
   const deleteMut = useDeletePropertyImage();
+  const reorderMut = useReorderPropertyImages();
   const [isDragging, setIsDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
+  // Local order for optimistic reorder
+  const [localOrder, setLocalOrder] = useState<PropertyImage[] | null>(null);
 
+  const displayImages = localOrder ?? images ?? [];
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
+  );
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id || !images) return;
+
+    const oldIndex = displayImages.findIndex((i) => i.id === active.id);
+    const newIndex = displayImages.findIndex((i) => i.id === over.id);
+    const reordered = arrayMove(displayImages, oldIndex, newIndex);
+
+    // Optimistic update
+    setLocalOrder(reordered);
+
+    reorderMut.mutate(
+      { propertyId, orderedIds: reordered.map((i) => i.id) },
+      {
+        onSuccess: () => setLocalOrder(null),
+        onError: () => {
+          setLocalOrder(null);
+          toast.error("Erreur lors du réordonnancement");
+        },
+      }
+    );
+  };
+
+  // Reset local order when images change from server
   const handleFiles = useCallback(
     async (files: FileList | File[]) => {
-      const fileArray = Array.from(files).filter((f) =>
-        f.type.startsWith("image/")
-      );
+      const fileArray = Array.from(files).filter((f) => f.type.startsWith("image/"));
       if (fileArray.length === 0) {
         toast.error("Seules les images sont acceptées");
         return;
       }
       setUploading(true);
-      const nextPosition = (images?.length ?? 0);
+      const nextPosition = displayImages.length;
       try {
         await Promise.all(
           fileArray.map((file, i) =>
-            uploadMut.mutateAsync({
-              propertyId,
-              file,
-              position: nextPosition + i,
-            })
+            uploadMut.mutateAsync({ propertyId, file, position: nextPosition + i })
           )
         );
+        setLocalOrder(null);
         toast.success(
           `${fileArray.length} image${fileArray.length > 1 ? "s" : ""} ajoutée${fileArray.length > 1 ? "s" : ""}`
         );
@@ -46,7 +159,7 @@ const PropertyImageUpload = ({ propertyId }: Props) => {
         setUploading(false);
       }
     },
-    [propertyId, images, uploadMut]
+    [propertyId, displayImages, uploadMut]
   );
 
   const onDrop = useCallback(
@@ -74,6 +187,7 @@ const PropertyImageUpload = ({ propertyId }: Props) => {
   );
 
   const handleDelete = (imageId: string) => {
+    setLocalOrder(null);
     deleteMut.mutate(
       { id: imageId, propertyId },
       { onSuccess: () => toast.success("Image supprimée") }
@@ -90,10 +204,7 @@ const PropertyImageUpload = ({ propertyId }: Props) => {
         onDragOver={onDragOver}
         onDragLeave={onDragLeave}
         className={`relative border-2 border-dashed rounded-xl p-6 text-center transition-all cursor-pointer
-          ${isDragging
-            ? "border-primary bg-primary/5 scale-[1.01]"
-            : "border-border hover:border-primary/50 hover:bg-muted/30"
-          }`}
+          ${isDragging ? "border-primary bg-primary/5 scale-[1.01]" : "border-border hover:border-primary/50 hover:bg-muted/30"}`}
         onClick={() => document.getElementById("img-upload-input")?.click()}
       >
         {uploading ? (
@@ -109,7 +220,7 @@ const PropertyImageUpload = ({ propertyId }: Props) => {
               <span className="text-primary underline underline-offset-2">parcourir</span>
             </p>
             <p className="text-xs text-muted-foreground/60">
-              JPG, PNG, WebP — max 5 MB par image
+              JPG, PNG, WebP — max 5 MB · Glissez les vignettes pour réordonner
             </p>
           </div>
         )}
@@ -123,60 +234,29 @@ const PropertyImageUpload = ({ propertyId }: Props) => {
         />
       </div>
 
-      {/* Image grid */}
+      {/* Image grid with DnD sorting */}
       {isLoading ? (
         <div className="grid grid-cols-4 gap-3">
           {[0, 1, 2].map((i) => (
             <div key={i} className="aspect-square bg-muted rounded-lg animate-pulse" />
           ))}
         </div>
-      ) : (images?.length ?? 0) > 0 ? (
-        <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
-          <AnimatePresence mode="popLayout">
-            {images!.map((img, idx) => (
-              <motion.div
-                key={img.id}
-                layout
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.8 }}
-                transition={{ duration: 0.2 }}
-                className="group relative aspect-square rounded-lg overflow-hidden border border-border bg-muted"
-              >
-                <img
-                  src={img.url}
-                  alt={img.alt ?? `Photo ${idx + 1}`}
-                  className="w-full h-full object-cover"
+      ) : displayImages.length > 0 ? (
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <SortableContext items={displayImages.map((i) => i.id)} strategy={rectSortingStrategy}>
+            <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
+              {displayImages.map((img, idx) => (
+                <SortableImage
+                  key={img.id}
+                  image={img}
+                  index={idx}
+                  onDelete={handleDelete}
+                  deleting={deleteMut.isPending}
                 />
-                {/* Position badge */}
-                <div className="absolute top-1.5 left-1.5 flex items-center gap-0.5 bg-foreground/70 backdrop-blur-sm text-background text-[10px] font-semibold px-1.5 py-0.5 rounded">
-                  <GripVertical className="h-3 w-3" />
-                  {idx + 1}
-                </div>
-                {/* Delete button */}
-                <Button
-                  type="button"
-                  variant="destructive"
-                  size="icon"
-                  className="absolute top-1.5 right-1.5 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleDelete(img.id);
-                  }}
-                  disabled={deleteMut.isPending}
-                >
-                  <X className="h-3 w-3" />
-                </Button>
-                {/* Cover indicator */}
-                {idx === 0 && (
-                  <div className="absolute bottom-1.5 left-1.5 bg-primary/90 backdrop-blur-sm text-primary-foreground text-[10px] font-semibold px-2 py-0.5 rounded">
-                    Couverture
-                  </div>
-                )}
-              </motion.div>
-            ))}
-          </AnimatePresence>
-        </div>
+              ))}
+            </div>
+          </SortableContext>
+        </DndContext>
       ) : null}
     </div>
   );
