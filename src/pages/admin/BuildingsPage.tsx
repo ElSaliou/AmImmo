@@ -24,7 +24,7 @@ const BuildingsPage = () => {
       await createBuilding.mutateAsync(form);
       toast.success("Immeuble créé");
       setOpen(false);
-      setForm({ name: "", address: "", city: "", zip_code: "", country: "Maroc", total_units: 0 });
+      setForm({ name: "", address: "", city: "", zip_code: "", country: "Guinée", total_units: 0 });
     } catch (err: any) {
       toast.error(err.message);
     }
