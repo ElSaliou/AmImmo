@@ -29,7 +29,7 @@ const DashboardPage = () => {
   const { data: leases } = useLeases();
   const { data: buildings } = useBuildings();
   const { data: owners } = useOwners();
-  const { data: maintenance } = useMaintenance();
+  const { data: maintenance } = useMaintenanceRequests();
 
   // ── Computed KPIs ──
   const totalProperties = (properties ?? []).length;
