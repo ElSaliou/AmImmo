@@ -9,6 +9,8 @@ import { useState, useMemo } from "react";
 import { Search, MessageSquare } from "lucide-react";
 import { motion } from "framer-motion";
 import type { LeadStatus } from "@/types/real-estate";
+import TableSkeleton from "@/components/admin/TableSkeleton";
+import EmptyState from "@/components/admin/EmptyState";
 
 const statusOptions: { value: LeadStatus; label: string }[] = [
   { value: "new", label: "Nouveau" },
@@ -30,13 +32,13 @@ const LeadsPage = () => {
   const { data: leads, isLoading } = useLeads();
   const updateLead = useUpdateLead();
   const [search, setSearch] = useState("");
-  const [filterStatus, setFilterStatus] = useState("");
+  const [filterStatus, setFilterStatus] = useState("__all__");
 
   const filtered = useMemo(() => {
     if (!leads) return [];
     return leads.filter((l) => {
       if (search && !l.full_name.toLowerCase().includes(search.toLowerCase()) && !l.email.toLowerCase().includes(search.toLowerCase())) return false;
-      if (filterStatus && l.status !== filterStatus) return false;
+      if (filterStatus !== "__all__" && l.status !== filterStatus) return false;
       return true;
     });
   }, [leads, search, filterStatus]);
@@ -53,7 +55,7 @@ const LeadsPage = () => {
           <Select value={filterStatus} onValueChange={setFilterStatus}>
             <SelectTrigger className="md:w-44 h-10"><SelectValue placeholder="Tous les statuts" /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="">Tous</SelectItem>
+              <SelectItem value="__all__">Tous</SelectItem>
               {statusOptions.map((s) => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
             </SelectContent>
           </Select>
@@ -61,7 +63,9 @@ const LeadsPage = () => {
       </div>
 
       {isLoading ? (
-        <div className="space-y-3">{Array.from({length: 5}).map((_, i) => <div key={i} className="h-16 bg-card rounded-xl animate-pulse" />)}</div>
+        <TableSkeleton rows={5} columns={5} />
+      ) : filtered.length === 0 ? (
+        <EmptyState icon={MessageSquare} title="Aucun lead trouvé" description={search || filterStatus !== "__all__" ? "Modifiez vos filtres." : "Les demandes du site public apparaîtront ici."} />
       ) : (
         <div className="premium-card overflow-hidden">
           <Table>
@@ -98,7 +102,7 @@ const LeadsPage = () => {
                     <Select value={l.status} onValueChange={(v) => updateLead.mutate({ id: l.id, status: v as LeadStatus }, { onSuccess: () => toast.success("Statut mis à jour") })}>
                       <SelectTrigger className="w-32 h-8 text-xs">
                         <div className="flex items-center gap-1.5">
-                          <div className={`h-2 w-2 rounded-full ${statusColor[l.status]?.replace("bg-", "bg-").split(" ")[0]}`} />
+                          <div className={`h-2 w-2 rounded-full ${statusColor[l.status]?.split(" ")[0] ?? "bg-muted"}`} />
                           <SelectValue />
                         </div>
                       </SelectTrigger>
@@ -112,14 +116,6 @@ const LeadsPage = () => {
                   <TableCell className="text-xs text-muted-foreground">{new Date(l.created_at).toLocaleDateString("fr-FR")}</TableCell>
                 </motion.tr>
               ))}
-              {filtered.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={6} className="text-center py-12">
-                    <MessageSquare className="h-10 w-10 text-muted-foreground/20 mx-auto mb-3" />
-                    <p className="text-muted-foreground text-sm">Aucun lead trouvé</p>
-                  </TableCell>
-                </TableRow>
-              )}
             </TableBody>
           </Table>
         </div>

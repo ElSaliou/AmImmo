@@ -7,7 +7,6 @@ interface KPICardProps {
   value: string | number;
   icon: LucideIcon;
   trend?: string;
-  trendUp?: boolean;
   color?: "primary" | "secondary" | "success" | "info" | "warning" | "destructive";
   index?: number;
 }
@@ -21,7 +20,7 @@ const colorMap = {
   destructive: "bg-destructive/10 text-destructive",
 };
 
-const KPICard = ({ label, value, icon: Icon, trend, trendUp, color = "primary", index = 0 }: KPICardProps) => (
+const KPICard = ({ label, value, icon: Icon, trend, color = "primary", index = 0 }: KPICardProps) => (
   <motion.div
     initial={{ opacity: 0, y: 15 }}
     animate={{ opacity: 1, y: 0 }}
@@ -33,10 +32,7 @@ const KPICard = ({ label, value, icon: Icon, trend, trendUp, color = "primary", 
         <Icon className="h-5 w-5" />
       </div>
       {trend && (
-        <span className={cn(
-          "text-xs font-semibold px-2 py-0.5 rounded-full",
-          trendUp ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive"
-        )}>
+        <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
           {trend}
         </span>
       )}

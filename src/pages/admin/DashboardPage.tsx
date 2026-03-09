@@ -1,10 +1,11 @@
+import { Link } from "react-router-dom";
 import PageShell from "@/components/PageShell";
 import KPICard from "@/components/admin/KPICard";
 import { useProperties } from "@/hooks/use-properties";
 import { useLeads } from "@/hooks/use-leads";
 import { useTenants } from "@/hooks/use-tenants";
 import { useLeases } from "@/hooks/use-leases";
-import { Building2, Home, Users, FileText, MessageSquare, TrendingUp, Eye, EyeOff } from "lucide-react";
+import { Home, Users, FileText, MessageSquare, TrendingUp, Eye } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { motion } from "framer-motion";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
@@ -20,7 +21,6 @@ const DashboardPage = () => {
   const activeLeases = (leases ?? []).filter((l) => l.status === "active").length;
   const newLeads = (leads ?? []).filter((l) => l.status === "new").length;
 
-  // Chart data
   const typeDistribution = [
     { name: "Location longue", value: (properties ?? []).filter(p => p.listing_type === "long_rental").length, color: "hsl(220, 72%, 20%)" },
     { name: "Location courte", value: (properties ?? []).filter(p => p.listing_type === "short_rental").length, color: "hsl(210, 92%, 45%)" },
@@ -45,12 +45,20 @@ const DashboardPage = () => {
     lost: "bg-destructive/15 text-destructive",
   };
 
+  const statusLabels: Record<string, string> = {
+    new: "Nouveau",
+    contacted: "Contacté",
+    qualified: "Qualifié",
+    converted: "Converti",
+    lost: "Perdu",
+  };
+
   return (
     <PageShell title="Dashboard" subtitle="Vue d'ensemble de votre activité immobilière">
       {/* KPIs */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <KPICard label="Biens totaux" value={(properties ?? []).length} icon={Home} color="primary" index={0} />
-        <KPICard label="Biens publiés" value={published} icon={Eye} color="success" trend={`${draft} brouillons`} index={1} />
+        <KPICard label="Biens publiés" value={published} icon={Eye} color="success" trend={draft > 0 ? `${draft} brouillons` : undefined} index={1} />
         <KPICard label="Locataires actifs" value={(tenants ?? []).length} icon={Users} color="info" index={2} />
         <KPICard label="Contrats actifs" value={activeLeases} icon={FileText} color="secondary" index={3} />
       </div>
@@ -62,7 +70,6 @@ const DashboardPage = () => {
 
       {/* Charts row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        {/* Pie chart */}
         <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="premium-card p-6">
           <h3 className="font-semibold text-sm mb-4">Répartition par type d'offre</h3>
           {(properties ?? []).length === 0 ? (
@@ -87,7 +94,6 @@ const DashboardPage = () => {
           </div>
         </motion.div>
 
-        {/* Bar chart */}
         <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }} className="premium-card p-6">
           <h3 className="font-semibold text-sm mb-4">Leads par statut</h3>
           {(leads ?? []).length === 0 ? (
@@ -110,7 +116,7 @@ const DashboardPage = () => {
       <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }} className="premium-card p-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-semibold text-sm">Derniers leads</h3>
-          <a href="/admin/leads" className="text-xs text-primary font-medium hover:underline">Voir tout →</a>
+          <Link to="/admin/leads" className="text-xs text-primary font-medium hover:underline">Voir tout →</Link>
         </div>
         {recentLeads.length === 0 ? (
           <p className="text-sm text-muted-foreground py-6 text-center">Aucun lead pour le moment</p>
@@ -119,7 +125,7 @@ const DashboardPage = () => {
             {recentLeads.map((l) => (
               <div key={l.id} className="flex items-center justify-between py-2 border-b border-border/40 last:border-0">
                 <div className="flex items-center gap-3">
-                  <div className="h-9 w-9 rounded-full bg-muted flex items-center justify-center text-xs font-bold text-muted-foreground">
+                  <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary">
                     {l.full_name.charAt(0).toUpperCase()}
                   </div>
                   <div>
@@ -128,7 +134,9 @@ const DashboardPage = () => {
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
-                  <Badge className={`${statusColor[l.status] ?? ""} text-xs border-0`}>{l.status}</Badge>
+                  <Badge className={`${statusColor[l.status] ?? ""} text-xs border-0`}>
+                    {statusLabels[l.status] ?? l.status}
+                  </Badge>
                   <span className="text-xs text-muted-foreground">{new Date(l.created_at).toLocaleDateString("fr-FR")}</span>
                 </div>
               </div>
