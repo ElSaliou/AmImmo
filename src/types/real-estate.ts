@@ -1,119 +1,47 @@
-// ─── Domain Types ───────────────────────────────────────────
+// Re-export domain types from Supabase generated types
+import type { Tables, TablesInsert, TablesUpdate, Enums } from "@/integrations/supabase/types";
 
-export type OfferType = "short_rental" | "long_rental" | "sale";
-export type PropertyStatus = "draft" | "published" | "archived" | "rented" | "sold";
-export type ContractStatus = "active" | "expired" | "terminated" | "pending";
-export type MaintenanceStatus = "open" | "in_progress" | "resolved" | "closed";
-export type LeadStatus = "new" | "contacted" | "qualified" | "converted" | "lost";
+// Row types
+export type Building = Tables<"buildings">;
+export type Unit = Tables<"units">;
+export type Owner = Tables<"owners">;
+export type Tenant = Tables<"tenants">;
+export type Property = Tables<"properties">;
+export type PropertyImage = Tables<"property_images">;
+export type MarketplaceListing = Tables<"marketplace_listings">;
+export type Lease = Tables<"leases">;
+export type Lead = Tables<"leads">;
+export type MaintenanceRequest = Tables<"maintenance_requests">;
+export type Document = Tables<"documents">;
+export type Profile = Tables<"profiles">;
+export type UserRole = Tables<"user_roles">;
 
-export interface Building {
-  id: string;
-  name: string;
-  address: string;
-  city: string;
-  zip_code: string;
-  country: string;
-  total_units: number;
-  created_at: string;
-  updated_at: string;
-}
+// Insert types
+export type BuildingInsert = TablesInsert<"buildings">;
+export type UnitInsert = TablesInsert<"units">;
+export type OwnerInsert = TablesInsert<"owners">;
+export type TenantInsert = TablesInsert<"tenants">;
+export type PropertyInsert = TablesInsert<"properties">;
+export type PropertyImageInsert = TablesInsert<"property_images">;
+export type LeaseInsert = TablesInsert<"leases">;
+export type LeadInsert = TablesInsert<"leads">;
+export type MaintenanceRequestInsert = TablesInsert<"maintenance_requests">;
+export type DocumentInsert = TablesInsert<"documents">;
 
-export interface Unit {
-  id: string;
-  building_id: string;
-  label: string;
-  floor: number;
-  area_sqm: number;
-  rooms: number;
-  bathrooms: number;
-  created_at: string;
-}
+// Update types
+export type BuildingUpdate = TablesUpdate<"buildings">;
+export type PropertyUpdate = TablesUpdate<"properties">;
+export type OwnerUpdate = TablesUpdate<"owners">;
+export type TenantUpdate = TablesUpdate<"tenants">;
+export type LeaseUpdate = TablesUpdate<"leases">;
+export type LeadUpdate = TablesUpdate<"leads">;
 
-export interface Property {
-  id: string;
-  unit_id?: string;
-  title: string;
-  description: string;
-  offer_type: OfferType;
-  status: PropertyStatus;
-  price: number;
-  currency: string;
-  address: string;
-  city: string;
-  zip_code: string;
-  country: string;
-  area_sqm: number;
-  rooms: number;
-  bathrooms: number;
-  images: string[];
-  amenities: string[];
-  is_featured: boolean;
-  published_at?: string;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface Owner {
-  id: string;
-  full_name: string;
-  email: string;
-  phone: string;
-  company?: string;
-  created_at: string;
-}
-
-export interface Tenant {
-  id: string;
-  full_name: string;
-  email: string;
-  phone: string;
-  id_number?: string;
-  created_at: string;
-}
-
-export interface Contract {
-  id: string;
-  property_id: string;
-  tenant_id: string;
-  owner_id: string;
-  start_date: string;
-  end_date?: string;
-  monthly_rent: number;
-  deposit: number;
-  status: ContractStatus;
-  created_at: string;
-}
-
-export interface MaintenanceRequest {
-  id: string;
-  property_id: string;
-  tenant_id?: string;
-  title: string;
-  description: string;
-  priority: "low" | "medium" | "high" | "urgent";
-  status: MaintenanceStatus;
-  created_at: string;
-  resolved_at?: string;
-}
-
-export interface Document {
-  id: string;
-  entity_type: "property" | "contract" | "tenant" | "owner" | "building";
-  entity_id: string;
-  name: string;
-  file_url: string;
-  file_type: string;
-  uploaded_at: string;
-}
-
-export interface Lead {
-  id: string;
-  property_id?: string;
-  full_name: string;
-  email: string;
-  phone?: string;
-  message: string;
-  source: "website" | "manual" | "referral";
-  status: LeadStatus;
-  created_at: string;
-}
+// Enum types
+export type ListingType = Enums<"listing_type">;
+export type PropertyType = Enums<"property_type">;
+export type PropertyStatus = Enums<"property_status">;
+export type LeaseStatus = Enums<"lease_status">;
+export type LeadStatus = Enums<"lead_status">;
+export type MaintenanceStatusEnum = Enums<"maintenance_status">;
+export type MaintenancePriority = Enums<"maintenance_priority">;
+export type AppRole = Enums<"app_role">;
