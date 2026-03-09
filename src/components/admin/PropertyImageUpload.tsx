@@ -30,11 +30,13 @@ const SortableImage = ({
   image,
   index,
   onDelete,
+  onTogglePanorama,
   deleting,
 }: {
   image: PropertyImage;
   index: number;
   onDelete: (id: string) => void;
+  onTogglePanorama: (id: string, current: boolean) => void;
   deleting: boolean;
 }) => {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
