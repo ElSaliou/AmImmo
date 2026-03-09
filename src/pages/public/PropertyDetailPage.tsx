@@ -1,9 +1,10 @@
 import { useParams, Link } from "react-router-dom";
 import { useMarketplaceListing, useMarketplaceListings } from "@/hooks/use-marketplace";
 import { Badge } from "@/components/ui/badge";
-import { MapPin, Ruler, BedDouble, Bath, Home, ChevronLeft, Star, Armchair } from "lucide-react";
+import { MapPin, Ruler, BedDouble, Bath, Home, ChevronLeft, Star, Armchair, Globe } from "lucide-react";
 import ContactPropertyForm from "@/components/public/ContactPropertyForm";
 import ListingCard from "@/components/public/ListingCard";
+import PanoramaViewer from "@/components/public/PanoramaViewer";
 import { motion } from "framer-motion";
 import { useState } from "react";
 
