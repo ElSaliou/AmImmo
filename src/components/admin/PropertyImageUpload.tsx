@@ -1,6 +1,6 @@
 import { useCallback, useState } from "react";
-import { usePropertyImages, useUploadPropertyImage, useDeletePropertyImage, useReorderPropertyImages } from "@/hooks/use-property-images";
-import { ImagePlus, X, GripVertical, Loader2 } from "lucide-react";
+import { usePropertyImages, useUploadPropertyImage, useDeletePropertyImage, useReorderPropertyImages, useTogglePanorama } from "@/hooks/use-property-images";
+import { ImagePlus, X, GripVertical, Loader2, Globe } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
