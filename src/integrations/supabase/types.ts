@@ -502,6 +502,7 @@ export type Database = {
           alt: string | null
           created_at: string
           id: string
+          is_panorama: boolean
           position: number
           property_id: string
           url: string
@@ -510,6 +511,7 @@ export type Database = {
           alt?: string | null
           created_at?: string
           id?: string
+          is_panorama?: boolean
           position?: number
           property_id: string
           url: string
@@ -518,6 +520,7 @@ export type Database = {
           alt?: string | null
           created_at?: string
           id?: string
+          is_panorama?: boolean
           position?: number
           property_id?: string
           url?: string
