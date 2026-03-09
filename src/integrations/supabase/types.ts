@@ -535,6 +535,44 @@ export type Database = {
           },
         ]
       }
+      property_videos: {
+        Row: {
+          created_at: string
+          id: string
+          position: number
+          property_id: string
+          title: string | null
+          url: string
+          video_type: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          position?: number
+          property_id: string
+          title?: string | null
+          url: string
+          video_type?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          position?: number
+          property_id?: string
+          title?: string | null
+          url?: string
+          video_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "property_videos_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tenants: {
         Row: {
           created_at: string
