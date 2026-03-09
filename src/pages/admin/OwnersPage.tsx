@@ -22,6 +22,19 @@ const OwnersPage = () => {
   const deleteOwner = useDeleteOwner();
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState(initialForm);
+  const [search, setSearch] = useState("");
+
+  const filtered = useMemo(() => {
+    if (!owners) return [];
+    if (!search) return owners;
+    const q = search.toLowerCase();
+    return owners.filter((o) =>
+      o.full_name.toLowerCase().includes(q) ||
+      (o.email && o.email.toLowerCase().includes(q)) ||
+      (o.phone && o.phone.includes(q)) ||
+      (o.company && o.company.toLowerCase().includes(q))
+    );
+  }, [owners, search]);
 
   const set = (key: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
     setForm((f) => ({ ...f, [key]: e.target.value }));
