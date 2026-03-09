@@ -1,9 +1,10 @@
 import { useParams, Link } from "react-router-dom";
 import { useMarketplaceListing, useMarketplaceListings } from "@/hooks/use-marketplace";
 import { Badge } from "@/components/ui/badge";
-import { MapPin, Ruler, BedDouble, Bath, Home, ChevronLeft, Star, Armchair } from "lucide-react";
+import { MapPin, Ruler, BedDouble, Bath, Home, ChevronLeft, Star, Armchair, Globe } from "lucide-react";
 import ContactPropertyForm from "@/components/public/ContactPropertyForm";
 import ListingCard from "@/components/public/ListingCard";
+import PanoramaViewer from "@/components/public/PanoramaViewer";
 import { motion } from "framer-motion";
 import { useState } from "react";
 
@@ -46,6 +47,8 @@ const PropertyDetailPage = () => {
   }
 
   const images = listing.images ?? [];
+  const panoramas = images.filter((img: any) => img.is_panorama);
+  const regularImages = images.filter((img: any) => !img.is_panorama);
   const similarFiltered = (similar ?? []).filter(s => s.property_id !== listing.property_id).slice(0, 3);
 
   return (
@@ -65,18 +68,18 @@ const PropertyDetailPage = () => {
           className="lg:col-span-2 space-y-6"
         >
           {/* Gallery */}
-          {images.length > 0 ? (
+          {regularImages.length > 0 ? (
             <div className="space-y-3">
               <div className="aspect-[16/9] rounded-2xl overflow-hidden">
                 <img
-                  src={images[selectedImg]?.url}
+                  src={regularImages[selectedImg]?.url}
                   alt={listing.title}
                   className="w-full h-full object-cover"
                 />
               </div>
-              {images.length > 1 && (
+              {regularImages.length > 1 && (
                 <div className="grid grid-cols-4 gap-2">
-                  {images.slice(0, 4).map((img: any, i: number) => (
+                  {regularImages.slice(0, 4).map((img: any, i: number) => (
                     <button
                       key={img.id}
                       onClick={() => setSelectedImg(i)}
@@ -93,6 +96,21 @@ const PropertyDetailPage = () => {
           ) : (
             <div className="aspect-[16/9] bg-muted rounded-2xl flex items-center justify-center">
               <Home className="h-20 w-20 text-muted-foreground/15" />
+            </div>
+          )}
+
+          {/* 360° Virtual Tour */}
+          {panoramas.length > 0 && (
+            <div className="premium-card p-6 space-y-4">
+              <h3 className="font-display font-semibold text-lg flex items-center gap-2">
+                <Globe className="h-5 w-5 text-info" />
+                Visite virtuelle 360°
+              </h3>
+              {panoramas.map((pano: any) => (
+                <div key={pano.id} className="aspect-[16/9] rounded-xl overflow-hidden">
+                  <PanoramaViewer imageUrl={pano.url} />
+                </div>
+              ))}
             </div>
           )}
 
