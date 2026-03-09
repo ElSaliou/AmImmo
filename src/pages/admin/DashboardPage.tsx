@@ -7,7 +7,7 @@ import { useTenants } from "@/hooks/use-tenants";
 import { useLeases } from "@/hooks/use-leases";
 import { useBuildings } from "@/hooks/use-buildings";
 import { useOwners } from "@/hooks/use-owners";
-import { useMaintenance } from "@/hooks/use-maintenance";
+import { useMaintenanceRequests } from "@/hooks/use-maintenance";
 import {
   Home, Users, FileText, MessageSquare, TrendingUp, Eye,
   Building2, Wallet, Percent, Wrench, UserCheck, ArrowUpRight,
