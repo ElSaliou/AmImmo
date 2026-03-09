@@ -80,6 +80,7 @@ const BuildingsPage = () => {
               <div><Label>Ville</Label><Input value={form.city} onChange={(e) => setForm((f) => ({ ...f, city: e.target.value }))} /></div>
               <div><Label>Code postal</Label><Input value={form.zip_code} onChange={(e) => setForm((f) => ({ ...f, zip_code: e.target.value }))} /></div>
             </div>
+            <div><Label>Pays</Label><Input value={form.country} onChange={(e) => setForm((f) => ({ ...f, country: e.target.value }))} /></div>
             <div><Label>Nombre d'unités</Label><Input type="number" value={form.total_units} onChange={(e) => setForm((f) => ({ ...f, total_units: Number(e.target.value) }))} /></div>
             <div className="flex justify-end gap-2 pt-2"><Button type="button" variant="outline" onClick={() => setOpen(false)}>Annuler</Button><Button type="submit" disabled={createBuilding.isPending}>Créer</Button></div>
           </form>
