@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import type { PropertyInsert, PropertyUpdate, ListingType } from "@/types/real-estate";
+import type { PropertyInsert, PropertyUpdate, ListingType, PropertyStatus } from "@/types/real-estate";
 
 const PROPERTIES_KEY = "properties";
 
