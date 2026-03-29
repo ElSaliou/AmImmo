@@ -34,13 +34,12 @@ export const useMarketplaceListing = (slug: string) =>
         .eq("slug", slug)
         .single();
       if (error) throw error;
-      // Also fetch images from properties via property_id
-      const { data: images } = await supabase
-        .from("property_images")
-        .select("*")
-        .eq("property_id", data.property_id)
-        .order("position");
-      return { ...data, images: images ?? [] };
+      // Fetch images and videos in parallel
+      const [{ data: images }, { data: videos }] = await Promise.all([
+        supabase.from("property_images").select("*").eq("property_id", data.property_id).order("position"),
+        supabase.from("property_videos").select("*").eq("property_id", data.property_id).order("position"),
+      ]);
+      return { ...data, images: images ?? [], videos: videos ?? [] };
     },
     enabled: !!slug,
   });
