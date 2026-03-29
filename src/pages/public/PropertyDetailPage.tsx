@@ -1,12 +1,13 @@
 import { useParams, Link } from "react-router-dom";
 import { useMarketplaceListing, useMarketplaceListings } from "@/hooks/use-marketplace";
 import { Badge } from "@/components/ui/badge";
-import { MapPin, Ruler, BedDouble, Bath, Home, ChevronLeft, Star, Armchair, Globe, Video } from "lucide-react";
+import { MapPin, Ruler, BedDouble, Bath, Home, ChevronLeft, Star, Armchair, Globe, Video, Maximize } from "lucide-react";
 import ContactPropertyForm from "@/components/public/ContactPropertyForm";
 import ListingCard from "@/components/public/ListingCard";
 import PanoramaViewer from "@/components/public/PanoramaViewer";
+import MediaLightbox, { type MediaItem } from "@/components/public/MediaLightbox";
 import { motion } from "framer-motion";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 const typeLabels: Record<string, string> = {
   short_rental: "Courte durée",
@@ -19,6 +20,33 @@ const PropertyDetailPage = () => {
   const { data: listing, isLoading } = useMarketplaceListing(slug ?? "");
   const { data: similar } = useMarketplaceListings({ listing_type: listing?.listing_type, limit: 4 });
   const [selectedImg, setSelectedImg] = useState(0);
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+
+  const images = listing?.images ?? [];
+  const videos = listing?.videos ?? [];
+  const panoramas = images.filter((img: any) => img.is_panorama);
+  const regularImages = images.filter((img: any) => !img.is_panorama);
+  const standardVideos = videos.filter((v: any) => v.video_type === "standard");
+  const tour360Videos = videos.filter((v: any) => v.video_type === "tour_360");
+  const similarFiltered = (similar ?? []).filter(s => s.property_id !== listing?.property_id).slice(0, 3);
+
+  const mediaItems: MediaItem[] = useMemo(() => {
+    const items: MediaItem[] = [];
+    regularImages.forEach((img: any) => items.push({ type: "image", url: img.url, alt: img.alt }));
+    standardVideos.forEach((v: any) => items.push({ type: "video", url: v.url, title: v.title }));
+    panoramas.forEach((p: any) => items.push({ type: "panorama", url: p.url }));
+    tour360Videos.forEach((v: any) => items.push({ type: "video", url: v.url, title: v.title }));
+    return items;
+  }, [regularImages, standardVideos, panoramas, tour360Videos]);
+
+  const openLightbox = (mediaType: string, indexInGroup: number) => {
+    let offset = 0;
+    if (mediaType === "image") offset = 0;
+    else if (mediaType === "video") offset = regularImages.length;
+    else if (mediaType === "panorama") offset = regularImages.length + standardVideos.length;
+    else if (mediaType === "tour360") offset = regularImages.length + standardVideos.length + panoramas.length;
+    setLightboxIndex(offset + indexInGroup);
+  };
 
   if (isLoading) {
     return (
@@ -46,16 +74,18 @@ const PropertyDetailPage = () => {
     );
   }
 
-  const images = listing.images ?? [];
-  const videos = listing.videos ?? [];
-  const panoramas = images.filter((img: any) => img.is_panorama);
-  const regularImages = images.filter((img: any) => !img.is_panorama);
-  const standardVideos = videos.filter((v: any) => v.video_type === "standard");
-  const tour360Videos = videos.filter((v: any) => v.video_type === "tour_360");
-  const similarFiltered = (similar ?? []).filter(s => s.property_id !== listing.property_id).slice(0, 3);
-
   return (
     <div className="container py-8">
+      {/* Lightbox */}
+      {lightboxIndex !== null && mediaItems.length > 0 && (
+        <MediaLightbox
+          items={mediaItems}
+          currentIndex={lightboxIndex}
+          onClose={() => setLightboxIndex(null)}
+          onNavigate={setLightboxIndex}
+        />
+      )}
+
       {/* Breadcrumb */}
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mb-6">
         <Link to="/" className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors">
@@ -73,12 +103,18 @@ const PropertyDetailPage = () => {
           {/* Gallery */}
           {regularImages.length > 0 ? (
             <div className="space-y-3">
-              <div className="aspect-[16/9] rounded-2xl overflow-hidden">
+              <div
+                className="aspect-[16/9] rounded-2xl overflow-hidden relative group cursor-pointer"
+                onClick={() => openLightbox("image", selectedImg)}
+              >
                 <img
                   src={regularImages[selectedImg]?.url}
                   alt={listing.title}
                   className="w-full h-full object-cover"
                 />
+                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
+                  <Maximize className="h-8 w-8 text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow-lg" />
+                </div>
               </div>
               {regularImages.length > 1 && (
                 <div className="grid grid-cols-4 gap-2">
@@ -109,14 +145,16 @@ const PropertyDetailPage = () => {
                 <Video className="h-5 w-5 text-primary" />
                 Vidéos
               </h3>
-              {standardVideos.map((vid: any) => (
-                <div key={vid.id} className="aspect-video rounded-xl overflow-hidden bg-black">
-                  <video
-                    src={vid.url}
-                    controls
-                    className="w-full h-full object-contain"
-                    preload="metadata"
-                  />
+              {standardVideos.map((vid: any, i: number) => (
+                <div
+                  key={vid.id}
+                  className="aspect-video rounded-xl overflow-hidden bg-black relative group cursor-pointer"
+                  onClick={() => openLightbox("video", i)}
+                >
+                  <video src={vid.url} className="w-full h-full object-contain" preload="metadata" />
+                  <div className="absolute inset-0 bg-black/20 group-hover:bg-black/40 transition-colors flex items-center justify-center">
+                    <Maximize className="h-8 w-8 text-white opacity-60 group-hover:opacity-100 transition-opacity drop-shadow-lg" />
+                  </div>
                 </div>
               ))}
             </div>
@@ -129,9 +167,16 @@ const PropertyDetailPage = () => {
                 <Globe className="h-5 w-5 text-info" />
                 Visite virtuelle 360°
               </h3>
-              {panoramas.map((pano: any) => (
-                <div key={pano.id} className="aspect-[16/9] rounded-xl overflow-hidden">
+              {panoramas.map((pano: any, i: number) => (
+                <div key={pano.id} className="aspect-[16/9] rounded-xl overflow-hidden relative">
                   <PanoramaViewer imageUrl={pano.url} />
+                  <button
+                    onClick={() => openLightbox("panorama", i)}
+                    className="absolute top-3 right-3 p-2 rounded-full bg-black/50 hover:bg-black/70 text-white transition-colors z-10"
+                    title="Plein écran"
+                  >
+                    <Maximize className="h-4 w-4" />
+                  </button>
                 </div>
               ))}
             </div>
@@ -144,14 +189,16 @@ const PropertyDetailPage = () => {
                 <Globe className="h-5 w-5 text-secondary" />
                 Visite guidée 360° (vidéo)
               </h3>
-              {tour360Videos.map((vid: any) => (
-                <div key={vid.id} className="aspect-video rounded-xl overflow-hidden bg-black">
-                  <video
-                    src={vid.url}
-                    controls
-                    className="w-full h-full object-contain"
-                    preload="metadata"
-                  />
+              {tour360Videos.map((vid: any, i: number) => (
+                <div
+                  key={vid.id}
+                  className="aspect-video rounded-xl overflow-hidden bg-black relative group cursor-pointer"
+                  onClick={() => openLightbox("tour360", i)}
+                >
+                  <video src={vid.url} className="w-full h-full object-contain" preload="metadata" />
+                  <div className="absolute inset-0 bg-black/20 group-hover:bg-black/40 transition-colors flex items-center justify-center">
+                    <Maximize className="h-8 w-8 text-white opacity-60 group-hover:opacity-100 transition-opacity drop-shadow-lg" />
+                  </div>
                 </div>
               ))}
             </div>
