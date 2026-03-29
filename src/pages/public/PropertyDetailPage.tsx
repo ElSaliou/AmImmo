@@ -1,12 +1,13 @@
 import { useParams, Link } from "react-router-dom";
 import { useMarketplaceListing, useMarketplaceListings } from "@/hooks/use-marketplace";
 import { Badge } from "@/components/ui/badge";
-import { MapPin, Ruler, BedDouble, Bath, Home, ChevronLeft, Star, Armchair, Globe, Video } from "lucide-react";
+import { MapPin, Ruler, BedDouble, Bath, Home, ChevronLeft, Star, Armchair, Globe, Video, Maximize } from "lucide-react";
 import ContactPropertyForm from "@/components/public/ContactPropertyForm";
 import ListingCard from "@/components/public/ListingCard";
 import PanoramaViewer from "@/components/public/PanoramaViewer";
+import MediaLightbox, { type MediaItem } from "@/components/public/MediaLightbox";
 import { motion } from "framer-motion";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 const typeLabels: Record<string, string> = {
   short_rental: "Courte durée",
@@ -19,6 +20,7 @@ const PropertyDetailPage = () => {
   const { data: listing, isLoading } = useMarketplaceListing(slug ?? "");
   const { data: similar } = useMarketplaceListings({ listing_type: listing?.listing_type, limit: 4 });
   const [selectedImg, setSelectedImg] = useState(0);
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
 
   if (isLoading) {
     return (
@@ -53,6 +55,25 @@ const PropertyDetailPage = () => {
   const standardVideos = videos.filter((v: any) => v.video_type === "standard");
   const tour360Videos = videos.filter((v: any) => v.video_type === "tour_360");
   const similarFiltered = (similar ?? []).filter(s => s.property_id !== listing.property_id).slice(0, 3);
+
+  // Build unified media array for lightbox
+  const mediaItems: MediaItem[] = useMemo(() => {
+    const items: MediaItem[] = [];
+    regularImages.forEach((img: any) => items.push({ type: "image", url: img.url, alt: img.alt }));
+    standardVideos.forEach((v: any) => items.push({ type: "video", url: v.url, title: v.title }));
+    panoramas.forEach((p: any) => items.push({ type: "panorama", url: p.url }));
+    tour360Videos.forEach((v: any) => items.push({ type: "video", url: v.url, title: v.title }));
+    return items;
+  }, [regularImages, standardVideos, panoramas, tour360Videos]);
+
+  const openLightbox = (mediaType: string, indexInGroup: number) => {
+    let offset = 0;
+    if (mediaType === "image") offset = 0;
+    else if (mediaType === "video") offset = regularImages.length;
+    else if (mediaType === "panorama") offset = regularImages.length + standardVideos.length;
+    else if (mediaType === "tour360") offset = regularImages.length + standardVideos.length + panoramas.length;
+    setLightboxIndex(offset + indexInGroup);
+  };
 
   return (
     <div className="container py-8">
