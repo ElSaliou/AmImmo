@@ -1,7 +1,7 @@
 import { useParams, Link } from "react-router-dom";
 import { useMarketplaceListing, useMarketplaceListings } from "@/hooks/use-marketplace";
 import { Badge } from "@/components/ui/badge";
-import { MapPin, Ruler, BedDouble, Bath, Home, ChevronLeft, Star, Armchair, Globe } from "lucide-react";
+import { MapPin, Ruler, BedDouble, Bath, Home, ChevronLeft, Star, Armchair, Globe, Video } from "lucide-react";
 import ContactPropertyForm from "@/components/public/ContactPropertyForm";
 import ListingCard from "@/components/public/ListingCard";
 import PanoramaViewer from "@/components/public/PanoramaViewer";
@@ -47,8 +47,11 @@ const PropertyDetailPage = () => {
   }
 
   const images = listing.images ?? [];
+  const videos = listing.videos ?? [];
   const panoramas = images.filter((img: any) => img.is_panorama);
   const regularImages = images.filter((img: any) => !img.is_panorama);
+  const standardVideos = videos.filter((v: any) => v.video_type === "standard");
+  const tour360Videos = videos.filter((v: any) => v.video_type === "tour_360");
   const similarFiltered = (similar ?? []).filter(s => s.property_id !== listing.property_id).slice(0, 3);
 
   return (
@@ -99,7 +102,27 @@ const PropertyDetailPage = () => {
             </div>
           )}
 
-          {/* 360° Virtual Tour */}
+          {/* Standard Videos */}
+          {standardVideos.length > 0 && (
+            <div className="premium-card p-6 space-y-4">
+              <h3 className="font-display font-semibold text-lg flex items-center gap-2">
+                <Video className="h-5 w-5 text-primary" />
+                Vidéos
+              </h3>
+              {standardVideos.map((vid: any) => (
+                <div key={vid.id} className="aspect-video rounded-xl overflow-hidden bg-black">
+                  <video
+                    src={vid.url}
+                    controls
+                    className="w-full h-full object-contain"
+                    preload="metadata"
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* 360° Virtual Tour - Panorama Images */}
           {panoramas.length > 0 && (
             <div className="premium-card p-6 space-y-4">
               <h3 className="font-display font-semibold text-lg flex items-center gap-2">
@@ -109,6 +132,26 @@ const PropertyDetailPage = () => {
               {panoramas.map((pano: any) => (
                 <div key={pano.id} className="aspect-[16/9] rounded-xl overflow-hidden">
                   <PanoramaViewer imageUrl={pano.url} />
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* 360° Tour Videos */}
+          {tour360Videos.length > 0 && (
+            <div className="premium-card p-6 space-y-4">
+              <h3 className="font-display font-semibold text-lg flex items-center gap-2">
+                <Globe className="h-5 w-5 text-secondary" />
+                Visite guidée 360° (vidéo)
+              </h3>
+              {tour360Videos.map((vid: any) => (
+                <div key={vid.id} className="aspect-video rounded-xl overflow-hidden bg-black">
+                  <video
+                    src={vid.url}
+                    controls
+                    className="w-full h-full object-contain"
+                    preload="metadata"
+                  />
                 </div>
               ))}
             </div>
