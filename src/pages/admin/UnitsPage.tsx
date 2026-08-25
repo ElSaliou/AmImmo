@@ -120,7 +120,7 @@ const UnitsPage = () => {
                   <TableCell className="text-sm">
                     <div className="flex items-center gap-1.5">
                       {unitKindLabels[u.kind]}
-                      {u.furnished && <Armchair className="h-3.5 w-3.5 text-secondary" title="Meublé" />}
+                      {u.furnished && <span title="Meublé"><Armchair className="h-3.5 w-3.5 text-secondary" /></span>}
                     </div>
                   </TableCell>
                   <TableCell className="text-sm">{u.rooms} pcs · {u.bedrooms} ch · {u.bathrooms} sdb</TableCell>
