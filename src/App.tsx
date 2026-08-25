@@ -24,6 +24,8 @@ const BuildingsPage = lazy(() => import("@/pages/admin/BuildingsPage"));
 const UnitsPage = lazy(() => import("@/pages/admin/UnitsPage"));
 const PropertiesPage = lazy(() => import("@/pages/admin/PropertiesPage"));
 const OwnersPage = lazy(() => import("@/pages/admin/OwnersPage"));
+const OwnerDetailPage = lazy(() => import("@/pages/admin/OwnerDetailPage"));
+const MandatesPage = lazy(() => import("@/pages/admin/MandatesPage"));
 const TenantsPage = lazy(() => import("@/pages/admin/TenantsPage"));
 const ContractsPage = lazy(() => import("@/pages/admin/ContractsPage"));
 const MaintenancePage = lazy(() => import("@/pages/admin/MaintenancePage"));
@@ -65,6 +67,8 @@ const App = () => (
               <Route path="units" element={<UnitsPage />} />
               <Route path="properties" element={<PropertiesPage />} />
               <Route path="owners" element={<OwnersPage />} />
+              <Route path="owners/:id" element={<OwnerDetailPage />} />
+              <Route path="mandates" element={<MandatesPage />} />
               <Route path="tenants" element={<TenantsPage />} />
               <Route path="contracts" element={<ContractsPage />} />
               <Route path="maintenance" element={<MaintenancePage />} />
