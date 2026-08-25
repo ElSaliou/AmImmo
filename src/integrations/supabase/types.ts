@@ -201,10 +201,17 @@ export type Database = {
         Row: {
           address: string
           city: string
+          commune: string
           country: string
           created_at: string
+          district: string
+          floors: number
           id: string
+          latitude: number | null
+          longitude: number | null
           name: string
+          notes: string
+          owner_id: string | null
           total_units: number
           updated_at: string
           zip_code: string
@@ -212,10 +219,17 @@ export type Database = {
         Insert: {
           address?: string
           city?: string
+          commune?: string
           country?: string
           created_at?: string
+          district?: string
+          floors?: number
           id?: string
+          latitude?: number | null
+          longitude?: number | null
           name: string
+          notes?: string
+          owner_id?: string | null
           total_units?: number
           updated_at?: string
           zip_code?: string
@@ -223,15 +237,30 @@ export type Database = {
         Update: {
           address?: string
           city?: string
+          commune?: string
           country?: string
           created_at?: string
+          district?: string
+          floors?: number
           id?: string
+          latitude?: number | null
+          longitude?: number | null
           name?: string
+          notes?: string
+          owner_id?: string | null
           total_units?: number
           updated_at?: string
           zip_code?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "buildings_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "owners"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       commissions: {
         Row: {
@@ -1123,14 +1152,19 @@ export type Database = {
       marketplace_listings: {
         Row: {
           amenities: string[] | null
+          available_from: string | null
           bathrooms: number
+          bedrooms: number
+          charges: number
           city: string
+          commune: string
           cover_image: string | null
           currency: string
           description: string
           district: string
           expires_at: string | null
           featured: boolean
+          floor: number | null
           furnished: boolean
           id: string
           latitude: number | null
@@ -1147,14 +1181,19 @@ export type Database = {
         }
         Insert: {
           amenities?: string[] | null
+          available_from?: string | null
           bathrooms?: number
+          bedrooms?: number
+          charges?: number
           city?: string
+          commune?: string
           cover_image?: string | null
           currency?: string
           description?: string
           district?: string
           expires_at?: string | null
           featured?: boolean
+          floor?: number | null
           furnished?: boolean
           id?: string
           latitude?: number | null
@@ -1171,14 +1210,19 @@ export type Database = {
         }
         Update: {
           amenities?: string[] | null
+          available_from?: string | null
           bathrooms?: number
+          bedrooms?: number
+          charges?: number
           city?: string
+          commune?: string
           cover_image?: string | null
           currency?: string
           description?: string
           district?: string
           expires_at?: string | null
           featured?: boolean
+          floor?: number | null
           furnished?: boolean
           id?: string
           latitude?: number | null
@@ -1672,14 +1716,19 @@ export type Database = {
         Row: {
           address: string
           amenities: string[] | null
+          available_from: string | null
           bathrooms: number
+          bedrooms: number
           building_id: string | null
+          charges: number
           city: string
+          commune: string
           created_at: string
           currency: string
           description: string
           district: string
           featured: boolean
+          floor: number | null
           furnished: boolean
           id: string
           internal_notes: string
@@ -1703,14 +1752,19 @@ export type Database = {
         Insert: {
           address?: string
           amenities?: string[] | null
+          available_from?: string | null
           bathrooms?: number
+          bedrooms?: number
           building_id?: string | null
+          charges?: number
           city?: string
+          commune?: string
           created_at?: string
           currency?: string
           description?: string
           district?: string
           featured?: boolean
+          floor?: number | null
           furnished?: boolean
           id?: string
           internal_notes?: string
@@ -1734,14 +1788,19 @@ export type Database = {
         Update: {
           address?: string
           amenities?: string[] | null
+          available_from?: string | null
           bathrooms?: number
+          bedrooms?: number
           building_id?: string | null
+          charges?: number
           city?: string
+          commune?: string
           created_at?: string
           currency?: string
           description?: string
           district?: string
           featured?: boolean
+          floor?: number | null
           furnished?: boolean
           id?: string
           internal_notes?: string
@@ -2100,13 +2159,17 @@ export type Database = {
         Row: {
           amenities: string[]
           area_sqm: number
+          available_from: string | null
           bathrooms: number
+          bedrooms: number
           building_id: string
           created_at: string
           floor: number
+          furnished: boolean
           id: string
           kind: Database["public"]["Enums"]["unit_kind"]
           label: string
+          notes: string
           price: number
           rooms: number
           status: Database["public"]["Enums"]["unit_status"]
@@ -2114,13 +2177,17 @@ export type Database = {
         Insert: {
           amenities?: string[]
           area_sqm?: number
+          available_from?: string | null
           bathrooms?: number
+          bedrooms?: number
           building_id: string
           created_at?: string
           floor?: number
+          furnished?: boolean
           id?: string
           kind?: Database["public"]["Enums"]["unit_kind"]
           label: string
+          notes?: string
           price?: number
           rooms?: number
           status?: Database["public"]["Enums"]["unit_status"]
@@ -2128,13 +2195,17 @@ export type Database = {
         Update: {
           amenities?: string[]
           area_sqm?: number
+          available_from?: string | null
           bathrooms?: number
+          bedrooms?: number
           building_id?: string
           created_at?: string
           floor?: number
+          furnished?: boolean
           id?: string
           kind?: Database["public"]["Enums"]["unit_kind"]
           label?: string
+          notes?: string
           price?: number
           rooms?: number
           status?: Database["public"]["Enums"]["unit_status"]
@@ -2350,7 +2421,16 @@ export type Database = {
         | "paid"
         | "overdue"
         | "cancelled"
-      lead_status: "new" | "contacted" | "qualified" | "converted" | "lost"
+      lead_status:
+        | "new"
+        | "contacted"
+        | "qualified"
+        | "converted"
+        | "lost"
+        | "visit_scheduled"
+        | "visit_done"
+        | "application_received"
+        | "negotiation"
       lease_status: "active" | "expired" | "terminated" | "pending"
       listing_type: "short_rental" | "long_rental" | "sale"
       maintenance_priority: "low" | "medium" | "high" | "urgent"
@@ -2386,6 +2466,10 @@ export type Database = {
         | "commercial"
         | "land"
         | "other"
+        | "office"
+        | "shop"
+        | "warehouse"
+        | "parking"
       sale_status:
         | "prospect"
         | "visit"
@@ -2402,6 +2486,10 @@ export type Database = {
         | "shop"
         | "parking"
         | "other"
+        | "warehouse"
+        | "villa"
+        | "house"
+        | "land"
       unit_status:
         | "available"
         | "reserved"
@@ -2597,7 +2685,17 @@ export const Constants = {
         "overdue",
         "cancelled",
       ],
-      lead_status: ["new", "contacted", "qualified", "converted", "lost"],
+      lead_status: [
+        "new",
+        "contacted",
+        "qualified",
+        "converted",
+        "lost",
+        "visit_scheduled",
+        "visit_done",
+        "application_received",
+        "negotiation",
+      ],
       lease_status: ["active", "expired", "terminated", "pending"],
       listing_type: ["short_rental", "long_rental", "sale"],
       maintenance_priority: ["low", "medium", "high", "urgent"],
@@ -2635,6 +2733,10 @@ export const Constants = {
         "commercial",
         "land",
         "other",
+        "office",
+        "shop",
+        "warehouse",
+        "parking",
       ],
       sale_status: [
         "prospect",
@@ -2646,7 +2748,18 @@ export const Constants = {
         "closed",
         "cancelled",
       ],
-      unit_kind: ["apartment", "studio", "office", "shop", "parking", "other"],
+      unit_kind: [
+        "apartment",
+        "studio",
+        "office",
+        "shop",
+        "parking",
+        "other",
+        "warehouse",
+        "villa",
+        "house",
+        "land",
+      ],
       unit_status: [
         "available",
         "reserved",

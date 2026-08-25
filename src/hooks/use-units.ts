@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import type { UnitInsert } from "@/types/real-estate";
+import type { UnitInsert, UnitUpdate } from "@/types/real-estate";
 
 const KEY = "units";
 
@@ -8,7 +8,7 @@ export const useUnits = (buildingId?: string) =>
   useQuery({
     queryKey: [KEY, buildingId],
     queryFn: async () => {
-      let q = supabase.from("units").select("*, building:buildings(name)").order("label");
+      let q = supabase.from("units").select("*, building:buildings(id, name, commune)").order("label");
       if (buildingId) q = q.eq("building_id", buildingId);
       const { data, error } = await q;
       if (error) throw error;
@@ -21,6 +21,18 @@ export const useCreateUnit = () => {
   return useMutation({
     mutationFn: async (input: UnitInsert) => {
       const { data, error } = await supabase.from("units").insert(input).select().single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: [KEY] }),
+  });
+};
+
+export const useUpdateUnit = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, ...updates }: UnitUpdate & { id: string }) => {
+      const { data, error } = await supabase.from("units").update(updates).eq("id", id).select().single();
       if (error) throw error;
       return data;
     },

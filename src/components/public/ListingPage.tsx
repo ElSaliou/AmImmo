@@ -1,9 +1,9 @@
 import { useState, useMemo } from "react";
 import { useMarketplaceListings } from "@/hooks/use-marketplace";
 import ListingCard from "@/components/public/ListingCard";
-import ListingFilters from "@/components/public/ListingFilters";
+import ListingFilters, { emptyFilters, type FilterState } from "@/components/public/ListingFilters";
 import ListingListItem from "@/components/public/ListingListItem";
-import type { MarketplaceListing, ListingType } from "@/types/real-estate";
+import type { ListingType } from "@/types/real-estate";
 import { Building2 } from "lucide-react";
 import { motion } from "framer-motion";
 
@@ -16,16 +16,29 @@ interface Props {
 const ListingPage = ({ listingType, title, subtitle }: Props) => {
   const { data: listings, isLoading } = useMarketplaceListings({ listing_type: listingType });
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
-  const [filters, setFilters] = useState({ search: "", city: "", minPrice: "", maxPrice: "", rooms: "", propertyType: "" });
+  const [filters, setFilters] = useState<FilterState>(emptyFilters);
 
   const filtered = useMemo(() => {
     if (!listings) return [];
     return listings.filter((l) => {
-      if (filters.search && !l.title.toLowerCase().includes(filters.search.toLowerCase()) && !l.city.toLowerCase().includes(filters.search.toLowerCase())) return false;
+      const q = filters.search.toLowerCase();
+      if (
+        q &&
+        !l.title.toLowerCase().includes(q) &&
+        !l.city.toLowerCase().includes(q) &&
+        !(l.district ?? "").toLowerCase().includes(q) &&
+        !(l.commune ?? "").toLowerCase().includes(q)
+      )
+        return false;
       if (filters.city && !l.city.toLowerCase().includes(filters.city.toLowerCase())) return false;
+      if (filters.commune && l.commune !== filters.commune) return false;
+      if (filters.propertyType && l.property_type !== filters.propertyType) return false;
+      if (filters.furnished === "yes" && !l.furnished) return false;
+      if (filters.furnished === "no" && l.furnished) return false;
       if (filters.minPrice && Number(l.price) < Number(filters.minPrice)) return false;
       if (filters.maxPrice && Number(l.price) > Number(filters.maxPrice)) return false;
       if (filters.rooms && l.rooms < Number(filters.rooms)) return false;
+      if (filters.bedrooms && (l.bedrooms ?? 0) < Number(filters.bedrooms)) return false;
       return true;
     });
   }, [listings, filters]);
