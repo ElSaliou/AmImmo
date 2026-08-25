@@ -1,24 +1,28 @@
 import { useParams, Link } from "react-router-dom";
-import { useMarketplaceListing, useMarketplaceListings } from "@/hooks/use-marketplace";
+import { useMarketplaceListing, useSimilarListings } from "@/hooks/use-marketplace";
 import { Badge } from "@/components/ui/badge";
-import { MapPin, Ruler, BedDouble, Bath, Home, ChevronLeft, Star, Armchair, Globe, Video, Maximize } from "lucide-react";
+import { MapPin, Ruler, BedDouble, Bath, Home, ChevronLeft, Star, Armchair, Globe, Video, Maximize, CalendarClock, Building2, Layers } from "lucide-react";
 import ContactPropertyForm from "@/components/public/ContactPropertyForm";
 import ListingCard from "@/components/public/ListingCard";
 import PanoramaViewer from "@/components/public/PanoramaViewer";
 import MediaLightbox, { type MediaItem } from "@/components/public/MediaLightbox";
+import FavoriteButton from "@/components/public/FavoriteButton";
+import ShareActions from "@/components/public/ShareActions";
+import { formatDate, formatMoney, listingTypeLabels, propertyTypeLabels } from "@/constants/real-estate";
 import { motion } from "framer-motion";
 import { useMemo, useState } from "react";
-
-const typeLabels: Record<string, string> = {
-  short_rental: "Courte durée",
-  long_rental: "Longue durée",
-  sale: "Vente",
-};
 
 const PropertyDetailPage = () => {
   const { id: slug } = useParams<{ id: string }>();
   const { data: listing, isLoading } = useMarketplaceListing(slug ?? "");
-  const { data: similar } = useMarketplaceListings({ listing_type: listing?.listing_type, limit: 4 });
+  const { data: similar } = useSimilarListings({
+    propertyId: listing?.property_id,
+    listingType: listing?.listing_type,
+    propertyType: listing?.property_type,
+    commune: listing?.commune ?? undefined,
+    city: listing?.city,
+    limit: 3,
+  });
   const [selectedImg, setSelectedImg] = useState(0);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
 
@@ -28,7 +32,8 @@ const PropertyDetailPage = () => {
   const regularImages = images.filter((img: any) => !img.is_panorama);
   const standardVideos = videos.filter((v: any) => v.video_type === "standard");
   const tour360Videos = videos.filter((v: any) => v.video_type === "tour_360");
-  const similarFiltered = (similar ?? []).filter(s => s.property_id !== listing?.property_id).slice(0, 3);
+  const similarFiltered = similar ?? [];
+
 
   const mediaItems: MediaItem[] = useMemo(() => {
     const items: MediaItem[] = [];
