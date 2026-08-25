@@ -1,98 +1,113 @@
 import PageShell from "@/components/PageShell";
-import { useOwners, useCreateOwner, useDeleteOwner } from "@/hooks/use-owners";
+import { useOwners, useDeleteOwner } from "@/hooks/use-owners";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Trash2, Users, Mail, Phone, Building2, Loader2, FileText, Search } from "lucide-react";
+import { Plus, Trash2, Users, Search, Pencil, Eye } from "lucide-react";
 import { useState, useMemo } from "react";
+import { Link } from "react-router-dom";
 import { toast } from "sonner";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
-import { Textarea } from "@/components/ui/textarea";
 import { motion } from "framer-motion";
 import TableSkeleton from "@/components/admin/TableSkeleton";
 import EmptyState from "@/components/admin/EmptyState";
-
-const initialForm = { full_name: "", email: "", phone: "", company: "", notes: "" };
+import OwnerFormDialog from "@/components/admin/OwnerFormDialog";
 
 const OwnersPage = () => {
   const { data: owners, isLoading } = useOwners();
-  const createOwner = useCreateOwner();
   const deleteOwner = useDeleteOwner();
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState(initialForm);
+  const [editId, setEditId] = useState<string | undefined>();
   const [search, setSearch] = useState("");
+  const [kind, setKind] = useState("all");
 
   const filtered = useMemo(() => {
-    if (!owners) return [];
-    if (!search) return owners;
-    const q = search.toLowerCase();
-    return owners.filter((o) =>
-      o.full_name.toLowerCase().includes(q) ||
-      (o.email && o.email.toLowerCase().includes(q)) ||
-      (o.phone && o.phone.includes(q)) ||
-      (o.company && o.company.toLowerCase().includes(q))
-    );
-  }, [owners, search]);
-
-  const set = (key: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
-    setForm((f) => ({ ...f, [key]: e.target.value }));
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      await createOwner.mutateAsync(form);
-      toast.success("Propriétaire créé avec succès");
-      setOpen(false);
-      setForm(initialForm);
-    } catch (err: any) {
-      toast.error(err.message);
-    }
-  };
+    return (owners ?? []).filter((o) => {
+      const q = search.toLowerCase();
+      const matches =
+        !q ||
+        o.full_name.toLowerCase().includes(q) ||
+        (o.email ?? "").toLowerCase().includes(q) ||
+        (o.phone ?? "").includes(q) ||
+        (o.company ?? "").toLowerCase().includes(q) ||
+        (o.city ?? "").toLowerCase().includes(q);
+      return matches && (kind === "all" || o.kind === kind);
+    });
+  }, [owners, search, kind]);
 
   return (
     <PageShell
       title="Propriétaires"
-      subtitle="Gestion des propriétaires"
-      actions={<Button onClick={() => setOpen(true)}><Plus className="h-4 w-4" /> Ajouter</Button>}
+      subtitle="Particuliers et entreprises confiant leurs biens à l'agence"
+      actions={
+        <Button onClick={() => { setEditId(undefined); setOpen(true); }}>
+          <Plus className="h-4 w-4" /> Ajouter
+        </Button>
+      }
     >
-      {/* Search */}
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="premium-card p-4 mb-6">
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="premium-card p-4 mb-6 grid gap-3 sm:grid-cols-[1fr_200px]">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Rechercher par nom, email, téléphone ou société..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 h-10" />
+          <Input placeholder="Rechercher par nom, email, téléphone, société ou ville..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 h-10" />
         </div>
+        <Select value={kind} onValueChange={setKind}>
+          <SelectTrigger className="h-10"><SelectValue placeholder="Type" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Tous les types</SelectItem>
+            <SelectItem value="individual">Particuliers</SelectItem>
+            <SelectItem value="company">Entreprises</SelectItem>
+          </SelectContent>
+        </Select>
       </motion.div>
 
       {isLoading ? (
-        <TableSkeleton rows={4} columns={4} />
+        <TableSkeleton rows={4} columns={5} />
       ) : filtered.length === 0 ? (
-        <EmptyState icon={Users} title="Aucun propriétaire trouvé" description={search ? "Essayez de modifier votre recherche." : "Ajoutez votre premier propriétaire."} />
+        <EmptyState icon={Users} title="Aucun propriétaire trouvé" description={search || kind !== "all" ? "Essayez de modifier votre recherche." : "Ajoutez votre premier propriétaire."} />
       ) : (
         <div className="premium-card overflow-hidden">
           <Table>
             <TableHeader>
               <TableRow className="bg-muted/50">
                 <TableHead className="font-semibold">Nom</TableHead>
+                <TableHead className="font-semibold">Type</TableHead>
                 <TableHead className="font-semibold">Email</TableHead>
                 <TableHead className="font-semibold">Téléphone</TableHead>
-                <TableHead className="font-semibold">Société</TableHead>
+                <TableHead className="font-semibold">Ville</TableHead>
                 <TableHead className="text-right font-semibold">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filtered.map((o, i) => (
                 <motion.tr key={o.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.02 }} className="group hover:bg-muted/30 transition-colors">
-                  <TableCell className="font-medium">{o.full_name}</TableCell>
+                  <TableCell className="font-medium">
+                    <Link to={`/admin/owners/${o.id}`} className="hover:text-primary transition-colors">
+                      {o.full_name}
+                    </Link>
+                    {o.company && <span className="block text-xs text-muted-foreground">{o.company}</span>}
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant={o.kind === "company" ? "secondary" : "outline"}>
+                      {o.kind === "company" ? "Entreprise" : "Particulier"}
+                    </Badge>
+                  </TableCell>
                   <TableCell className="text-sm text-muted-foreground">{o.email ?? "—"}</TableCell>
                   <TableCell className="text-sm">{o.phone ?? "—"}</TableCell>
-                  <TableCell className="text-sm">{o.company ?? "—"}</TableCell>
+                  <TableCell className="text-sm">{o.city || "—"}</TableCell>
                   <TableCell className="text-right">
-                    <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
-                      onClick={() => deleteOwner.mutate(o.id, { onSuccess: () => toast.success("Supprimé") })}>
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
+                    <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
+                        <Link to={`/admin/owners/${o.id}`}><Eye className="h-4 w-4" /></Link>
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setEditId(o.id); setOpen(true); }}>
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-8 w-8"
+                        onClick={() => deleteOwner.mutate(o.id, { onSuccess: () => toast.success("Supprimé"), onError: (e: any) => toast.error(e.message) })}>
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </div>
                   </TableCell>
                 </motion.tr>
               ))}
@@ -101,92 +116,7 @@ const OwnersPage = () => {
         </div>
       )}
 
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 shrink-0">
-                <Users className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <DialogTitle className="font-display text-lg">Nouveau propriétaire</DialogTitle>
-                <DialogDescription className="text-xs">
-                  Renseignez les coordonnées du propriétaire
-                </DialogDescription>
-              </div>
-            </div>
-          </DialogHeader>
-
-          <form onSubmit={handleSubmit} className="space-y-5 pt-2">
-
-            {/* Identité */}
-            <div className="space-y-3">
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                <Users className="h-3.5 w-3.5" /> Identité
-              </p>
-              <div className="space-y-1.5">
-                <Label htmlFor="o-name">Nom complet <span className="text-destructive">*</span></Label>
-                <Input id="o-name" placeholder="Jean-Pierre Diallo" value={form.full_name} onChange={set("full_name")} required />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="o-company" className="flex items-center gap-1.5">
-                  <Building2 className="h-3.5 w-3.5 text-muted-foreground" /> Société / Entreprise
-                </Label>
-                <Input id="o-company" placeholder="Ex: Diallo Immobilier SARL" value={form.company} onChange={set("company")} />
-              </div>
-            </div>
-
-            <Separator />
-
-            {/* Contact */}
-            <div className="space-y-3">
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                <Mail className="h-3.5 w-3.5" /> Contact
-              </p>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label htmlFor="o-email" className="flex items-center gap-1.5">
-                    <Mail className="h-3.5 w-3.5 text-muted-foreground" /> Email
-                  </Label>
-                  <Input id="o-email" type="email" placeholder="jean@exemple.com" value={form.email} onChange={set("email")} />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="o-phone" className="flex items-center gap-1.5">
-                    <Phone className="h-3.5 w-3.5 text-muted-foreground" /> Téléphone
-                  </Label>
-                  <Input id="o-phone" placeholder="+224 6XX XX XX XX" value={form.phone} onChange={set("phone")} />
-                </div>
-              </div>
-            </div>
-
-            <Separator />
-
-            {/* Notes */}
-            <div className="space-y-3">
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                <FileText className="h-3.5 w-3.5" /> Notes internes
-              </p>
-              <div className="space-y-1.5">
-                <Label htmlFor="o-notes">Notes</Label>
-                <Textarea id="o-notes" rows={2} placeholder="Informations complémentaires sur le propriétaire…" value={form.notes} onChange={set("notes")} />
-              </div>
-            </div>
-
-            <Separator />
-
-            <div className="flex justify-end gap-3 pt-1">
-              <Button type="button" variant="outline" onClick={() => setOpen(false)}>Annuler</Button>
-              <Button type="submit" disabled={createOwner.isPending} className="min-w-[100px]">
-                {createOwner.isPending ? (
-                  <><Loader2 className="h-4 w-4 animate-spin" /> Création…</>
-                ) : (
-                  <><Plus className="h-4 w-4" /> Créer</>
-                )}
-              </Button>
-            </div>
-          </form>
-        </DialogContent>
-      </Dialog>
+      <OwnerFormDialog open={open} onOpenChange={setOpen} ownerId={editId} />
     </PageShell>
   );
 };
