@@ -1,124 +1,365 @@
-import PageShell from "@/components/PageShell";
-import { useBuildings, useDeleteBuilding } from "@/hooks/use-buildings";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Trash2, Building2, Search, Pencil, MapPin } from "lucide-react";
 import { useMemo, useState } from "react";
+import { motion } from "framer-motion";
+import {
+  Building2,
+  MapPin,
+  Pencil,
+  Plus,
+  Search,
+  Trash2,
+} from "lucide-react";
 import { toast } from "sonner";
+
+import PageShell from "@/components/PageShell";
 import TableSkeleton from "@/components/admin/TableSkeleton";
 import EmptyState from "@/components/admin/EmptyState";
 import BuildingFormDialog from "@/components/admin/BuildingFormDialog";
+
+import {
+  useBuildings,
+  useDeleteBuilding,
+} from "@/hooks/use-buildings";
+
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+
 import { conakryCommunes } from "@/constants/real-estate";
 import type { Building } from "@/types/real-estate";
-import { motion } from "framer-motion";
 
 const BuildingsPage = () => {
-  const { data: buildings, isLoading } = useBuildings();
+  const {
+    data: buildings = [],
+    isLoading,
+    isError,
+    error,
+    refetch,
+  } = useBuildings();
+
   const deleteBuilding = useDeleteBuilding();
+
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Building | null>(null);
   const [search, setSearch] = useState("");
   const [commune, setCommune] = useState("__all__");
 
   const filtered = useMemo(() => {
-    if (!buildings) return [];
-    return buildings.filter((b) => {
-      const q = search.toLowerCase();
-      if (q && !b.name.toLowerCase().includes(q) && !b.city.toLowerCase().includes(q) && !b.district.toLowerCase().includes(q)) return false;
-      if (commune !== "__all__" && b.commune !== commune) return false;
+    const normalizedSearch = search.trim().toLowerCase();
+
+    return buildings.filter((building) => {
+      const name = String(building.name ?? "").toLowerCase();
+      const city = String(building.city ?? "").toLowerCase();
+      const district = String(building.district ?? "").toLowerCase();
+      const buildingCommune = String(
+        building.commune ?? "",
+      ).toLowerCase();
+
+      if (
+        normalizedSearch &&
+        !name.includes(normalizedSearch) &&
+        !city.includes(normalizedSearch) &&
+        !district.includes(normalizedSearch) &&
+        !buildingCommune.includes(normalizedSearch)
+      ) {
+        return false;
+      }
+
+      if (
+        commune !== "__all__" &&
+        building.commune !== commune
+      ) {
+        return false;
+      }
+
       return true;
     });
   }, [buildings, search, commune]);
 
-  const totalUnits = filtered.reduce((s, b) => s + (b.total_units ?? 0), 0);
+  const totalUnits = useMemo(() => {
+    return filtered.reduce(
+      (total, building) =>
+        total + Number(building.total_units ?? 0),
+      0,
+    );
+  }, [filtered]);
+
+  const handleCreate = () => {
+    setEditing(null);
+    setOpen(true);
+  };
+
+  const handleEdit = (building: Building) => {
+    setEditing(building);
+    setOpen(true);
+  };
+
+  const handleDelete = (building: Building) => {
+    const confirmed = window.confirm(
+      `Voulez-vous vraiment supprimer l'immeuble "${building.name}" ?`,
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    deleteBuilding.mutate(building.id, {
+      onSuccess: () => {
+        toast.success("Immeuble supprimé");
+      },
+      onError: (deleteError) => {
+        toast.error(
+          deleteError instanceof Error
+            ? deleteError.message
+            : "Impossible de supprimer l'immeuble.",
+        );
+      },
+    });
+  };
 
   return (
     <PageShell
       title="Immeubles"
       subtitle="Gestion du patrimoine bâti"
       actions={
-        <Button onClick={() => { setEditing(null); setOpen(true); }} variant="premium">
-          <Plus className="h-4 w-4" /> Ajouter
+        <Button onClick={handleCreate} variant="premium">
+          <Plus className="h-4 w-4" />
+          Ajouter
         </Button>
       }
     >
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="premium-card p-4 mb-6">
-        <div className="flex flex-col md:flex-row gap-3">
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="premium-card mb-6 p-4"
+      >
+        <div className="flex flex-col gap-3 md:flex-row">
           <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input placeholder="Rechercher par nom, ville ou quartier..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 h-10" />
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+
+            <Input
+              placeholder="Rechercher par nom, ville, commune ou quartier..."
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              className="h-10 pl-9"
+            />
           </div>
-          <Select value={commune} onValueChange={setCommune}>
-            <SelectTrigger className="md:w-48 h-10"><SelectValue placeholder="Commune" /></SelectTrigger>
+
+          <Select
+            value={commune}
+            onValueChange={setCommune}
+          >
+            <SelectTrigger className="h-10 md:w-48">
+              <SelectValue placeholder="Commune" />
+            </SelectTrigger>
+
             <SelectContent>
-              <SelectItem value="__all__">Toutes les communes</SelectItem>
-              {conakryCommunes.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+              <SelectItem value="__all__">
+                Toutes les communes
+              </SelectItem>
+
+              {conakryCommunes.map((item) => (
+                <SelectItem key={item} value={item}>
+                  {item}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
-        {filtered.length > 0 && (
-          <p className="text-xs text-muted-foreground mt-3">
-            {filtered.length} immeuble{filtered.length > 1 ? "s" : ""} · {totalUnits} unité{totalUnits > 1 ? "s" : ""} déclarée{totalUnits > 1 ? "s" : ""}
-          </p>
-        )}
+
+        {!isLoading &&
+          !isError &&
+          filtered.length > 0 && (
+            <p className="mt-3 text-xs text-muted-foreground">
+              {filtered.length} immeuble
+              {filtered.length > 1 ? "s" : ""}
+              {" · "}
+              {totalUnits} unité
+              {totalUnits > 1 ? "s" : ""} déclarée
+              {totalUnits > 1 ? "s" : ""}
+            </p>
+          )}
       </motion.div>
 
       {isLoading ? (
-        <TableSkeleton rows={4} columns={6} />
+        <TableSkeleton rows={4} columns={7} />
+      ) : isError ? (
+        <div className="premium-card p-8">
+          <div className="mx-auto flex max-w-xl flex-col items-center text-center">
+            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-destructive/10">
+              <Building2 className="h-6 w-6 text-destructive" />
+            </div>
+
+            <h3 className="text-lg font-semibold">
+              Impossible de charger les immeubles
+            </h3>
+
+            <p className="mt-2 text-sm text-muted-foreground">
+              {error instanceof Error
+                ? error.message
+                : "Une erreur inconnue est survenue lors de la lecture de Supabase."}
+            </p>
+
+            <Button
+              variant="outline"
+              className="mt-5"
+              onClick={() => refetch()}
+            >
+              Réessayer
+            </Button>
+          </div>
+        </div>
       ) : filtered.length === 0 ? (
         <EmptyState
           icon={Building2}
-          title="Aucun immeuble"
-          description={search || commune !== "__all__" ? "Modifiez vos filtres." : "Ajoutez votre premier immeuble pour commencer."}
+          title={
+            buildings.length === 0
+              ? "Aucun immeuble"
+              : "Aucun résultat"
+          }
+          description={
+            search || commune !== "__all__"
+              ? "Aucun immeuble ne correspond à vos critères. Modifiez vos filtres."
+              : "Ajoutez votre premier immeuble pour commencer."
+          }
         />
       ) : (
         <div className="premium-card overflow-hidden">
           <Table>
             <TableHeader>
               <TableRow className="bg-muted/50">
-                <TableHead className="font-semibold">Nom</TableHead>
-                <TableHead className="font-semibold">Localisation</TableHead>
-                <TableHead className="font-semibold">Propriétaire</TableHead>
-                <TableHead className="font-semibold">Étages</TableHead>
-                <TableHead className="font-semibold">Unités</TableHead>
-                <TableHead className="font-semibold">GPS</TableHead>
-                <TableHead className="text-right font-semibold">Actions</TableHead>
+                <TableHead className="font-semibold">
+                  Nom
+                </TableHead>
+
+                <TableHead className="font-semibold">
+                  Localisation
+                </TableHead>
+
+                <TableHead className="font-semibold">
+                  Propriétaire
+                </TableHead>
+
+                <TableHead className="font-semibold">
+                  Étages
+                </TableHead>
+
+                <TableHead className="font-semibold">
+                  Unités
+                </TableHead>
+
+                <TableHead className="font-semibold">
+                  GPS
+                </TableHead>
+
+                <TableHead className="text-right font-semibold">
+                  Actions
+                </TableHead>
               </TableRow>
             </TableHeader>
+
             <TableBody>
-              {filtered.map((b) => (
-                <TableRow key={b.id} className="group hover:bg-muted/30 transition-colors">
+              {filtered.map((building) => (
+                <TableRow
+                  key={building.id}
+                  className="group transition-colors hover:bg-muted/30"
+                >
                   <TableCell>
-                    <p className="font-medium text-sm">{b.name}</p>
-                    <p className="text-xs text-muted-foreground">{b.address || "—"}</p>
+                    <p className="text-sm font-medium">
+                      {building.name || "Sans nom"}
+                    </p>
+
+                    <p className="text-xs text-muted-foreground">
+                      {building.address || "—"}
+                    </p>
                   </TableCell>
+
                   <TableCell className="text-sm">
                     <div className="flex flex-col">
-                      <span>{b.city || "—"}</span>
+                      <span>
+                        {building.city || "—"}
+                      </span>
+
                       <span className="text-xs text-muted-foreground">
-                        {[b.commune, b.district].filter(Boolean).join(" · ") || "—"}
+                        {[
+                          building.commune,
+                          building.district,
+                        ]
+                          .filter(Boolean)
+                          .join(" · ") || "—"}
                       </span>
                     </div>
                   </TableCell>
-                  <TableCell className="text-sm">{(b as any).owner?.full_name ?? "—"}</TableCell>
-                  <TableCell className="text-sm">{b.floors}</TableCell>
-                  <TableCell className="text-sm">{b.total_units}</TableCell>
+
+                  <TableCell className="text-sm">
+                    {(building as any).owner?.full_name || "—"}
+                  </TableCell>
+
+                  <TableCell className="text-sm">
+                    {building.floors ?? 0}
+                  </TableCell>
+
+                  <TableCell className="text-sm">
+                    {building.total_units ?? 0}
+                  </TableCell>
+
                   <TableCell>
-                    {b.latitude !== null && b.longitude !== null ? (
-                      <Badge variant="outline" className="text-xs"><MapPin className="h-3 w-3 mr-1" /> Géolocalisé</Badge>
+                    {building.latitude != null &&
+                    building.longitude != null ? (
+                      <Badge
+                        variant="outline"
+                        className="text-xs"
+                      >
+                        <MapPin className="mr-1 h-3 w-3" />
+                        Géolocalisé
+                      </Badge>
                     ) : (
-                      <span className="text-xs text-muted-foreground">—</span>
+                      <span className="text-xs text-muted-foreground">
+                        —
+                      </span>
                     )}
                   </TableCell>
+
                   <TableCell className="text-right">
-                    <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setEditing(b as Building); setOpen(true); }}>
+                    <div className="flex items-center justify-end gap-1 opacity-70 transition-opacity group-hover:opacity-100">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        title="Modifier"
+                        onClick={() =>
+                          handleEdit(building as Building)
+                        }
+                      >
                         <Pencil className="h-4 w-4" />
                       </Button>
-                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => deleteBuilding.mutate(b.id, { onSuccess: () => toast.success("Supprimé") })}>
+
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        title="Supprimer"
+                        disabled={deleteBuilding.isPending}
+                        onClick={() =>
+                          handleDelete(building as Building)
+                        }
+                      >
                         <Trash2 className="h-4 w-4 text-destructive" />
                       </Button>
                     </div>
@@ -130,7 +371,17 @@ const BuildingsPage = () => {
         </div>
       )}
 
-      <BuildingFormDialog open={open} onOpenChange={setOpen} building={editing} />
+      <BuildingFormDialog
+        open={open}
+        onOpenChange={(value) => {
+          setOpen(value);
+
+          if (!value) {
+            setEditing(null);
+          }
+        }}
+        building={editing}
+      />
     </PageShell>
   );
 };
