@@ -10,12 +10,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useCreateProperty, useUpdateProperty, useProperty } from "@/hooks/use-properties";
 import { useOwners } from "@/hooks/use-owners";
 import { useBuildings } from "@/hooks/use-buildings";
+import { useUnits } from "@/hooks/use-units";
 import { toast } from "sonner";
 import { useEffect, useState } from "react";
 import type { PropertyInsert } from "@/types/real-estate";
 import PropertyImageUpload from "./PropertyImageUpload";
 import PropertyVideoUpload from "./PropertyVideoUpload";
-import { Home, MapPin, Ruler, Users, Settings2, Plus, Loader2, Tag, ImageIcon, Video, Globe, Lock } from "lucide-react";
+import { conakryCommunes, propertyTypeLabels, propertyStatusLabels } from "@/constants/real-estate";
+import { Home, MapPin, Ruler, Settings2, Plus, Loader2, Tag, ImageIcon, Video, Globe, Lock, CalendarClock, StickyNote, Sparkles } from "lucide-react";
 
 interface Props {
   open: boolean;
@@ -28,27 +30,26 @@ const defaultForm: PropertyInsert = {
   slug: "",
   description: "",
   price: 0,
+  charges: 0,
+  currency: "GNF",
   property_type: "apartment",
   listing_type: "long_rental",
-  city: "",
+  status: "draft",
+  city: "Conakry",
+  commune: "",
   district: "",
   address: "",
   surface: 0,
   rooms: 1,
+  bedrooms: 1,
   bathrooms: 1,
+  floor: null,
+  available_from: null,
   furnished: false,
   published: false,
   featured: false,
-};
-
-const propertyTypeLabels: Record<string, string> = {
-  apartment: "Appartement",
-  house: "Maison",
-  villa: "Villa",
-  studio: "Studio",
-  commercial: "Commercial",
-  land: "Terrain",
-  other: "Autre",
+  amenities: [],
+  internal_notes: "",
 };
 
 const PropertyFormDialog = ({ open, onOpenChange, propertyId }: Props) => {
@@ -59,6 +60,8 @@ const PropertyFormDialog = ({ open, onOpenChange, propertyId }: Props) => {
   const updateMut = useUpdateProperty();
   const [form, setForm] = useState<PropertyInsert>(defaultForm);
   const [createdId, setCreatedId] = useState<string | null>(null);
+  const [amenitiesText, setAmenitiesText] = useState("");
+  const { data: units } = useUnits(form.building_id ?? undefined);
 
   const activePropertyId = propertyId ?? createdId;
   const isPending = createMut.isPending || updateMut.isPending;
@@ -70,24 +73,36 @@ const PropertyFormDialog = ({ open, onOpenChange, propertyId }: Props) => {
         slug: existing.slug,
         description: existing.description,
         price: Number(existing.price),
+        charges: Number(existing.charges),
+        currency: existing.currency,
         property_type: existing.property_type,
         listing_type: existing.listing_type,
+        status: existing.status,
         city: existing.city,
+        commune: existing.commune,
         district: existing.district,
         address: existing.address,
         surface: Number(existing.surface),
         rooms: existing.rooms,
+        bedrooms: existing.bedrooms,
         bathrooms: existing.bathrooms,
+        floor: existing.floor,
+        available_from: existing.available_from,
         furnished: existing.furnished,
         published: existing.published,
         featured: existing.featured,
         owner_id: existing.owner_id,
         building_id: existing.building_id,
-        latitude: existing.latitude ? Number(existing.latitude) : undefined,
-        longitude: existing.longitude ? Number(existing.longitude) : undefined,
+        unit_id: existing.unit_id,
+        amenities: existing.amenities ?? [],
+        internal_notes: existing.internal_notes,
+        latitude: existing.latitude !== null ? Number(existing.latitude) : null,
+        longitude: existing.longitude !== null ? Number(existing.longitude) : null,
       });
+      setAmenitiesText((existing.amenities ?? []).join(", "));
     } else if (!propertyId) {
       setForm(defaultForm);
+      setAmenitiesText("");
       setCreatedId(null);
     }
   }, [propertyId, existing]);
@@ -100,12 +115,13 @@ const PropertyFormDialog = ({ open, onOpenChange, propertyId }: Props) => {
     setForm((f) => ({ ...f, [key]: value }));
 
   const generateSlug = (title: string) =>
-    title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+    title.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const slug = form.slug || generateSlug(form.title);
-    const payload = { ...form, slug };
+    const amenities = amenitiesText.split(",").map((a) => a.trim()).filter(Boolean);
+    const payload = { ...form, slug, amenities };
     try {
       if (propertyId) {
         await updateMut.mutateAsync({ id: propertyId, ...payload });
@@ -166,8 +182,13 @@ const PropertyFormDialog = ({ open, onOpenChange, propertyId }: Props) => {
                 <Input id="p-slug" placeholder="appartement-t3-kaloum" value={form.slug ?? ""} onChange={(e) => set("slug", e.target.value)} />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="p-price">Prix (GNF)</Label>
-                <Input id="p-price" type="number" min={0} placeholder="0" value={form.price ?? 0} onChange={(e) => set("price", Number(e.target.value))} />
+                <Label>Statut</Label>
+                <Select value={form.status ?? "draft"} onValueChange={(v) => set("status", v as any)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(propertyStatusLabels).map(([v, l]) => <SelectItem key={v} value={v}>{l}</SelectItem>)}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
@@ -194,6 +215,22 @@ const PropertyFormDialog = ({ open, onOpenChange, propertyId }: Props) => {
                 </Select>
               </div>
             </div>
+            <div className="grid grid-cols-3 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="p-price">Prix (GNF)</Label>
+                <Input id="p-price" type="number" min={0} value={form.price ?? 0} onChange={(e) => set("price", Number(e.target.value))} />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="p-charges">Charges (GNF)</Label>
+                <Input id="p-charges" type="number" min={0} value={form.charges ?? 0} onChange={(e) => set("charges", Number(e.target.value))} />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="p-avail" className="flex items-center gap-1">
+                  <CalendarClock className="h-3.5 w-3.5 text-muted-foreground" /> Disponible le
+                </Label>
+                <Input id="p-avail" type="date" value={form.available_from ?? ""} onChange={(e) => set("available_from", e.target.value || null)} />
+              </div>
+            </div>
           </div>
 
           <Separator />
@@ -201,14 +238,24 @@ const PropertyFormDialog = ({ open, onOpenChange, propertyId }: Props) => {
           {/* Localisation */}
           <div className="space-y-3">
             <SectionHeader icon={MapPin} label="Localisation" />
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-3 gap-3">
               <div className="space-y-1.5">
                 <Label htmlFor="p-city">Ville</Label>
                 <Input id="p-city" placeholder="Conakry" value={form.city ?? ""} onChange={(e) => set("city", e.target.value)} />
               </div>
               <div className="space-y-1.5">
+                <Label>Commune</Label>
+                <Select value={form.commune || "__none__"} onValueChange={(v) => set("commune", v === "__none__" ? "" : v)}>
+                  <SelectTrigger><SelectValue placeholder="Sélectionner" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">Non renseignée</SelectItem>
+                    {conakryCommunes.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
                 <Label htmlFor="p-district">Quartier</Label>
-                <Input id="p-district" placeholder="Kaloum, Ratoma…" value={form.district ?? ""} onChange={(e) => set("district", e.target.value)} />
+                <Input id="p-district" placeholder="Camayenne…" value={form.district ?? ""} onChange={(e) => set("district", e.target.value)} />
               </div>
             </div>
             <div className="space-y-1.5">
@@ -218,11 +265,11 @@ const PropertyFormDialog = ({ open, onOpenChange, propertyId }: Props) => {
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label htmlFor="p-lat">Latitude</Label>
-                <Input id="p-lat" type="number" step="any" placeholder="9.5370" value={form.latitude ?? ""} onChange={(e) => set("latitude", e.target.value ? Number(e.target.value) : undefined)} />
+                <Input id="p-lat" type="number" step="any" placeholder="9.5370" value={form.latitude ?? ""} onChange={(e) => set("latitude", e.target.value ? Number(e.target.value) : null)} />
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="p-lng">Longitude</Label>
-                <Input id="p-lng" type="number" step="any" placeholder="-13.6785" value={form.longitude ?? ""} onChange={(e) => set("longitude", e.target.value ? Number(e.target.value) : undefined)} />
+                <Input id="p-lng" type="number" step="any" placeholder="-13.6785" value={form.longitude ?? ""} onChange={(e) => set("longitude", e.target.value ? Number(e.target.value) : null)} />
               </div>
             </div>
           </div>
@@ -235,18 +282,28 @@ const PropertyFormDialog = ({ open, onOpenChange, propertyId }: Props) => {
             <div className="grid grid-cols-3 gap-3">
               <div className="space-y-1.5">
                 <Label htmlFor="p-surface">Surface (m²)</Label>
-                <Input id="p-surface" type="number" min={0} placeholder="0" value={form.surface ?? 0} onChange={(e) => set("surface", Number(e.target.value))} />
+                <Input id="p-surface" type="number" min={0} value={form.surface ?? 0} onChange={(e) => set("surface", Number(e.target.value))} />
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="p-rooms">Pièces</Label>
-                <Input id="p-rooms" type="number" min={0} placeholder="1" value={form.rooms ?? 1} onChange={(e) => set("rooms", Number(e.target.value))} />
+                <Input id="p-rooms" type="number" min={0} value={form.rooms ?? 1} onChange={(e) => set("rooms", Number(e.target.value))} />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="p-baths">Salles de bain</Label>
-                <Input id="p-baths" type="number" min={0} placeholder="1" value={form.bathrooms ?? 1} onChange={(e) => set("bathrooms", Number(e.target.value))} />
+                <Label htmlFor="p-bedrooms">Chambres</Label>
+                <Input id="p-bedrooms" type="number" min={0} value={form.bedrooms ?? 0} onChange={(e) => set("bedrooms", Number(e.target.value))} />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="p-baths">Salles de bain</Label>
+                <Input id="p-baths" type="number" min={0} value={form.bathrooms ?? 1} onChange={(e) => set("bathrooms", Number(e.target.value))} />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="p-floor">Étage</Label>
+                <Input id="p-floor" type="number" placeholder="Ex: 2" value={form.floor ?? ""} onChange={(e) => set("floor", e.target.value === "" ? null : Number(e.target.value))} />
+              </div>
+            </div>
+            <div className="grid grid-cols-3 gap-3">
               <div className="space-y-1.5">
                 <Label>Propriétaire</Label>
                 <Select value={form.owner_id ?? "__none__"} onValueChange={(v) => set("owner_id", v === "__none__" ? null : v)}>
@@ -259,7 +316,7 @@ const PropertyFormDialog = ({ open, onOpenChange, propertyId }: Props) => {
               </div>
               <div className="space-y-1.5">
                 <Label>Immeuble</Label>
-                <Select value={form.building_id ?? "__none__"} onValueChange={(v) => set("building_id", v === "__none__" ? null : v)}>
+                <Select value={form.building_id ?? "__none__"} onValueChange={(v) => { set("building_id", v === "__none__" ? null : v); set("unit_id", null); }}>
                   <SelectTrigger><SelectValue placeholder="Aucun" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="__none__">Aucun</SelectItem>
@@ -267,10 +324,32 @@ const PropertyFormDialog = ({ open, onOpenChange, propertyId }: Props) => {
                   </SelectContent>
                 </Select>
               </div>
+              <div className="space-y-1.5">
+                <Label>Unité</Label>
+                <Select value={form.unit_id ?? "__none__"} onValueChange={(v) => set("unit_id", v === "__none__" ? null : v)} disabled={!form.building_id}>
+                  <SelectTrigger><SelectValue placeholder={form.building_id ? "Aucune" : "Choisir un immeuble"} /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">Aucune</SelectItem>
+                    {(units ?? []).map((u) => <SelectItem key={u.id} value={u.id}>{u.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="p-desc">Description</Label>
+              <Label htmlFor="p-amenities" className="flex items-center gap-1">
+                <Sparkles className="h-3.5 w-3.5 text-muted-foreground" /> Équipements (séparés par des virgules)
+              </Label>
+              <Input id="p-amenities" placeholder="Climatisation, Groupe électrogène, Parking, Sécurité 24/7" value={amenitiesText} onChange={(e) => setAmenitiesText(e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="p-desc">Description publique</Label>
               <Textarea id="p-desc" rows={3} placeholder="Décrivez le bien, ses atouts, son environnement…" value={form.description ?? ""} onChange={(e) => set("description", e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="p-internal" className="flex items-center gap-1">
+                <StickyNote className="h-3.5 w-3.5 text-muted-foreground" /> Notes internes (non publiées)
+              </Label>
+              <Textarea id="p-internal" rows={2} placeholder="Code d'accès, conditions négociées, historique…" value={form.internal_notes ?? ""} onChange={(e) => set("internal_notes", e.target.value)} />
             </div>
           </div>
 
@@ -329,9 +408,7 @@ const PropertyFormDialog = ({ open, onOpenChange, propertyId }: Props) => {
             ) : (
               <div className="rounded-xl border-2 border-dashed border-border p-6 text-center">
                 <Lock className="h-8 w-8 text-muted-foreground/30 mx-auto mb-2" />
-                <p className="text-sm font-medium text-muted-foreground">
-                  Enregistrez le bien d'abord
-                </p>
+                <p className="text-sm font-medium text-muted-foreground">Enregistrez le bien d'abord</p>
                 <p className="text-xs text-muted-foreground/60 mt-1">
                   Cliquez sur « Créer » pour débloquer l'ajout de photos, vidéos et visites 360°
                 </p>
