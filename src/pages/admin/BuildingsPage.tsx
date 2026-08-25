@@ -18,6 +18,7 @@ import BuildingFormDialog from "@/components/admin/BuildingFormDialog";
 import {
   useBuildings,
   useDeleteBuilding,
+  type BuildingWithOwner,
 } from "@/hooks/use-buildings";
 
 import { Button } from "@/components/ui/button";
@@ -57,9 +58,16 @@ const BuildingsPage = () => {
 
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Building | null>(null);
+
   const [search, setSearch] = useState("");
   const [commune, setCommune] = useState("__all__");
 
+  /**
+   * Recherche et filtres.
+   *
+   * Utilisation de String(... ?? "") pour éviter une erreur runtime
+   * si city/district/commune sont NULL dans PostgreSQL.
+   */
   const filtered = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();
 
@@ -92,25 +100,27 @@ const BuildingsPage = () => {
     });
   }, [buildings, search, commune]);
 
-  const totalUnits = useMemo(() => {
-    return filtered.reduce(
-      (total, building) =>
-        total + Number(building.total_units ?? 0),
-      0,
-    );
-  }, [filtered]);
+  const totalUnits = useMemo(
+    () =>
+      filtered.reduce(
+        (total, building) =>
+          total + Number(building.total_units ?? 0),
+        0,
+      ),
+    [filtered],
+  );
 
   const handleCreate = () => {
     setEditing(null);
     setOpen(true);
   };
 
-  const handleEdit = (building: Building) => {
-    setEditing(building);
+  const handleEdit = (building: BuildingWithOwner) => {
+    setEditing(building as Building);
     setOpen(true);
   };
 
-  const handleDelete = (building: Building) => {
+  const handleDelete = (building: BuildingWithOwner) => {
     const confirmed = window.confirm(
       `Voulez-vous vraiment supprimer l'immeuble "${building.name}" ?`,
     );
@@ -123,6 +133,7 @@ const BuildingsPage = () => {
       onSuccess: () => {
         toast.success("Immeuble supprimé");
       },
+
       onError: (deleteError) => {
         toast.error(
           deleteError instanceof Error
@@ -144,6 +155,7 @@ const BuildingsPage = () => {
         </Button>
       }
     >
+      {/* Recherche / filtres */}
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -156,7 +168,9 @@ const BuildingsPage = () => {
             <Input
               placeholder="Rechercher par nom, ville, commune ou quartier..."
               value={search}
-              onChange={(event) => setSearch(event.target.value)}
+              onChange={(event) =>
+                setSearch(event.target.value)
+              }
               className="h-10 pl-9"
             />
           </div>
@@ -197,9 +211,11 @@ const BuildingsPage = () => {
           )}
       </motion.div>
 
+      {/* Loading */}
       {isLoading ? (
         <TableSkeleton rows={4} columns={7} />
       ) : isError ? (
+        /* Erreur réelle Supabase visible */
         <div className="premium-card p-8">
           <div className="mx-auto flex max-w-xl flex-col items-center text-center">
             <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-destructive/10">
@@ -226,6 +242,7 @@ const BuildingsPage = () => {
           </div>
         </div>
       ) : filtered.length === 0 ? (
+        /* État vide */
         <EmptyState
           icon={Building2}
           title={
@@ -240,6 +257,7 @@ const BuildingsPage = () => {
           }
         />
       ) : (
+        /* Tableau */
         <div className="premium-card overflow-hidden">
           <Table>
             <TableHeader>
@@ -280,6 +298,7 @@ const BuildingsPage = () => {
                   key={building.id}
                   className="group transition-colors hover:bg-muted/30"
                 >
+                  {/* Nom */}
                   <TableCell>
                     <p className="text-sm font-medium">
                       {building.name || "Sans nom"}
@@ -290,6 +309,7 @@ const BuildingsPage = () => {
                     </p>
                   </TableCell>
 
+                  {/* Localisation */}
                   <TableCell className="text-sm">
                     <div className="flex flex-col">
                       <span>
@@ -307,18 +327,22 @@ const BuildingsPage = () => {
                     </div>
                   </TableCell>
 
+                  {/* Propriétaire */}
                   <TableCell className="text-sm">
-                    {(building as any).owner?.full_name || "—"}
+                    {building.owner?.full_name || "—"}
                   </TableCell>
 
+                  {/* Étages */}
                   <TableCell className="text-sm">
                     {building.floors ?? 0}
                   </TableCell>
 
+                  {/* Unités */}
                   <TableCell className="text-sm">
                     {building.total_units ?? 0}
                   </TableCell>
 
+                  {/* GPS */}
                   <TableCell>
                     {building.latitude != null &&
                     building.longitude != null ? (
@@ -336,6 +360,7 @@ const BuildingsPage = () => {
                     )}
                   </TableCell>
 
+                  {/* Actions */}
                   <TableCell className="text-right">
                     <div className="flex items-center justify-end gap-1 opacity-70 transition-opacity group-hover:opacity-100">
                       <Button
@@ -344,7 +369,7 @@ const BuildingsPage = () => {
                         className="h-8 w-8"
                         title="Modifier"
                         onClick={() =>
-                          handleEdit(building as Building)
+                          handleEdit(building)
                         }
                       >
                         <Pencil className="h-4 w-4" />
@@ -357,7 +382,7 @@ const BuildingsPage = () => {
                         title="Supprimer"
                         disabled={deleteBuilding.isPending}
                         onClick={() =>
-                          handleDelete(building as Building)
+                          handleDelete(building)
                         }
                       >
                         <Trash2 className="h-4 w-4 text-destructive" />
@@ -371,6 +396,7 @@ const BuildingsPage = () => {
         </div>
       )}
 
+      {/* Formulaire */}
       <BuildingFormDialog
         open={open}
         onOpenChange={(value) => {
