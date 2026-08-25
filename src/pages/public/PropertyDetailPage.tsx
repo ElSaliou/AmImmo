@@ -212,32 +212,49 @@ const PropertyDetailPage = () => {
           {/* Title + badges */}
           <div>
             <div className="flex flex-wrap gap-2 mb-3">
-              <Badge className="bg-primary text-primary-foreground">{typeLabels[listing.listing_type]}</Badge>
-              <Badge variant="outline" className="capitalize">{listing.property_type}</Badge>
+              <Badge className="bg-primary text-primary-foreground">{listingTypeLabels[listing.listing_type]}</Badge>
+              <Badge variant="outline">{propertyTypeLabels[listing.property_type] ?? listing.property_type}</Badge>
               {listing.furnished && <Badge variant="outline"><Armchair className="h-3 w-3 mr-1" /> Meublé</Badge>}
               {listing.featured && <Badge className="bg-secondary text-secondary-foreground"><Star className="h-3 w-3 mr-1 fill-current" /> Vedette</Badge>}
             </div>
-            <h1 className="text-2xl md:text-3xl font-display font-bold mb-2">{listing.title}</h1>
+            <div className="flex items-start justify-between gap-3">
+              <h1 className="text-2xl md:text-3xl font-display font-bold mb-2">{listing.title}</h1>
+              <FavoriteButton propertyId={listing.property_id} size="md" className="shrink-0" />
+            </div>
             <p className="text-muted-foreground flex items-center gap-1.5">
               <MapPin className="h-4 w-4 text-secondary" />
-              {listing.district ? `${listing.district}, ` : ""}{listing.city}
+              {[listing.district, listing.commune, listing.city].filter(Boolean).join(", ")}
             </p>
           </div>
 
           {/* Price */}
-          <div className="premium-card p-5 flex items-center justify-between">
+          <div className="premium-card p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
               <p className="text-sm text-muted-foreground">Prix</p>
               <p className="text-3xl font-bold text-foreground">
-                {Number(listing.price).toLocaleString()} {listing.currency}
+                {formatMoney(listing.price, listing.currency)}
                 {listing.listing_type !== "sale" && <span className="text-base font-normal text-muted-foreground ml-1">/mois</span>}
               </p>
+              {Number(listing.charges ?? 0) > 0 && (
+                <p className="text-sm text-muted-foreground mt-1">
+                  + {formatMoney(listing.charges, listing.currency)} de charges
+                </p>
+              )}
+              {listing.available_from && (
+                <p className="text-sm text-muted-foreground mt-1 flex items-center gap-1.5">
+                  <CalendarClock className="h-4 w-4" /> Disponible à partir du {formatDate(listing.available_from)}
+                </p>
+              )}
             </div>
             <div className="flex gap-6">
               {[
                 { icon: Ruler, value: `${Number(listing.surface)} m²`, label: "Surface" },
-                { icon: BedDouble, value: listing.rooms, label: "Pièces" },
+                { icon: Building2, value: listing.rooms, label: "Pièces" },
+                { icon: BedDouble, value: listing.bedrooms ?? listing.rooms, label: "Chambres" },
                 { icon: Bath, value: listing.bathrooms, label: "Sdb" },
+                ...(listing.floor !== null && listing.floor !== undefined
+                  ? [{ icon: Layers, value: listing.floor, label: "Étage" }]
+                  : []),
               ].map((s) => (
                 <div key={s.label} className="text-center">
                   <s.icon className="h-5 w-5 text-muted-foreground mx-auto mb-1" />
@@ -247,6 +264,7 @@ const PropertyDetailPage = () => {
               ))}
             </div>
           </div>
+
 
           {/* Description */}
           {listing.description && (
