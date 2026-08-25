@@ -8,10 +8,28 @@ export const useBuildings = () =>
   useQuery({
     queryKey: [KEY],
     queryFn: async () => {
-      const { data, error } = await supabase.from("buildings").select("*").order("name");
+      const { data, error } = await supabase
+        .from("buildings")
+        .select("*, owner:owners(id, full_name)")
+        .order("name");
       if (error) throw error;
       return data;
     },
+  });
+
+export const useBuilding = (id?: string) =>
+  useQuery({
+    queryKey: [KEY, id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("buildings")
+        .select("*, owner:owners(id, full_name)")
+        .eq("id", id!)
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!id,
   });
 
 export const useCreateBuilding = () => {
