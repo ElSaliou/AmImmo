@@ -1,8 +1,4 @@
-import {
-  useMemo,
-  useState,
-} from "react";
-
+import { useEffect, useMemo, useState } from "react";
 import {
   CalendarClock,
   Mail,
@@ -11,7 +7,6 @@ import {
   Plus,
   WalletCards,
 } from "lucide-react";
-
 import { toast } from "sonner";
 
 import {
@@ -63,10 +58,7 @@ import type {
 
 interface Props {
   open: boolean;
-
-  onOpenChange: (
-    open: boolean,
-  ) => void;
+  onOpenChange: (open: boolean) => void;
 
   lead:
     | (Lead & {
@@ -79,6 +71,20 @@ interface Props {
       })
     | null;
 }
+
+const pipelineLabels: Partial<
+  Record<LeadStatus, string>
+> = {
+  new: "Nouveau",
+  contacted: "Contacté",
+  qualified: "Qualifié",
+  visit_scheduled: "Visite planifiée",
+  visit_done: "Visite effectuée",
+  application_received: "Dossier reçu",
+  negotiation: "Négociation",
+  converted: "Converti",
+  lost: "Perdu",
+};
 
 const LeadDetailDialog = ({
   open,
@@ -102,10 +108,19 @@ const LeadDetailDialog = ({
   const [note, setNote] =
     useState("");
 
-  const [
-    visitOpen,
-    setVisitOpen,
-  ] = useState(false);
+  const [visitOpen, setVisitOpen] =
+    useState(false);
+
+  const [localStatus, setLocalStatus] =
+    useState<LeadStatus>("new");
+
+  useEffect(() => {
+    if (lead?.status) {
+      setLocalStatus(
+        lead.status as LeadStatus,
+      );
+    }
+  }, [lead?.id, lead?.status]);
 
   const orderedActivities =
     useMemo(
@@ -117,8 +132,16 @@ const LeadDetailDialog = ({
     return null;
   }
 
+  const getStatusLabel = (
+    status: LeadStatus,
+  ) =>
+    pipelineLabels[status] ??
+    leadStatusLabel(status);
+
   const addNote = async () => {
-    if (!note.trim()) {
+    const content = note.trim();
+
+    if (!content) {
       return;
     }
 
@@ -126,7 +149,7 @@ const LeadDetailDialog = ({
       await createActivity.mutateAsync({
         lead_id: lead.id,
         kind: "note",
-        content: note.trim(),
+        content,
       });
 
       setNote("");
@@ -135,6 +158,11 @@ const LeadDetailDialog = ({
         "Note ajoutée",
       );
     } catch (error: any) {
+      console.error(
+        "Erreur ajout note :",
+        error,
+      );
+
       toast.error(
         error?.message ??
           "Impossible d'ajouter la note",
@@ -142,87 +170,78 @@ const LeadDetailDialog = ({
     }
   };
 
-  /*
-   * Libellés utilisés dans
-   * l'historique commercial.
-   */
-  const pipelineLabels: Partial<
-    Record<LeadStatus, string>
-  > = {
-    new: "Nouveau",
-    contacted: "Contacté",
-    qualified: "Qualifié",
-    visit_scheduled:
-      "Visite planifiée",
-    visit_done:
-      "Visite effectuée",
-    application_received:
-      "Dossier reçu",
-    negotiation:
-      "Négociation",
-    converted:
-      "Converti",
-    lost:
-      "Perdu",
-  };
-
-  /*
-   * Modification manuelle du pipeline.
-   *
-   * 1. Mise à jour du lead
-   * 2. Création d'une activité
-   *    dans son historique
-   */
   const handleStatusChange =
     async (
       newStatus: LeadStatus,
     ) => {
-      const oldStatus =
-        lead.status as LeadStatus;
+      const previousStatus =
+        localStatus;
 
       if (
-        newStatus === oldStatus
+        previousStatus ===
+        newStatus
       ) {
         return;
       }
 
+      const previousLabel =
+        getStatusLabel(
+          previousStatus,
+        );
+
+      const newLabel =
+        getStatusLabel(
+          newStatus,
+        );
+
       try {
+        /*
+         * 1. Mise à jour du statut
+         */
         await updateLead.mutateAsync({
           id: lead.id,
           status: newStatus,
         });
 
-        const oldLabel =
-          pipelineLabels[
-            oldStatus
-          ] ??
-          leadStatusLabel(
-            oldStatus,
-          );
+        /*
+         * Affichage immédiat dans
+         * la fiche ouverte.
+         */
+        setLocalStatus(
+          newStatus,
+        );
 
-        const newLabel =
-          pipelineLabels[
-            newStatus
-          ] ??
-          leadStatusLabel(
-            newStatus,
-          );
-
-        await createActivity.mutateAsync(
-          {
+        /*
+         * 2. Journalisation automatique
+         */
+        try {
+          await createActivity.mutateAsync({
             lead_id: lead.id,
             kind: "status_change",
             content:
-              `Pipeline : ${oldLabel} → ${newLabel}`,
-          },
-        );
+              `Pipeline : ${previousLabel} → ${newLabel}`,
+          });
+        } catch (
+          activityError: any
+        ) {
+          console.error(
+            "Statut mis à jour mais historique non créé :",
+            activityError,
+          );
+
+          toast.warning(
+            "Le statut a été mis à jour, mais l'historique n'a pas pu être enregistré.",
+          );
+
+          return;
+        }
 
         toast.success(
           `Prospect passé à « ${newLabel} »`,
         );
       } catch (error: any) {
         console.error(
-          "Erreur changement pipeline:",
+          "Erreur changement de pipeline :",
           error,
         );
 
@@ -257,11 +276,11 @@ const LeadDetailDialog = ({
 
               <Badge
                 className={`${leadStatusColor(
-                  lead.status,
+                  localStatus,
                 )} border-0`}
               >
                 {leadStatusLabel(
-                  lead.status,
+                  localStatus,
                 )}
               </Badge>
             </div>
@@ -273,24 +292,19 @@ const LeadDetailDialog = ({
                 <div className="grid sm:grid-cols-2 gap-3 text-sm">
                   <div className="flex items-center gap-2">
                     <Mail className="h-4 w-4 text-muted-foreground" />
-
                     {lead.email}
                   </div>
 
                   <div className="flex items-center gap-2">
                     <Phone className="h-4 w-4 text-muted-foreground" />
-
-                    {lead.phone ||
-                      "—"}
+                    {lead.phone || "—"}
                   </div>
 
                   <div className="flex items-center gap-2">
                     <MessageSquare className="h-4 w-4 text-muted-foreground" />
-
                     {leadSourceLabels[
                       lead.source
-                    ] ??
-                      lead.source}
+                    ] ?? lead.source}
                   </div>
 
                   <div className="flex items-center gap-2">
@@ -362,14 +376,11 @@ const LeadDetailDialog = ({
                     value={note}
                     onChange={(e) =>
                       setNote(
-                        e.target
-                          .value,
+                        e.target.value,
                       )
                     }
                     placeholder="Ajouter une note commerciale…"
-                    onKeyDown={(
-                      e,
-                    ) => {
+                    onKeyDown={(e) => {
                       if (
                         e.key ===
                         "Enter"
@@ -419,9 +430,13 @@ const LeadDetailDialog = ({
                               variant="outline"
                               className="text-[10px] uppercase"
                             >
-                              {
-                                activity.kind
-                              }
+                              {activity.kind ===
+                              "status_change"
+                                ? "Pipeline"
+                                : activity.kind ===
+                                    "visit"
+                                  ? "Visite"
+                                  : activity.kind}
                             </Badge>
 
                             <span className="text-xs text-muted-foreground">
@@ -452,7 +467,7 @@ const LeadDetailDialog = ({
 
                 <Select
                   value={
-                    lead.status
+                    localStatus
                   }
                   onValueChange={(
                     value,
@@ -500,7 +515,6 @@ const LeadDetailDialog = ({
                   }
                 >
                   <CalendarClock className="h-4 w-4" />
-
                   Planifier une visite
                 </Button>
               </div>
@@ -541,10 +555,8 @@ const LeadDetailDialog = ({
                             >
                               {
                                 visitStatusConfig[
-                                  visit
-                                    .status
-                                ]
-                                  .label
+                                  visit.status
+                                ].label
                               }
                             </Badge>
                           </div>
