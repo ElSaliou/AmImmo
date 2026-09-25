@@ -1,3 +1,6 @@
+import {
+  OrangeMoneyPaymentProvider,
+} from "./orange-money-provider.ts";
 export type SupportedPaymentMethod =
   | "orange_money"
   | "mtn_momo";
@@ -103,11 +106,16 @@ export function getPaymentProvider(): PaymentProvider {
       .trim()
       .toLowerCase();
 
-  if (mode !== "simulated") {
-    throw new Error(
-      `Unsupported PAYMENT_PROVIDER_MODE: ${mode}`,
-    );
-  }
+  switch (mode) {
+    case "simulated":
+      return new SimulatedPaymentProvider();
 
-  return new SimulatedPaymentProvider();
+    case "orange_money":
+      return new OrangeMoneyPaymentProvider();
+
+    default:
+      throw new Error(
+        `Unsupported PAYMENT_PROVIDER_MODE: ${mode}`,
+      );
+  }
 }
