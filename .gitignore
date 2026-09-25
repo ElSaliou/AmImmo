@@ -22,3 +22,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Local payment E2E payloads
+payment-test-valid.json
+payment-test-mtn.json
