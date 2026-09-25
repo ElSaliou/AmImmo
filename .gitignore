@@ -26,3 +26,4 @@ dist-ssr
 # Local payment E2E payloads
 payment-test-valid.json
 payment-test-mtn.json
+payment-webhook-test.json
