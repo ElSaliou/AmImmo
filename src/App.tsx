@@ -41,6 +41,13 @@ const ShortRentalPage = lazy(
   () => import("@/pages/public/ShortRentalPage"),
 );
 
+const ShortRentalPaymentPage = lazy(
+  () =>
+    import(
+      "@/pages/public/ShortRentalPaymentPage"
+    ),
+);
+
 const LongRentalPage = lazy(
   () => import("@/pages/public/LongRentalPage"),
 );
@@ -176,6 +183,11 @@ const App = () => {
               {/* ========================================== */}
               {/* SITE PUBLIC                                */}
               {/* ========================================== */}
+
+              <Route
+                path="/short-rental/payment/:token"
+                element={<ShortRentalPaymentPage />}
+              />
 
               <Route element={<PublicLayout />}>
                 <Route
