@@ -927,7 +927,7 @@ Deno.serve(
 
     /*
      * =========================================================
-     * 16. INITIALISATION PSP SIMULEE
+     * 16. INITIALISATION PSP
      * =========================================================
      */
 
@@ -950,7 +950,7 @@ Deno.serve(
           });
     } catch (error) {
       console.error(
-        "[payment-init] Simulated PSP initialization failed",
+        "[payment-init] PSP initialization failed",
         error,
       );
 
