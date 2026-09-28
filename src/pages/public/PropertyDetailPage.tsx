@@ -389,6 +389,28 @@ const PublicShortRentalBookingCard = ({
       });
 
       setCreatedReference(booking.reference ?? "Réservation enregistrée");
+
+      /*
+       * La réservation est créée avec succès.
+       * On réinitialise le formulaire pour éviter
+       * une seconde soumission accidentelle,
+       * tout en conservant la référence affichée.
+       */
+      setCheckIn("");
+      setCheckOut("");
+      setGuestsCount(1);
+
+      setGuestName("");
+      setGuestPhone("");
+      setGuestEmail("");
+      setGuestCountryOfResidence("");
+      setGuestSpecialRequest("");
+
+      setPaymentPlan("half");
+      setConditionsAccepted(false);
+
+      setQuote(null);
+      setFormError(null);
     } catch (error: any) {
       setFormError(error?.message ?? "Impossible d'enregistrer la réservation.");
     }
@@ -499,6 +521,20 @@ const PublicShortRentalBookingCard = ({
             </div>
           )}
         </div>
+
+        {createdReference && (
+          <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+            <div className="flex items-start gap-2.5">
+              <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" />
+              <div>
+                <p className="font-semibold text-emerald-900">Demande enregistrée</p>
+                <p className="mt-1 text-sm leading-relaxed text-emerald-800/80">
+                  Référence : {createdReference}. La demande doit encore être confirmée par l'agence.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
 
         <section className="space-y-3">
           <h3 className="text-sm font-semibold text-slate-950">Dates du séjour</h3>
@@ -832,19 +868,7 @@ const PublicShortRentalBookingCard = ({
               Vos données sont sécurisées et confidentielles
             </p>
 
-            {createdReference && (
-              <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
-                <div className="flex items-start gap-2.5">
-                  <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" />
-                  <div>
-                    <p className="font-semibold text-emerald-900">Demande enregistrée</p>
-                    <p className="mt-1 text-sm leading-relaxed text-emerald-800/80">
-                      Référence : {createdReference}. La demande doit encore être confirmée par l'agence.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
+
           </div>
         )}
       </div>
