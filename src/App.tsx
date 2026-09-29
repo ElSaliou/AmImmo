@@ -185,6 +185,11 @@ const App = () => {
               {/* ========================================== */}
 
               <Route
+                path="/payment/:token"
+                element={<ShortRentalPaymentPage />}
+              />
+
+              <Route
                 path="/short-rental/payment/:token"
                 element={<ShortRentalPaymentPage />}
               />
