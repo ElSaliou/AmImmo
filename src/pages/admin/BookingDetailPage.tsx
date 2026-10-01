@@ -83,6 +83,10 @@ import {
 } from "@/hooks/use-short-rental-payments";
 
 import {
+  useShortRentalDeposit,
+} from "@/hooks/use-short-rental-deposit";
+
+import {
   Alert,
   AlertDescription,
 } from "@/components/ui/alert";
@@ -951,6 +955,61 @@ const getPaymentLinkErrorMessage = (
 };
 
 // ============================================================
+// SECURITY DEPOSIT HELPERS
+// ============================================================
+
+const getDepositStatusLabel = (
+  status: string,
+): string => {
+  switch (status) {
+    case "expected":
+      return "À encaisser";
+
+    case "partially_collected":
+      return "Partiellement encaissée";
+
+    case "held":
+      return "Détenue";
+
+    case "partially_released":
+      return "Partiellement restituée";
+
+    case "partially_withheld":
+      return "Partiellement retenue";
+
+    case "released":
+      return "Restituée";
+
+    case "fully_withheld":
+      return "Entièrement retenue";
+
+    case "cancelled":
+      return "Annulée";
+
+    default:
+      return status || "Inconnu";
+  }
+};
+
+const getDepositMovementTypeLabel = (
+  movementType: string,
+): string => {
+  switch (movementType) {
+    case "collection":
+      return "Encaissement";
+
+    case "release":
+      return "Restitution";
+
+    case "withhold":
+      return "Retenue";
+
+    default:
+      return movementType || "Mouvement";
+  }
+};
+
+// ============================================================
 // INFO ROW
 // ============================================================
 
@@ -1057,6 +1116,18 @@ export default function BookingDetailPage() {
       refetchPayments,
   } = useShortRentalPayments(
     invoice?.id,
+  );
+
+  const {
+    data: deposit,
+    isLoading:
+      isDepositLoading,
+    isError:
+      isDepositError,
+    error:
+      depositError,
+  } = useShortRentalDeposit(
+    bookingId,
   );
 
   // ==========================================================
@@ -3211,6 +3282,282 @@ export default function BookingDetailPage() {
                       </TableRow>
                     </TableBody>
                   </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* ================================================== */}
+          {/* CAUTION DE SEJOUR                                 */}
+          {/* ================================================== */}
+
+          <Card className="premium-card">
+            <CardHeader>
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <ShieldCheck className="h-5 w-5" />
+                    Caution de séjour
+                  </CardTitle>
+
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Suivi séparé du paiement du séjour et de la facture.
+                  </p>
+                </div>
+
+                {deposit && (
+                  <Badge
+                    variant={
+                      deposit.status === "held" ||
+                      deposit.status === "released"
+                        ? "default"
+                        : deposit.status === "cancelled"
+                          ? "destructive"
+                          : "outline"
+                    }
+                  >
+                    {getDepositStatusLabel(
+                      deposit.status,
+                    )}
+                  </Badge>
+                )}
+              </div>
+            </CardHeader>
+
+            <CardContent>
+              {isDepositLoading ? (
+                <div className="flex min-h-[120px] items-center justify-center">
+                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                </div>
+              ) : isDepositError ? (
+                <Alert variant="destructive">
+                  <XCircle className="h-4 w-4" />
+
+                  <AlertDescription>
+                    Impossible de charger la caution :{" "}
+                    {depositError instanceof Error
+                      ? depositError.message
+                      : "erreur inconnue"}
+                  </AlertDescription>
+                </Alert>
+              ) : !deposit ? (
+                <div className="rounded-lg border border-dashed p-6 text-center">
+                  <ShieldCheck className="mx-auto h-8 w-8 text-muted-foreground" />
+
+                  <p className="mt-3 font-medium">
+                    Aucune caution opérationnelle
+                  </p>
+
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Aucun dossier de caution n'est actuellement rattaché à cette réservation.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+                    <div className="rounded-lg border p-4">
+                      <p className="text-xs text-muted-foreground">
+                        Prévue
+                      </p>
+
+                      <p className="mt-2 text-lg font-semibold">
+                        {formatMoney(
+                          deposit.expected_amount,
+                          deposit.currency,
+                        )}
+                      </p>
+                    </div>
+
+                    <div className="rounded-lg border p-4">
+                      <p className="text-xs text-muted-foreground">
+                        Encaissée
+                      </p>
+
+                      <p className="mt-2 text-lg font-semibold">
+                        {formatMoney(
+                          deposit.collected_amount,
+                          deposit.currency,
+                        )}
+                      </p>
+                    </div>
+
+                    <div className="rounded-lg border p-4">
+                      <p className="text-xs text-muted-foreground">
+                        Actuellement détenue
+                      </p>
+
+                      <p className="mt-2 text-lg font-semibold">
+                        {formatMoney(
+                          deposit.held_amount,
+                          deposit.currency,
+                        )}
+                      </p>
+                    </div>
+
+                    <div className="rounded-lg border p-4">
+                      <p className="text-xs text-muted-foreground">
+                        Restituée
+                      </p>
+
+                      <p className="mt-2 text-lg font-semibold">
+                        {formatMoney(
+                          deposit.released_amount,
+                          deposit.currency,
+                        )}
+                      </p>
+                    </div>
+
+                    <div className="rounded-lg border p-4">
+                      <p className="text-xs text-muted-foreground">
+                        Retenue
+                      </p>
+
+                      <p className="mt-2 text-lg font-semibold">
+                        {formatMoney(
+                          deposit.withheld_amount,
+                          deposit.currency,
+                        )}
+                      </p>
+                    </div>
+                  </div>
+
+                  {deposit.amount_to_collect > 0 && (
+                    <Alert>
+                      <Banknote className="h-4 w-4" />
+
+                      <AlertDescription>
+                        Reste à encaisser sur la caution :{" "}
+                        <span className="font-semibold">
+                          {formatMoney(
+                            deposit.amount_to_collect,
+                            deposit.currency,
+                          )}
+                        </span>
+                        .
+                      </AlertDescription>
+                    </Alert>
+                  )}
+
+                  {deposit.status === "held" &&
+                    deposit.held_amount > 0 && (
+                      <Alert className="border-emerald-300 bg-emerald-50 text-emerald-950">
+                        <ShieldCheck className="h-4 w-4 text-emerald-700" />
+
+                        <AlertDescription>
+                          <span className="font-medium">
+                            Caution intégralement détenue.
+                          </span>{" "}
+                          Elle reste séparée du chiffre d'affaires du séjour jusqu'à sa
+                          restitution ou à une éventuelle retenue justifiée.
+                        </AlertDescription>
+                      </Alert>
+                    )}
+
+                  <Separator />
+
+                  <div>
+                    <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                      <div>
+                        <p className="font-medium">
+                          Historique de la caution
+                        </p>
+
+                        <p className="text-sm text-muted-foreground">
+                          Encaissements, restitutions et retenues enregistrés sur cette caution.
+                        </p>
+                      </div>
+
+                      <Badge variant="outline">
+                        {deposit.movements.length} mouvement
+                        {deposit.movements.length > 1
+                          ? "s"
+                          : ""}
+                      </Badge>
+                    </div>
+
+                    {deposit.movements.length === 0 ? (
+                      <div className="rounded-lg border border-dashed p-6 text-center">
+                        <p className="text-sm text-muted-foreground">
+                          Aucun mouvement enregistré.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="overflow-x-auto rounded-lg border">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>
+                                Date
+                              </TableHead>
+
+                              <TableHead>
+                                Type
+                              </TableHead>
+
+                              <TableHead>
+                                Référence
+                              </TableHead>
+
+                              <TableHead>
+                                Mode
+                              </TableHead>
+
+                              <TableHead className="text-right">
+                                Montant
+                              </TableHead>
+                            </TableRow>
+                          </TableHeader>
+
+                          <TableBody>
+                            {deposit.movements.map(
+                              (movement) => (
+                                <TableRow
+                                  key={
+                                    movement.id
+                                  }
+                                >
+                                  <TableCell>
+                                    {formatDateTime(
+                                      movement.occurred_at,
+                                    )}
+                                  </TableCell>
+
+                                  <TableCell>
+                                    <Badge variant="outline">
+                                      {getDepositMovementTypeLabel(
+                                        movement.movement_type,
+                                      )}
+                                    </Badge>
+                                  </TableCell>
+
+                                  <TableCell className="font-mono text-xs">
+                                    {
+                                      movement.reference
+                                    }
+                                  </TableCell>
+
+                                  <TableCell>
+                                    {movement.payment_method
+                                      ? getPaymentMethodLabel(
+                                          movement.payment_method as ShortRentalPaymentMethod,
+                                        )
+                                      : "—"}
+                                  </TableCell>
+
+                                  <TableCell className="text-right font-medium">
+                                    {formatMoney(
+                                      movement.amount,
+                                      movement.currency,
+                                    )}
+                                  </TableCell>
+                                </TableRow>
+                              ),
+                            )}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
             </CardContent>
