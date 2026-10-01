@@ -27,3 +27,10 @@ dist-ssr
 payment-test-valid.json
 payment-test-mtn.json
 payment-webhook-test.json
+
+# Supabase local CLI state
+supabase/.temp/
+supabase/.branches/
+
+# Generated Supabase schema snapshot
+supabase/remote_public_schema.sql
