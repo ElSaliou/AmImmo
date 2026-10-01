@@ -1,12 +1,18 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   CalendarClock,
+  CheckCircle2,
+  FileSignature,
+  Home,
   Mail,
   MessageSquare,
   Phone,
   Plus,
+  ShoppingCart,
+  UserCheck,
   WalletCards,
 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
 import {
@@ -32,10 +38,15 @@ import {
 import { Separator } from "@/components/ui/separator";
 
 import {
+  useConvertLeadToTenant,
   useCreateLeadActivity,
   useLeadActivities,
   useUpdateLead,
 } from "@/hooks/use-leads";
+
+import {
+  useConvertLeadToBuyer,
+} from "@/hooks/use-sales";
 
 import { useVisits } from "@/hooks/use-visits";
 
@@ -56,18 +67,28 @@ import type {
   LeadStatus,
 } from "@/types/real-estate";
 
+interface LeadProperty {
+  id: string;
+  title: string;
+  city?: string;
+  commune?: string;
+  slug?: string;
+  price?: number;
+  currency?: string;
+  listing_type?: string;
+  status?: string;
+  owner_id?: string | null;
+}
+
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 
   lead:
     | (Lead & {
-        property?: {
-          id: string;
-          title: string;
-          city?: string;
-          commune?: string;
-        } | null;
+        property?: LeadProperty | null;
+        tenant_id?: string | null;
+        buyer_id?: string | null;
       })
     | null;
 }
@@ -89,6 +110,8 @@ const LeadDetailDialog = ({
   onOpenChange,
   lead,
 }: Props) => {
+  const navigate = useNavigate();
+
   const {
     data: activities,
     refetch: refetchActivities,
@@ -105,6 +128,12 @@ const LeadDetailDialog = ({
 
   const createActivity =
     useCreateLeadActivity();
+
+  const convertToTenant =
+    useConvertLeadToTenant();
+
+  const convertToBuyer =
+    useConvertLeadToBuyer();
 
   const [note, setNote] =
     useState("");
@@ -124,15 +153,37 @@ const LeadDetailDialog = ({
     setChangingStatus,
   ] = useState(false);
 
+  const [
+    localTenantId,
+    setLocalTenantId,
+  ] = useState<string | null>(null);
+
+  const [
+    localBuyerId,
+    setLocalBuyerId,
+  ] = useState<string | null>(null);
+
   useEffect(() => {
-    if (lead?.status) {
-      setLocalStatus(
-        lead.status as LeadStatus,
-      );
+    if (!lead) {
+      return;
     }
+
+    setLocalStatus(
+      lead.status as LeadStatus,
+    );
+
+    setLocalTenantId(
+      lead.tenant_id ?? null,
+    );
+
+    setLocalBuyerId(
+      lead.buyer_id ?? null,
+    );
   }, [
     lead?.id,
     lead?.status,
+    lead?.tenant_id,
+    lead?.buyer_id,
     open,
   ]);
 
@@ -144,6 +195,31 @@ const LeadDetailDialog = ({
   if (!lead) {
     return null;
   }
+
+  const property =
+    lead.property ?? null;
+
+  const listingType =
+    property?.listing_type;
+
+  const isLongRental =
+    listingType === "long_rental";
+
+  const isSale =
+    listingType === "sale";
+
+  const isConverted =
+    localStatus === "converted";
+
+  const tenantId =
+    localTenantId ??
+    lead.tenant_id ??
+    null;
+
+  const buyerId =
+    localBuyerId ??
+    lead.buyer_id ??
+    null;
 
   const getStatusLabel = (
     status: LeadStatus,
@@ -216,46 +292,22 @@ const LeadDetailDialog = ({
       setChangingStatus(true);
 
       try {
-        /*
-         * 1.
-         * Mise à jour du statut du lead.
-         */
         await updateLead.mutateAsync({
           id: lead.id,
           status: newStatus,
         });
 
-        /*
-         * Mise à jour immédiate
-         * de l'interface.
-         */
         setLocalStatus(
           newStatus,
         );
 
-        /*
-         * 2.
-         * Journalisation automatique
-         * du changement de pipeline.
-         */
-        const activity =
-          await createActivity.mutateAsync({
-            lead_id: lead.id,
-            kind: "status_change",
-            content:
-              `Pipeline : ${previousLabel} → ${newLabel}`,
-          });
+        await createActivity.mutateAsync({
+          lead_id: lead.id,
+          kind: "status_change",
+          content:
+            `Pipeline : ${previousLabel} → ${newLabel}`,
+        });
 
-        console.log(
-          "[CRM] Activité pipeline créée :",
-          activity,
-        );
-
-        /*
-         * 3.
-         * Rafraîchissement forcé
-         * de l'historique.
-         */
         await refetchActivities();
 
         toast.success(
@@ -267,11 +319,6 @@ const LeadDetailDialog = ({
           error,
         );
 
-        /*
-         * On resynchronise
-         * l'affichage avec l'état précédent
-         * si l'opération échoue.
-         */
         setLocalStatus(
           previousStatus,
         );
@@ -285,17 +332,88 @@ const LeadDetailDialog = ({
       }
     };
 
+  const handleConvertToTenant =
+    async () => {
+      try {
+        const result =
+          await convertToTenant.mutateAsync(
+            lead.id,
+          );
+
+        setLocalTenantId(
+          result.tenant_id,
+        );
+
+        await refetchActivities();
+
+        if (
+          result.already_converted
+        ) {
+          toast.success(
+            "Ce prospect est déjà lié à un locataire.",
+          );
+        } else {
+          toast.success(
+            "Locataire créé avec succès.",
+          );
+        }
+      } catch (error: any) {
+        console.error(
+          "[CRM] Conversion locataire :",
+          error,
+        );
+
+        toast.error(
+          error?.message ??
+            "Impossible de créer le locataire.",
+        );
+      }
+    };
+
+  const handleConvertToBuyer =
+    async () => {
+      try {
+        const result =
+          await convertToBuyer.mutateAsync(
+            lead.id,
+          );
+
+        setLocalBuyerId(
+          result.buyer_id,
+        );
+
+        await refetchActivities();
+
+        if (
+          result.already_converted
+        ) {
+          toast.success(
+            "Ce prospect est déjà lié à un acquéreur.",
+          );
+        } else {
+          toast.success(
+            "Acquéreur créé avec succès.",
+          );
+        }
+      } catch (error: any) {
+        console.error(
+          "[CRM] Conversion acquéreur :",
+          error,
+        );
+
+        toast.error(
+          error?.message ??
+            "Impossible de créer l'acquéreur.",
+        );
+      }
+    };
+
   const handleVisitDialogChange =
     async (
       value: boolean,
     ) => {
       setVisitOpen(value);
 
-      /*
-       * Quand la fenêtre visite ferme,
-       * on rafraîchit les visites
-       * et l'historique.
-       */
       if (!value) {
         await Promise.all([
           refetchVisits(),
@@ -303,6 +421,62 @@ const LeadDetailDialog = ({
         ]);
       }
     };
+
+  const goToContracts = () => {
+    if (!tenantId) {
+      toast.error(
+        "Le locataire doit d'abord être créé.",
+      );
+      return;
+    }
+
+    if (!lead.property_id) {
+      toast.error(
+        "Aucun bien n'est associé à ce prospect.",
+      );
+      return;
+    }
+
+    onOpenChange(false);
+
+    navigate(
+      `/admin/contracts?tenant_id=${encodeURIComponent(
+        tenantId,
+      )}&property_id=${encodeURIComponent(
+        lead.property_id,
+      )}&lead_id=${encodeURIComponent(
+        lead.id,
+      )}`,
+    );
+  };
+
+  const goToSales = () => {
+    if (!buyerId) {
+      toast.error(
+        "L'acquéreur doit d'abord être créé.",
+      );
+      return;
+    }
+
+    if (!lead.property_id) {
+      toast.error(
+        "Aucun bien n'est associé à ce prospect.",
+      );
+      return;
+    }
+
+    onOpenChange(false);
+
+    navigate(
+      `/admin/sales?buyer_id=${encodeURIComponent(
+        buyerId,
+      )}&property_id=${encodeURIComponent(
+        lead.property_id,
+      )}&lead_id=${encodeURIComponent(
+        lead.id,
+      )}`,
+    );
+  };
 
   return (
     <>
@@ -317,14 +491,11 @@ const LeadDetailDialog = ({
             <div className="flex items-start justify-between gap-4 pr-8">
               <div>
                 <DialogTitle className="text-xl">
-                  {
-                    lead.full_name
-                  }
+                  {lead.full_name}
                 </DialogTitle>
 
                 <DialogDescription>
-                  Fiche prospect et
-                  historique commercial
+                  Fiche prospect et historique commercial
                 </DialogDescription>
               </div>
 
@@ -341,28 +512,17 @@ const LeadDetailDialog = ({
           </DialogHeader>
 
           <div className="grid md:grid-cols-3 gap-4">
-            {/* =============================== */}
-            {/* COLONNE PRINCIPALE              */}
-            {/* =============================== */}
-
             <div className="md:col-span-2 space-y-4">
-              {/* Informations prospect */}
-
               <div className="premium-card p-4 space-y-3">
                 <div className="grid sm:grid-cols-2 gap-3 text-sm">
                   <div className="flex items-center gap-2">
                     <Mail className="h-4 w-4 text-muted-foreground" />
-
-                    {
-                      lead.email
-                    }
+                    {lead.email}
                   </div>
 
                   <div className="flex items-center gap-2">
                     <Phone className="h-4 w-4 text-muted-foreground" />
-
-                    {lead.phone ||
-                      "—"}
+                    {lead.phone || "—"}
                   </div>
 
                   <div className="flex items-center gap-2">
@@ -390,19 +550,33 @@ const LeadDetailDialog = ({
                   </div>
                 </div>
 
-                {lead.property && (
-                  <p className="text-sm">
-                    <span className="text-muted-foreground">
-                      Bien :
-                    </span>{" "}
+                {property && (
+                  <div className="space-y-1">
+                    <p className="text-sm">
+                      <span className="text-muted-foreground">
+                        Bien :
+                      </span>{" "}
 
-                    <strong>
-                      {
-                        lead.property
-                          .title
-                      }
-                    </strong>
-                  </p>
+                      <strong>
+                        {property.title}
+                      </strong>
+                    </p>
+
+                    {listingType && (
+                      <div>
+                        <Badge
+                          variant="outline"
+                          className="text-[10px]"
+                        >
+                          {isSale
+                            ? "Vente"
+                            : isLongRental
+                              ? "Location longue durée"
+                              : listingType}
+                        </Badge>
+                      </div>
+                    )}
+                  </div>
                 )}
 
                 {lead.search_criteria && (
@@ -411,22 +585,150 @@ const LeadDetailDialog = ({
                       Recherche :
                     </span>{" "}
 
-                    {
-                      lead.search_criteria
-                    }
+                    {lead.search_criteria}
                   </p>
                 )}
 
                 {lead.message && (
                   <p className="text-sm rounded-lg bg-muted/50 p-3 whitespace-pre-line">
-                    {
-                      lead.message
-                    }
+                    {lead.message}
                   </p>
                 )}
               </div>
 
-              {/* Historique CRM */}
+              {isConverted &&
+                property &&
+                (isLongRental ||
+                  isSale) && (
+                  <div className="premium-card p-4 space-y-4">
+                    <div>
+                      <h3 className="font-semibold">
+                        Conversion commerciale
+                      </h3>
+
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Finalisez la conversion opérationnelle du prospect.
+                      </p>
+                    </div>
+
+                    <Separator />
+
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2 text-sm">
+                        <CheckCircle2 className="h-4 w-4 text-success" />
+                        <span>
+                          Prospect converti
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-2 text-sm">
+                        <Home className="h-4 w-4 text-warning" />
+                        <span>
+                          Bien réservé
+                        </span>
+                      </div>
+                    </div>
+
+                    {isLongRental && (
+                      <div className="space-y-3">
+                        {!tenantId ? (
+                          <>
+                            <div className="rounded-lg bg-muted/50 p-3 text-sm">
+                              Le prospect doit maintenant être créé comme locataire avant la création du bail.
+                            </div>
+
+                            <Button
+                              className="w-full"
+                              onClick={() =>
+                                void handleConvertToTenant()
+                              }
+                              disabled={
+                                convertToTenant.isPending
+                              }
+                            >
+                              <UserCheck className="h-4 w-4" />
+
+                              {convertToTenant.isPending
+                                ? "Création..."
+                                : "Créer le locataire"}
+                            </Button>
+                          </>
+                        ) : (
+                          <>
+                            <div className="flex items-center gap-2 rounded-lg bg-success/10 p-3 text-sm text-success">
+                              <CheckCircle2 className="h-4 w-4" />
+
+                              Locataire créé et lié au prospect.
+                            </div>
+
+                            <Button
+                              className="w-full"
+                              onClick={
+                                goToContracts
+                              }
+                            >
+                              <FileSignature className="h-4 w-4" />
+                              Créer le bail
+                            </Button>
+
+                            <p className="text-xs text-muted-foreground">
+                              Le bail sera créé en attente. Lorsqu'il passera à Actif, le bien sera automatiquement marqué Loué.
+                            </p>
+                          </>
+                        )}
+                      </div>
+                    )}
+
+                    {isSale && (
+                      <div className="space-y-3">
+                        {!buyerId ? (
+                          <>
+                            <div className="rounded-lg bg-muted/50 p-3 text-sm">
+                              Le prospect doit maintenant être créé comme acquéreur avant la création de la transaction.
+                            </div>
+
+                            <Button
+                              className="w-full"
+                              onClick={() =>
+                                void handleConvertToBuyer()
+                              }
+                              disabled={
+                                convertToBuyer.isPending
+                              }
+                            >
+                              <UserCheck className="h-4 w-4" />
+
+                              {convertToBuyer.isPending
+                                ? "Création..."
+                                : "Créer l'acquéreur"}
+                            </Button>
+                          </>
+                        ) : (
+                          <>
+                            <div className="flex items-center gap-2 rounded-lg bg-success/10 p-3 text-sm text-success">
+                              <CheckCircle2 className="h-4 w-4" />
+                              Acquéreur créé et lié au prospect.
+                            </div>
+
+                            <Button
+                              className="w-full"
+                              onClick={
+                                goToSales
+                              }
+                            >
+                              <ShoppingCart className="h-4 w-4" />
+                              Créer la transaction
+                            </Button>
+
+                            <p className="text-xs text-muted-foreground">
+                              La transaction sera suivie dans le module Ventes. Une fois finalisée, le bien sera automatiquement marqué Vendu.
+                            </p>
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
 
               <div className="premium-card p-4 space-y-3">
                 <div className="flex items-center justify-between">
@@ -435,9 +737,7 @@ const LeadDetailDialog = ({
                   </h3>
 
                   <span className="text-xs text-muted-foreground">
-                    {
-                      orderedActivities.length
-                    }{" "}
+                    {orderedActivities.length}{" "}
                     activité
                     {orderedActivities.length >
                     1
@@ -451,11 +751,10 @@ const LeadDetailDialog = ({
                     value={note}
                     onChange={(e) =>
                       setNote(
-                        e.target
-                          .value,
+                        e.target.value,
                       )
                     }
-                    placeholder="Ajouter une note commerciale…"
+                    placeholder="Ajouter une note commerciale..."
                     onKeyDown={(
                       e,
                     ) => {
@@ -464,7 +763,6 @@ const LeadDetailDialog = ({
                         "Enter"
                       ) {
                         e.preventDefault();
-
                         void addNote();
                       }
                     }}
@@ -489,15 +787,12 @@ const LeadDetailDialog = ({
                 {orderedActivities.length ===
                 0 ? (
                   <p className="text-sm text-muted-foreground py-4">
-                    Aucune activité
-                    enregistrée.
+                    Aucune activité enregistrée.
                   </p>
                 ) : (
                   <div className="space-y-3">
                     {orderedActivities.map(
-                      (
-                        activity,
-                      ) => (
+                      (activity) => (
                         <div
                           key={
                             activity.id
@@ -518,7 +813,10 @@ const LeadDetailDialog = ({
                                   : activity.kind ===
                                       "note"
                                     ? "Note"
-                                    : activity.kind}
+                                    : activity.kind ===
+                                        "conversion"
+                                      ? "Conversion"
+                                      : activity.kind}
                             </Badge>
 
                             <span className="text-xs text-muted-foreground">
@@ -529,9 +827,7 @@ const LeadDetailDialog = ({
                           </div>
 
                           <p className="text-sm mt-1 whitespace-pre-line">
-                            {
-                              activity.content
-                            }
+                            {activity.content}
                           </p>
                         </div>
                       ),
@@ -541,13 +837,7 @@ const LeadDetailDialog = ({
               </div>
             </div>
 
-            {/* =============================== */}
-            {/* COLONNE DROITE                  */}
-            {/* =============================== */}
-
             <div className="space-y-4">
-              {/* Pipeline */}
-
               <div className="premium-card p-4 space-y-3">
                 <h3 className="font-semibold">
                   Pipeline
@@ -585,9 +875,7 @@ const LeadDetailDialog = ({
                             step.value
                           }
                         >
-                          {
-                            step.label
-                          }
+                          {step.label}
                         </SelectItem>
                       ),
                     )}
@@ -608,18 +896,15 @@ const LeadDetailDialog = ({
                 </Button>
               </div>
 
-              {/* Visites */}
-
               <div className="premium-card p-4 space-y-3">
                 <h3 className="font-semibold">
                   Visites
                 </h3>
 
-                {(visits ?? [])
-                  .length === 0 ? (
+                {(visits ?? []).length ===
+                0 ? (
                   <p className="text-xs text-muted-foreground">
-                    Aucune visite
-                    planifiée.
+                    Aucune visite planifiée.
                   </p>
                 ) : (
                   (visits ?? [])
@@ -628,8 +913,7 @@ const LeadDetailDialog = ({
                       (visit) => {
                         const config =
                           visitStatusConfig[
-                            visit
-                              .status
+                            visit.status
                           ];
 
                         return (
@@ -650,18 +934,14 @@ const LeadDetailDialog = ({
                                 <Badge
                                   className={`${config.color} border-0 text-[10px]`}
                                 >
-                                  {
-                                    config.label
-                                  }
+                                  {config.label}
                                 </Badge>
                               )}
                             </div>
 
                             {visit.outcome && (
                               <p className="text-xs text-muted-foreground mt-2 whitespace-pre-line">
-                                {
-                                  visit.outcome
-                                }
+                                {visit.outcome}
                               </p>
                             )}
                           </div>

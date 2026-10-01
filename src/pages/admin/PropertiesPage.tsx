@@ -5,6 +5,7 @@ import {
 
 import {
   AlertTriangle,
+  Archive,
   Armchair,
   CheckCircle2,
   ClipboardCheck,
@@ -17,7 +18,6 @@ import {
   Search,
   Trash2,
   Wrench,
-  Archive,
 } from "lucide-react";
 
 import {
@@ -38,6 +38,7 @@ import EmptyState from "@/components/admin/EmptyState";
 
 import {
   useApprovePropertyReavailability,
+  useApprovePropertyResale,
   useDeleteProperty,
   useProperties,
   usePropertyControlDecision,
@@ -98,6 +99,10 @@ import {
   propertyTypeLabels,
 } from "@/constants/real-estate";
 
+// ============================================================
+// STATUS UI
+// ============================================================
+
 const statusClass:
   Record<
     string,
@@ -134,8 +139,22 @@ type PropertyRow =
     any
   >;
 
+type ControlAction =
+  | "available"
+  | "maintenance"
+  | "archived"
+  | null;
+
+// ============================================================
+// COMPONENT
+// ============================================================
+
 const PropertiesPage =
   () => {
+    // ========================================================
+    // DATA
+    // ========================================================
+
     const {
       data: properties,
       isLoading,
@@ -151,8 +170,15 @@ const PropertiesPage =
     const approveReavailability =
       useApprovePropertyReavailability();
 
+    const approveResale =
+      useApprovePropertyResale();
+
     const controlDecision =
       usePropertyControlDecision();
+
+    // ========================================================
+    // FORMULAIRE BIEN
+    // ========================================================
 
     const [
       formOpen,
@@ -167,6 +193,10 @@ const PropertiesPage =
       useState<
         string | undefined
       >();
+
+    // ========================================================
+    // FILTRES
+    // ========================================================
 
     const [
       search,
@@ -206,11 +236,9 @@ const PropertiesPage =
         "__all__",
       );
 
-    /*
-     * ========================================================
-     * CONTRÔLE POST-LOCATION
-     * ========================================================
-     */
+    // ========================================================
+    // CONTROLE / REEVALUATION
+    // ========================================================
 
     const [
       controlOpen,
@@ -236,18 +264,41 @@ const PropertiesPage =
       controlAction,
       setControlAction,
     ] =
-      useState<
-        | "available"
-        | "maintenance"
-        | "archived"
-        | null
-      >(null);
+      useState<ControlAction>(
+        null,
+      );
 
-    /*
-     * ========================================================
-     * FILTRES
-     * ========================================================
-     */
+    // ========================================================
+    // HELPERS METIER
+    // ========================================================
+
+    const isCommercialReviewProperty =
+      (
+        property:
+          PropertyRow | null,
+      ) => {
+        if (!property) {
+          return false;
+        }
+
+        return (
+          property.listing_type ===
+            "sale" &&
+          property.control_required ===
+            true &&
+          property.availability_reason ===
+            "commercial_hold"
+        );
+      };
+
+    const isCommercialControl =
+      isCommercialReviewProperty(
+        controlProperty,
+      );
+
+    // ========================================================
+    // FILTRAGE
+    // ========================================================
 
     const filtered =
       useMemo(() => {
@@ -317,6 +368,17 @@ const PropertiesPage =
                 return false;
               }
             } else if (
+              filterStatus ===
+              "__commercial_review__"
+            ) {
+              if (
+                !isCommercialReviewProperty(
+                  property,
+                )
+              ) {
+                return false;
+              }
+            } else if (
               filterStatus !==
                 "__all__" &&
               property.status !==
@@ -374,15 +436,34 @@ const PropertiesPage =
           property.control_required,
       ).length;
 
-    /*
-     * ========================================================
-     * OUVERTURE DU CONTRÔLE
-     * ========================================================
-     */
+    const commercialReviewCount =
+      (
+        properties ??
+        []
+      ).filter(
+        (
+          property: any,
+        ) =>
+          isCommercialReviewProperty(
+            property,
+          ),
+      ).length;
+
+    const technicalControlCount =
+      Math.max(
+        0,
+        controlCount -
+          commercialReviewCount,
+      );
+
+    // ========================================================
+    // OUVERTURE DIALOG
+    // ========================================================
 
     const openControl =
       (
-        property: PropertyRow,
+        property:
+          PropertyRow,
       ) => {
         setControlProperty(
           property,
@@ -406,6 +487,7 @@ const PropertiesPage =
       () => {
         if (
           approveReavailability.isPending ||
+          approveResale.isPending ||
           controlDecision.isPending
         ) {
           return;
@@ -428,18 +510,17 @@ const PropertiesPage =
         );
       };
 
-    /*
-     * ========================================================
-     * VALIDATION DU CONTRÔLE
-     * ========================================================
-     */
+    // ========================================================
+    // DECISION APRES CONTROLE / REEVALUATION
+    // ========================================================
 
     const handleControlDecision =
       async (
         action:
-          | "available"
-          | "maintenance"
-          | "archived",
+          Exclude<
+            ControlAction,
+            null
+          >,
       ) => {
         if (
           !controlProperty
@@ -447,29 +528,60 @@ const PropertiesPage =
           return;
         }
 
+        const commercialReview =
+          isCommercialReviewProperty(
+            controlProperty,
+          );
+
         setControlAction(
           action,
         );
 
         try {
+          // ==================================================
+          // REMISE EN COMMERCIALISATION
+          // ==================================================
+
           if (
             action ===
             "available"
           ) {
-            await approveReavailability.mutateAsync(
-              {
-                propertyId:
-                  controlProperty.id,
+            if (
+              commercialReview
+            ) {
+              await approveResale.mutateAsync(
+                {
+                  propertyId:
+                    controlProperty.id,
 
-                note:
-                  controlNote,
-              },
-            );
+                  note:
+                    controlNote,
+                },
+              );
 
-            toast.success(
-              "Contrôle validé. Le bien est de nouveau disponible.",
-            );
+              toast.success(
+                "Validation commerciale terminée. Le bien est remis en vente.",
+              );
+            } else {
+              await approveReavailability.mutateAsync(
+                {
+                  propertyId:
+                    controlProperty.id,
+
+                  note:
+                    controlNote,
+                },
+              );
+
+              toast.success(
+                "Contrôle validé. Le bien est de nouveau disponible.",
+              );
+            }
           }
+
+          // ==================================================
+          // MAINTENANCE
+          // ==================================================
 
           if (
             action ===
@@ -489,9 +601,15 @@ const PropertiesPage =
             );
 
             toast.success(
-              "Bien placé en maintenance.",
+              commercialReview
+                ? "Le bien a été placé en maintenance après réévaluation commerciale."
+                : "Bien placé en maintenance.",
             );
           }
+
+          // ==================================================
+          // ARCHIVAGE
+          // ==================================================
 
           if (
             action ===
@@ -511,7 +629,9 @@ const PropertiesPage =
             );
 
             toast.success(
-              "Bien archivé et retiré de la commercialisation.",
+              commercialReview
+                ? "Le bien a été archivé et retiré de la vente."
+                : "Bien archivé et retiré de la commercialisation.",
             );
           }
 
@@ -544,20 +664,18 @@ const PropertiesPage =
         }
       };
 
-    /*
-     * ========================================================
-     * PUBLICATION CLASSIQUE
-     * ========================================================
-     */
+    // ========================================================
+    // PUBLICATION CLASSIQUE
+    // ========================================================
 
     const handleTogglePublish =
       (
-        property: PropertyRow,
+        property:
+          PropertyRow,
       ) => {
         /*
-         * Les statuts métier ne doivent
-         * jamais être écrasés par
-         * Publier/Dépublier.
+         * On interdit l'écrasement
+         * d'un statut métier.
          */
         if (
           ![
@@ -594,6 +712,19 @@ const PropertiesPage =
           },
         );
       };
+
+    // ========================================================
+    // LOADING GLOBAL DIALOG
+    // ========================================================
+
+    const decisionPending =
+      approveReavailability.isPending ||
+      approveResale.isPending ||
+      controlDecision.isPending;
+
+    // ========================================================
+    // RENDER
+    // ========================================================
 
     return (
       <PageShell
@@ -781,7 +912,7 @@ const PropertiesPage =
                 setFilterStatus
               }
             >
-              <SelectTrigger className="md:w-44 h-10">
+              <SelectTrigger className="md:w-52 h-10">
                 <SelectValue placeholder="Statut" />
               </SelectTrigger>
 
@@ -791,7 +922,11 @@ const PropertiesPage =
                 </SelectItem>
 
                 <SelectItem value="__control__">
-                  À contrôler
+                  À contrôler / revoir
+                </SelectItem>
+
+                <SelectItem value="__commercial_review__">
+                  À revoir commercialement
                 </SelectItem>
 
                 {Object.entries(
@@ -845,15 +980,27 @@ const PropertiesPage =
                 sur le site
               </span>
 
-              {controlCount >
+              {technicalControlCount >
                 0 && (
                 <span className="font-medium text-warning flex items-center gap-1">
                   <ClipboardCheck className="h-3.5 w-3.5" />
 
                   {
-                    controlCount
+                    technicalControlCount
                   }{" "}
                   à contrôler
+                </span>
+              )}
+
+              {commercialReviewCount >
+                0 && (
+                <span className="font-medium text-warning flex items-center gap-1">
+                  <AlertTriangle className="h-3.5 w-3.5" />
+
+                  {
+                    commercialReviewCount
+                  }{" "}
+                  à revoir commercialement
                 </span>
               )}
             </div>
@@ -926,7 +1073,8 @@ const PropertiesPage =
               <TableBody>
                 {filtered.map(
                   (
-                    property: any,
+                    property:
+                      PropertyRow,
                     index,
                   ) => {
                     const cover =
@@ -944,6 +1092,11 @@ const PropertiesPage =
                     const needsControl =
                       Boolean(
                         property.control_required,
+                      );
+
+                    const isCommercialReview =
+                      isCommercialReviewProperty(
+                        property,
                       );
 
                     const canTogglePublish =
@@ -976,7 +1129,9 @@ const PropertiesPage =
                             : "group hover:bg-muted/30 transition-colors"
                         }
                       >
-                        {/* BIEN */}
+                        {/* ===================================== */}
+                        {/* BIEN                                  */}
+                        {/* ===================================== */}
 
                         <TableCell>
                           <div className="flex items-center gap-3">
@@ -1015,20 +1170,21 @@ const PropertiesPage =
                                   : ""}
 
                                 {Number(
-                                  property.surface,
+                                  property.surface ??
+                                    0,
                                 )}{" "}
                                 m² ·{" "}
-                                {
-                                  property.rooms
-                                }{" "}
+                                {property.rooms ??
+                                  0}{" "}
                                 pcs ·{" "}
-                                {
-                                  property.bedrooms
-                                }{" "}
+                                {property.bedrooms ??
+                                  0}{" "}
                                 ch
 
                                 {property.floor !==
-                                  null
+                                null &&
+                                property.floor !==
+                                  undefined
                                   ? ` · étage ${property.floor}`
                                   : ""}
                               </p>
@@ -1036,7 +1192,9 @@ const PropertiesPage =
                           </div>
                         </TableCell>
 
-                        {/* TYPE */}
+                        {/* ===================================== */}
+                        {/* TYPE                                  */}
+                        {/* ===================================== */}
 
                         <TableCell className="text-sm">
                           {propertyTypeLabels[
@@ -1046,7 +1204,9 @@ const PropertiesPage =
                             property.property_type}
                         </TableCell>
 
-                        {/* OFFRE */}
+                        {/* ===================================== */}
+                        {/* OFFRE                                 */}
+                        {/* ===================================== */}
 
                         <TableCell>
                           <Badge
@@ -1061,7 +1221,9 @@ const PropertiesPage =
                           </Badge>
                         </TableCell>
 
-                        {/* PRIX */}
+                        {/* ===================================== */}
+                        {/* PRIX                                  */}
+                        {/* ===================================== */}
 
                         <TableCell className="text-sm">
                           <p className="font-semibold">
@@ -1072,7 +1234,8 @@ const PropertiesPage =
                           </p>
 
                           {Number(
-                            property.charges,
+                            property.charges ??
+                              0,
                           ) >
                             0 && (
                             <p className="text-xs text-muted-foreground">
@@ -1086,7 +1249,9 @@ const PropertiesPage =
                           )}
                         </TableCell>
 
-                        {/* LOCALISATION */}
+                        {/* ===================================== */}
+                        {/* LOCALISATION                          */}
+                        {/* ===================================== */}
 
                         <TableCell className="text-sm">
                           <p>
@@ -1110,18 +1275,22 @@ const PropertiesPage =
                           </p>
                         </TableCell>
 
-                        {/* DISPONIBILITÉ */}
+                        {/* ===================================== */}
+                        {/* DISPONIBILITE                         */}
+                        {/* ===================================== */}
 
                         <TableCell className="text-xs text-muted-foreground">
                           {needsControl ? (
                             <div className="space-y-1">
                               <span className="font-medium text-warning">
-                                Contrôle requis
+                                {isCommercialReview
+                                  ? "Réévaluation commerciale requise"
+                                  : "Contrôle requis"}
                               </span>
 
                               {property.availability_note && (
                                 <p
-                                  className="max-w-[180px] truncate"
+                                  className="max-w-[200px] truncate"
                                   title={
                                     property.availability_note
                                   }
@@ -1141,16 +1310,24 @@ const PropertiesPage =
                           )}
                         </TableCell>
 
-                        {/* STATUT */}
+                        {/* ===================================== */}
+                        {/* STATUT                                */}
+                        {/* ===================================== */}
 
                         <TableCell>
                           {needsControl &&
                           property.status ===
                             "unavailable" ? (
                             <Badge className="bg-warning/15 text-warning text-xs border-0">
-                              <ClipboardCheck className="h-3 w-3 mr-1" />
+                              {isCommercialReview ? (
+                                <AlertTriangle className="h-3 w-3 mr-1" />
+                              ) : (
+                                <ClipboardCheck className="h-3 w-3 mr-1" />
+                              )}
 
-                              À contrôler
+                              {isCommercialReview
+                                ? "À revoir commercialement"
+                                : "À contrôler"}
                             </Badge>
                           ) : (
                             <Badge
@@ -1168,7 +1345,9 @@ const PropertiesPage =
                           )}
                         </TableCell>
 
-                        {/* ACTIONS */}
+                        {/* ===================================== */}
+                        {/* ACTIONS                               */}
+                        {/* ===================================== */}
 
                         <TableCell className="text-right">
                           <div className="flex items-center justify-end gap-1">
@@ -1176,16 +1355,22 @@ const PropertiesPage =
                               <Button
                                 size="sm"
                                 variant="outline"
-                                className="h-8 text-xs"
+                                className="h-8 text-xs whitespace-nowrap"
                                 onClick={() =>
                                   openControl(
                                     property,
                                   )
                                 }
                               >
-                                <ClipboardCheck className="h-3.5 w-3.5" />
+                                {isCommercialReview ? (
+                                  <AlertTriangle className="h-3.5 w-3.5" />
+                                ) : (
+                                  <ClipboardCheck className="h-3.5 w-3.5" />
+                                )}
 
-                                Effectuer le contrôle
+                                {isCommercialReview
+                                  ? "Réévaluer le bien"
+                                  : "Effectuer le contrôle"}
                               </Button>
                             )}
 
@@ -1288,7 +1473,7 @@ const PropertiesPage =
         />
 
         {/* =================================================== */}
-        {/* DIALOG CONTRÔLE POST-LOCATION                       */}
+        {/* DIALOG CONTROLE / REEVALUATION                      */}
         {/* =================================================== */}
 
         <Dialog
@@ -1305,20 +1490,28 @@ const PropertiesPage =
             }
           }}
         >
-          <DialogContent className="sm:max-w-xl">
+          <DialogContent className="sm:max-w-xl max-h-[92vh] overflow-y-auto">
             <DialogHeader>
               <div className="flex items-start gap-3">
                 <div className="h-11 w-11 rounded-xl bg-warning/10 flex items-center justify-center shrink-0">
-                  <ClipboardCheck className="h-5 w-5 text-warning" />
+                  {isCommercialControl ? (
+                    <AlertTriangle className="h-5 w-5 text-warning" />
+                  ) : (
+                    <ClipboardCheck className="h-5 w-5 text-warning" />
+                  )}
                 </div>
 
                 <div>
                   <DialogTitle>
-                    Contrôle du bien
+                    {isCommercialControl
+                      ? "Réévaluation commerciale"
+                      : "Contrôle du bien"}
                   </DialogTitle>
 
                   <DialogDescription className="mt-1">
-                    Décidez de la remise en commercialisation après la fin du bail.
+                    {isCommercialControl
+                      ? "Décidez de la suite commerciale à donner au bien après l'annulation de la vente."
+                      : "Décidez de la remise en commercialisation après la fin du bail."}
                   </DialogDescription>
                 </div>
               </div>
@@ -1326,7 +1519,9 @@ const PropertiesPage =
 
             {controlProperty && (
               <div className="space-y-5 pt-2">
-                {/* BIEN */}
+                {/* =========================================== */}
+                {/* BIEN                                        */}
+                {/* =========================================== */}
 
                 <div className="rounded-xl border p-4">
                   <p className="font-semibold">
@@ -1351,9 +1546,15 @@ const PropertiesPage =
 
                   <div className="mt-3 flex items-center gap-2">
                     <Badge className="bg-warning/15 text-warning border-0">
-                      <AlertTriangle className="h-3 w-3 mr-1" />
+                      {isCommercialControl ? (
+                        <AlertTriangle className="h-3 w-3 mr-1" />
+                      ) : (
+                        <ClipboardCheck className="h-3 w-3 mr-1" />
+                      )}
 
-                      À contrôler
+                      {isCommercialControl
+                        ? "À revoir commercialement"
+                        : "À contrôler"}
                     </Badge>
                   </div>
 
@@ -1366,11 +1567,15 @@ const PropertiesPage =
                   )}
                 </div>
 
-                {/* NOTE */}
+                {/* =========================================== */}
+                {/* NOTE                                        */}
+                {/* =========================================== */}
 
                 <div className="space-y-1.5">
                   <Label>
-                    Compte rendu du contrôle
+                    {isCommercialControl
+                      ? "Compte rendu de la réévaluation"
+                      : "Compte rendu du contrôle"}
                   </Label>
 
                   <Textarea
@@ -1387,7 +1592,11 @@ const PropertiesPage =
                           .value,
                       )
                     }
-                    placeholder="État du logement, réparations éventuelles, décision du propriétaire..."
+                    placeholder={
+                      isCommercialControl
+                        ? "Décision du propriétaire, nouveau prix éventuel, conditions de vente, observations commerciales..."
+                        : "État du logement, réparations éventuelles, décision du propriétaire..."
+                    }
                   />
 
                   <p className="text-[11px] text-muted-foreground">
@@ -1395,7 +1604,9 @@ const PropertiesPage =
                   </p>
                 </div>
 
-                {/* CHOIX */}
+                {/* =========================================== */}
+                {/* ACTION PRINCIPALE                            */}
+                {/* =========================================== */}
 
                 <div className="grid gap-3">
                   <Button
@@ -1406,13 +1617,13 @@ const PropertiesPage =
                       )
                     }
                     disabled={
-                      approveReavailability.isPending ||
-                      controlDecision.isPending
+                      decisionPending
                     }
                   >
                     {controlAction ===
                       "available" &&
-                    approveReavailability.isPending ? (
+                    (approveReavailability.isPending ||
+                      approveResale.isPending) ? (
                       <Loader2 className="h-4 w-4 animate-spin shrink-0" />
                     ) : (
                       <CheckCircle2 className="h-4 w-4 shrink-0" />
@@ -1420,14 +1631,22 @@ const PropertiesPage =
 
                     <span className="text-left">
                       <span className="block">
-                        Remettre disponible
+                        {isCommercialControl
+                          ? "Remettre en vente"
+                          : "Remettre disponible"}
                       </span>
 
                       <span className="block text-[11px] font-normal opacity-80">
-                        Le bien est conforme et peut être recommercialisé.
+                        {isCommercialControl
+                          ? "La situation commerciale est validée et le bien peut être proposé de nouveau à la vente."
+                          : "Le bien est conforme et peut être recommercialisé."}
                       </span>
                     </span>
                   </Button>
+
+                  {/* ========================================= */}
+                  {/* MAINTENANCE                               */}
+                  {/* ========================================= */}
 
                   <Button
                     variant="outline"
@@ -1438,8 +1657,7 @@ const PropertiesPage =
                       )
                     }
                     disabled={
-                      approveReavailability.isPending ||
-                      controlDecision.isPending
+                      decisionPending
                     }
                   >
                     {controlAction ===
@@ -1456,10 +1674,16 @@ const PropertiesPage =
                       </span>
 
                       <span className="block text-[11px] font-normal text-muted-foreground">
-                        Des travaux sont nécessaires avant toute nouvelle location.
+                        {isCommercialControl
+                          ? "Le bien nécessite une intervention avant toute nouvelle mise en vente."
+                          : "Des travaux sont nécessaires avant toute nouvelle location."}
                       </span>
                     </span>
                   </Button>
+
+                  {/* ========================================= */}
+                  {/* ARCHIVAGE                                  */}
+                  {/* ========================================= */}
 
                   <Button
                     variant="outline"
@@ -1470,8 +1694,7 @@ const PropertiesPage =
                       )
                     }
                     disabled={
-                      approveReavailability.isPending ||
-                      controlDecision.isPending
+                      decisionPending
                     }
                   >
                     {controlAction ===
@@ -1488,7 +1711,9 @@ const PropertiesPage =
                       </span>
 
                       <span className="block text-[11px] font-normal text-muted-foreground">
-                        Le bien est retiré de la commercialisation.
+                        {isCommercialControl
+                          ? "Le bien est retiré de la vente et de la commercialisation."
+                          : "Le bien est retiré de la commercialisation."}
                       </span>
                     </span>
                   </Button>
@@ -1502,8 +1727,7 @@ const PropertiesPage =
                       closeControl
                     }
                     disabled={
-                      approveReavailability.isPending ||
-                      controlDecision.isPending
+                      decisionPending
                     }
                   >
                     Annuler

@@ -578,3 +578,67 @@ export const usePropertyControlDecision =
       },
     });
   };
+/**
+ * ============================================================
+ * REMISE EN VENTE APRÈS VALIDATION COMMERCIALE
+ * ============================================================
+ *
+ * Appelle :
+ * public.approve_property_resale(uuid, text)
+ *
+ * Utilisé lorsqu'une transaction de vente a été annulée :
+ *
+ * sale.cancelled
+ *      ↓
+ * property.unavailable
+ * control_required = true
+ * availability_reason = commercial_hold
+ *      ↓
+ * validation gestionnaire
+ *      ↓
+ * property.published
+ */
+export const useApprovePropertyResale =
+  () => {
+    const qc =
+      useQueryClient();
+
+    return useMutation({
+      mutationFn: async ({
+        propertyId,
+        note,
+      }: {
+        propertyId: string;
+        note?: string;
+      }) => {
+        const {
+          data,
+          error,
+        } = await (
+          supabase as any
+        ).rpc(
+          "approve_property_resale",
+          {
+            p_property_id:
+              propertyId,
+
+            p_note:
+              note?.trim() ||
+              null,
+          },
+        );
+
+        if (error) {
+          throw error;
+        }
+
+        return data;
+      },
+
+      onSuccess: () => {
+        invalidatePropertyQueries(
+          qc,
+        );
+      },
+    });
+  };
