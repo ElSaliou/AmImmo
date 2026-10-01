@@ -34,3 +34,6 @@ supabase/.branches/
 
 # Generated Supabase schema snapshot
 supabase/remote_public_schema.sql
+
+# Local VS Code settings
+.vscode/
