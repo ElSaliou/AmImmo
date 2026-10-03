@@ -6,6 +6,7 @@ type RequestBody = {
   recipient: string;
   pdfBase64: string;
   filename?: string;
+  deliveryAttemptId: string;
 };
 
 function jsonResponse(
@@ -174,11 +175,29 @@ export default {
         const filename =
           body.filename?.trim();
 
+        const deliveryAttemptId =
+          body.deliveryAttemptId?.trim();
+
         if (!statementId) {
           return jsonResponse(
             {
               error:
                 "Identifiant du relevé obligatoire.",
+            },
+            400,
+          );
+        }
+
+        if (
+          !deliveryAttemptId ||
+          !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+            deliveryAttemptId,
+          )
+        ) {
+          return jsonResponse(
+            {
+              error:
+                "Identifiant de tentative d'envoi invalide.",
             },
             400,
           );
@@ -409,6 +428,9 @@ export default {
 
                 "Content-Type":
                   "application/json",
+
+                "Idempotency-Key":
+                  `owner-statement-${statementId}-${deliveryAttemptId}`,
               },
 
               body:
@@ -496,6 +518,8 @@ export default {
 
             reference:
               statement.reference,
+
+            deliveryAttemptId,
           },
         );
       } catch (error) {

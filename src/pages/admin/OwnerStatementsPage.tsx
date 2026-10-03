@@ -1,6 +1,7 @@
 import {
   type ReactNode,
   useMemo,
+  useRef,
   useState,
 } from "react";
 
@@ -1171,6 +1172,21 @@ export default function OwnerStatementsPage() {
   const [sendTo, setSendTo] = useState("");
   const [sendReference, setSendReference] = useState("");
 
+  const [isSendingStatement, setIsSendingStatement] =
+    useState(false);
+
+  const sendInFlightRef =
+    useRef(false);
+
+  const emailAttemptRef =
+    useRef<{
+      id: string;
+      statementId: string;
+      recipient: string;
+      pdfBase64: string;
+      filename: string;
+    } | null>(null);
+
   const [cancelDialogStatement, setCancelDialogStatement] =
     useState<OfficialOwnerStatement | null>(null);
 
@@ -1436,10 +1452,12 @@ export default function OwnerStatementsPage() {
     );
 
     setSendReference("");
+    emailAttemptRef.current = null;
     setSendDialogStatement(document);
   };
 
   const handleChannelChange = (channel: OwnerStatementSendChannel) => {
+    emailAttemptRef.current = null;
     setSendChannel(channel);
 
     if (!sendDialogStatement) return;
@@ -1458,7 +1476,12 @@ export default function OwnerStatementsPage() {
   };
 
   const handleConfirmSent = async () => {
-    if (!sendDialogStatement) return;
+    if (
+      !sendDialogStatement ||
+      sendInFlightRef.current
+    ) {
+      return;
+    }
 
     const recipient = sendTo.trim();
 
@@ -1475,19 +1498,46 @@ export default function OwnerStatementsPage() {
       return;
     }
 
+    sendInFlightRef.current = true;
+    setIsSendingStatement(true);
+
     try {
       let effectiveSendReference =
         sendReference.trim() || null;
 
       // Envoi email réel via Supabase Edge Function + Resend.
       if (sendChannel === "email") {
-        const bundle =
-          await getOfficialOwnerStatementBundle(
-            sendDialogStatement.id,
-          );
+        let emailAttempt =
+          emailAttemptRef.current;
 
-        const pdfBase64 =
-          getOfficialPdfBase64(bundle);
+        if (
+          !emailAttempt ||
+          emailAttempt.statementId !==
+            sendDialogStatement.id ||
+          emailAttempt.recipient !==
+            recipient
+        ) {
+          const bundle =
+            await getOfficialOwnerStatementBundle(
+              sendDialogStatement.id,
+            );
+
+          const pdfBase64 =
+            getOfficialPdfBase64(bundle);
+
+          emailAttempt = {
+            id: crypto.randomUUID(),
+            statementId:
+              sendDialogStatement.id,
+            recipient,
+            pdfBase64,
+            filename:
+              `${sendDialogStatement.reference}.pdf`,
+          };
+
+          emailAttemptRef.current =
+            emailAttempt;
+        }
 
         const {
           data,
@@ -1497,11 +1547,15 @@ export default function OwnerStatementsPage() {
           {
             body: {
               statementId:
-                sendDialogStatement.id,
-              recipient,
-              pdfBase64,
+                emailAttempt.statementId,
+              recipient:
+                emailAttempt.recipient,
+              pdfBase64:
+                emailAttempt.pdfBase64,
               filename:
-                `${sendDialogStatement.reference}.pdf`,
+                emailAttempt.filename,
+              deliveryAttemptId:
+                emailAttempt.id,
             },
           },
         );
@@ -1541,6 +1595,7 @@ export default function OwnerStatementsPage() {
           : "Le relevé est maintenant marqué comme envoyé.",
       );
 
+      emailAttemptRef.current = null;
       setSendDialogStatement(null);
       setSendReference("");
     } catch (error: any) {
@@ -1550,6 +1605,9 @@ export default function OwnerStatementsPage() {
             ? "Impossible d'envoyer le relevé par email."
             : "Impossible de marquer le relevé comme envoyé."),
       );
+    } finally {
+      sendInFlightRef.current = false;
+      setIsSendingStatement(false);
     }
   };
 
@@ -2583,7 +2641,12 @@ export default function OwnerStatementsPage() {
       <Dialog
         open={Boolean(sendDialogStatement)}
         onOpenChange={(open) => {
-          if (!open && !markSent.isPending) {
+          if (
+            !open &&
+            !isSendingStatement &&
+            !markSent.isPending
+          ) {
+            emailAttemptRef.current = null;
             setSendDialogStatement(null);
           }
         }}
@@ -2614,6 +2677,10 @@ export default function OwnerStatementsPage() {
                     value as OwnerStatementSendChannel,
                   )
                 }
+                disabled={
+                  isSendingStatement ||
+                  markSent.isPending
+                }
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -2642,8 +2709,13 @@ export default function OwnerStatementsPage() {
 
               <Input
                 value={sendTo}
-                onChange={(event) =>
-                  setSendTo(event.target.value)
+                onChange={(event) => {
+                  setSendTo(event.target.value);
+                  emailAttemptRef.current = null;
+                }}
+                disabled={
+                  isSendingStatement ||
+                  markSent.isPending
                 }
                 placeholder={
                   sendChannel === "email"
@@ -2668,6 +2740,10 @@ export default function OwnerStatementsPage() {
                 onChange={(event) =>
                   setSendReference(event.target.value)
                 }
+                disabled={
+                  isSendingStatement ||
+                  markSent.isPending
+                }
                 placeholder="Ex. MSG-20260829-001"
               />
             </div>
@@ -2684,17 +2760,27 @@ export default function OwnerStatementsPage() {
           <DialogFooter>
             <Button
               variant="outline"
-              onClick={() => setSendDialogStatement(null)}
-              disabled={markSent.isPending}
+              onClick={() => {
+                emailAttemptRef.current = null;
+                setSendDialogStatement(null);
+              }}
+              disabled={
+                isSendingStatement ||
+                markSent.isPending
+              }
             >
               Retour
             </Button>
 
             <Button
               onClick={handleConfirmSent}
-              disabled={markSent.isPending || !sendTo.trim()}
+              disabled={
+                isSendingStatement ||
+                markSent.isPending ||
+                !sendTo.trim()
+              }
             >
-              {markSent.isPending ? (
+              {isSendingStatement || markSent.isPending ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : (
                 <Send className="mr-2 h-4 w-4" />
