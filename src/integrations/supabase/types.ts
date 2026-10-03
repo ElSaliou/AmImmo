@@ -3239,6 +3239,56 @@ export type Database = {
           },
         ]
       }
+      owner_statement_deliveries: {
+        Row: {
+          channel: string
+          created_at: string
+          error_message: string | null
+          id: string
+          provider: string | null
+          provider_reference: string | null
+          sent_at: string
+          sent_by: string | null
+          sent_to: string
+          statement_id: string
+          status: string
+        }
+        Insert: {
+          channel: string
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          provider?: string | null
+          provider_reference?: string | null
+          sent_at?: string
+          sent_by?: string | null
+          sent_to: string
+          statement_id: string
+          status?: string
+        }
+        Update: {
+          channel?: string
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          provider?: string | null
+          provider_reference?: string | null
+          sent_at?: string
+          sent_by?: string | null
+          sent_to?: string
+          statement_id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "owner_statement_deliveries_statement_id_fkey"
+            columns: ["statement_id"]
+            isOneToOne: false
+            referencedRelation: "owner_statements"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       owner_statement_settlement_lines: {
         Row: {
           amount: number
@@ -4968,7 +5018,7 @@ export type Database = {
           {
             foreignKeyName: "short_rental_deposits_booking_fkey"
             columns: ["booking_id"]
-            isOneToOne: false
+            isOneToOne: true
             referencedRelation: "bookings"
             referencedColumns: ["id"]
           },
