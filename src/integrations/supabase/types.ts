@@ -3469,6 +3469,7 @@ export type Database = {
       owners: {
         Row: {
           address: string
+          archived_at: string | null
           bank_account: string | null
           bank_name: string | null
           city: string
@@ -3492,6 +3493,7 @@ export type Database = {
         }
         Insert: {
           address?: string
+          archived_at?: string | null
           bank_account?: string | null
           bank_name?: string | null
           city?: string
@@ -3515,6 +3517,7 @@ export type Database = {
         }
         Update: {
           address?: string
+          archived_at?: string | null
           bank_account?: string | null
           bank_name?: string | null
           city?: string
@@ -5247,6 +5250,7 @@ export type Database = {
       tenants: {
         Row: {
           address: string
+          archived_at: string | null
           created_at: string
           email: string | null
           emergency_contact: string | null
@@ -5263,6 +5267,7 @@ export type Database = {
         }
         Insert: {
           address?: string
+          archived_at?: string | null
           created_at?: string
           email?: string | null
           emergency_contact?: string | null
@@ -5279,6 +5284,7 @@ export type Database = {
         }
         Update: {
           address?: string
+          archived_at?: string | null
           created_at?: string
           email?: string | null
           emergency_contact?: string | null

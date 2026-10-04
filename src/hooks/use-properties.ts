@@ -223,7 +223,7 @@ export const useUpdateProperty =
     });
   };
 
-export const useDeleteProperty =
+export const useArchiveProperty =
   () => {
     const qc =
       useQueryClient();
@@ -238,7 +238,10 @@ export const useDeleteProperty =
           .from(
             "properties",
           )
-          .delete()
+          .update({
+            status: "archived",
+            published: false,
+          })
           .eq(
             "id",
             id,

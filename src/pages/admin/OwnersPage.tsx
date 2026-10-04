@@ -1,11 +1,11 @@
 import PageShell from "@/components/PageShell";
-import { useOwners, useDeleteOwner } from "@/hooks/use-owners";
+import { useOwners, useArchiveOwner } from "@/hooks/use-owners";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Trash2, Users, Search, Pencil, Eye } from "lucide-react";
+import { Plus, Archive, Users, Search, Pencil, Eye } from "lucide-react";
 import { useState, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
@@ -16,7 +16,7 @@ import OwnerFormDialog from "@/components/admin/OwnerFormDialog";
 
 const OwnersPage = () => {
   const { data: owners, isLoading } = useOwners();
-  const deleteOwner = useDeleteOwner();
+  const archiveOwner = useArchiveOwner();
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<string | undefined>();
   const [search, setSearch] = useState("");
@@ -104,8 +104,8 @@ const OwnersPage = () => {
                         <Pencil className="h-4 w-4" />
                       </Button>
                       <Button variant="ghost" size="icon" className="h-8 w-8"
-                        onClick={() => deleteOwner.mutate(o.id, { onSuccess: () => toast.success("Supprimé"), onError: (e: any) => toast.error(e.message) })}>
-                        <Trash2 className="h-4 w-4 text-destructive" />
+                        onClick={() => archiveOwner.mutate(o.id, { onSuccess: () => toast.success("Archivé"), onError: (e: any) => toast.error(e.message) })}>
+                        <Archive className="h-4 w-4 text-muted-foreground" />
                       </Button>
                     </div>
                   </TableCell>

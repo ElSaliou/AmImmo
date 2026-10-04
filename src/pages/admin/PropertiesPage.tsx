@@ -16,7 +16,6 @@ import {
   Pencil,
   Plus,
   Search,
-  Trash2,
   Wrench,
 } from "lucide-react";
 
@@ -39,7 +38,7 @@ import EmptyState from "@/components/admin/EmptyState";
 import {
   useApprovePropertyReavailability,
   useApprovePropertyResale,
-  useDeleteProperty,
+  useArchiveProperty,
   useProperties,
   usePropertyControlDecision,
   useTogglePublish,
@@ -161,8 +160,8 @@ const PropertiesPage =
     } =
       useProperties();
 
-    const deleteProp =
-      useDeleteProperty();
+    const archiveProp =
+      useArchiveProperty();
 
     const togglePublish =
       useTogglePublish();
@@ -1430,19 +1429,19 @@ const PropertiesPage =
                                 size="icon"
                                 className="h-8 w-8"
                                 onClick={() =>
-                                  deleteProp.mutate(
+                                  archiveProp.mutate(
                                     property.id,
                                     {
                                       onSuccess:
                                         () =>
                                           toast.success(
-                                            "Bien supprimé",
+                                            "Bien archivé",
                                           ),
                                     },
                                   )
                                 }
                               >
-                                <Trash2 className="h-4 w-4 text-destructive" />
+                                <Archive className="h-4 w-4 text-muted-foreground" />
                               </Button>
                             </div>
                           </div>

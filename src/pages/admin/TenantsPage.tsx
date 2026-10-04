@@ -1,9 +1,9 @@
 import PageShell from "@/components/PageShell";
-import { useTenants, useCreateTenant, useDeleteTenant } from "@/hooks/use-tenants";
+import { useTenants, useCreateTenant, useArchiveTenant } from "@/hooks/use-tenants";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Trash2, UserCheck, Mail, Phone, CreditCard, Loader2, FileText, Search } from "lucide-react";
+import { Plus, Archive, UserCheck, Mail, Phone, CreditCard, Loader2, FileText, Search } from "lucide-react";
 import { useState, useMemo } from "react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -19,7 +19,7 @@ const initialForm = { full_name: "", email: "", phone: "", id_number: "", notes:
 const TenantsPage = () => {
   const { data: tenants, isLoading } = useTenants();
   const createTenant = useCreateTenant();
-  const deleteTenant = useDeleteTenant();
+  const archiveTenant = useArchiveTenant();
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState(initialForm);
   const [search, setSearch] = useState("");
@@ -90,8 +90,8 @@ const TenantsPage = () => {
                   <TableCell className="text-sm">{t.id_number ?? "—"}</TableCell>
                   <TableCell className="text-right">
                     <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
-                      onClick={() => deleteTenant.mutate(t.id, { onSuccess: () => toast.success("Supprimé") })}>
-                      <Trash2 className="h-4 w-4 text-destructive" />
+                      onClick={() => archiveTenant.mutate(t.id, { onSuccess: () => toast.success("Archivé") })}>
+                      <Archive className="h-4 w-4 text-muted-foreground" />
                     </Button>
                   </TableCell>
                 </motion.tr>

@@ -8,7 +8,11 @@ export const useOwners = () =>
   useQuery({
     queryKey: [KEY],
     queryFn: async () => {
-      const { data, error } = await supabase.from("owners").select("*").order("full_name");
+      const { data, error } = await supabase
+        .from("owners")
+        .select("*")
+        .is("archived_at", null)
+        .order("full_name");
       if (error) throw error;
       return data;
     },
@@ -38,11 +42,14 @@ export const useUpdateOwner = () => {
   });
 };
 
-export const useDeleteOwner = () => {
+export const useArchiveOwner = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("owners").delete().eq("id", id);
+      const { error } = await supabase
+        .from("owners")
+        .update({ archived_at: new Date().toISOString() })
+        .eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: [KEY] }),
