@@ -721,25 +721,35 @@ const ContractsPage = () => {
                           </TableCell>
 
                           <TableCell className="text-right">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 opacity-0 group-hover:opacity-100"
-                              onClick={() =>
-                                deleteLease.mutate(
-                                  lease.id,
-                                  {
-                                    onSuccess:
-                                      () =>
-                                        toast.success(
-                                          "Contrat supprimé",
-                                        ),
-                                  },
-                                )
-                              }
-                            >
-                              <Trash2 className="h-4 w-4 text-destructive" />
-                            </Button>
+                            {lease.status ===
+                              "pending" && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 opacity-0 group-hover:opacity-100"
+                                title="Supprimer ce bail en attente"
+                                onClick={() =>
+                                  deleteLease.mutate(
+                                    lease.id,
+                                    {
+                                      onSuccess:
+                                        () =>
+                                          toast.success(
+                                            "Bail en attente supprimé",
+                                          ),
+                                      onError:
+                                        (error: any) =>
+                                          toast.error(
+                                            error?.message ??
+                                              "Impossible de supprimer ce bail",
+                                          ),
+                                    },
+                                  )
+                                }
+                              >
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
+                            )}
                           </TableCell>
                         </TableRow>
                       );
