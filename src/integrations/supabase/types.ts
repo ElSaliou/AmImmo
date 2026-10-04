@@ -2101,6 +2101,8 @@ export type Database = {
           start_date: string
           status: Database["public"]["Enums"]["lease_status"]
           tenant_id: string
+          termination_date: string | null
+          termination_reason: string | null
           updated_at: string
         }
         Insert: {
@@ -2122,6 +2124,8 @@ export type Database = {
           start_date: string
           status?: Database["public"]["Enums"]["lease_status"]
           tenant_id: string
+          termination_date?: string | null
+          termination_reason?: string | null
           updated_at?: string
         }
         Update: {
@@ -2143,6 +2147,8 @@ export type Database = {
           start_date?: string
           status?: Database["public"]["Enums"]["lease_status"]
           tenant_id?: string
+          termination_date?: string | null
+          termination_reason?: string | null
           updated_at?: string
         }
         Relationships: [

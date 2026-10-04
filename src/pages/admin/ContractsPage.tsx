@@ -117,6 +117,34 @@ const statusLabels: Record<
   },
 };
 
+const getTodayInputValue =
+  () => {
+    const today =
+      new Date();
+
+    const year =
+      today.getFullYear();
+
+    const month =
+      String(
+        today.getMonth() +
+          1,
+      ).padStart(
+        2,
+        "0",
+      );
+
+    const day =
+      String(
+        today.getDate(),
+      ).padStart(
+        2,
+        "0",
+      );
+
+    return `${year}-${month}-${day}`;
+  };
+
 const emptyForm = {
   property_id: "",
   tenant_id: "",
@@ -177,6 +205,35 @@ const ContractsPage = () => {
     open,
     setOpen,
   ] = useState(false);
+
+  const [
+    expirationLease,
+    setExpirationLease,
+  ] = useState<any | null>(
+    null,
+  );
+
+  const [
+    expirationEndDate,
+    setExpirationEndDate,
+  ] = useState("");
+
+  const [
+    terminationLease,
+    setTerminationLease,
+  ] = useState<any | null>(
+    null,
+  );
+
+  const [
+    terminationDate,
+    setTerminationDate,
+  ] = useState("");
+
+  const [
+    terminationReason,
+    setTerminationReason,
+  ] = useState("");
 
   const [
     form,
@@ -459,11 +516,143 @@ const ContractsPage = () => {
     ) => {
       if (
         status ===
+        lease.status
+      ) {
+        return;
+      }
+
+      if (
+        lease.status ===
+          "pending" &&
+        status ===
+          "active"
+      ) {
+        if (
+          !lease.owner_id
+        ) {
+          toast.error(
+            "Associez d'abord un propriétaire avant d'activer ce bail.",
+          );
+
+          return;
+        }
+
+        try {
+          await updateLease.mutateAsync(
+            {
+              id:
+                lease.id,
+
+              status:
+                "active",
+            } as any,
+          );
+
+          toast.success(
+            "Bail activé. Le bien est maintenant marqué Loué.",
+          );
+        } catch (
+          error: any
+        ) {
+          toast.error(
+            error?.message ??
+              "Impossible d'activer le bail",
+          );
+        }
+
+        return;
+      }
+
+      if (
+        lease.status ===
           "active" &&
-        !lease.owner_id
+        status ===
+          "expired"
+      ) {
+        setExpirationLease(
+          lease,
+        );
+
+        setExpirationEndDate(
+          lease.end_date ||
+            getTodayInputValue(),
+        );
+
+        return;
+      }
+
+      if (
+        lease.status ===
+          "active" &&
+        status ===
+          "terminated"
+      ) {
+        setTerminationLease(
+          lease,
+        );
+
+        setTerminationDate(
+          getTodayInputValue(),
+        );
+
+        setTerminationReason(
+          "",
+        );
+
+        return;
+      }
+
+      toast.error(
+        "Cette transition de statut n'est pas autorisée.",
+      );
+    };
+
+  const closeExpirationDialog =
+    () => {
+      setExpirationLease(
+        null,
+      );
+
+      setExpirationEndDate(
+        "",
+      );
+    };
+
+  const handleExpireLease =
+    async () => {
+      if (
+        !expirationLease
+      ) {
+        return;
+      }
+
+      if (
+        !expirationEndDate
       ) {
         toast.error(
-          "Associez d'abord un propriétaire avant d'activer ce bail.",
+          "La date de fin contractuelle est obligatoire.",
+        );
+
+        return;
+      }
+
+      if (
+        expirationEndDate <
+        expirationLease.start_date
+      ) {
+        toast.error(
+          "La date de fin ne peut pas être antérieure au début du bail.",
+        );
+
+        return;
+      }
+
+      if (
+        expirationEndDate >
+        getTodayInputValue()
+      ) {
+        toast.error(
+          "Un bail ne peut pas être marqué expiré avant sa date de fin.",
         );
 
         return;
@@ -473,34 +662,118 @@ const ContractsPage = () => {
         await updateLease.mutateAsync(
           {
             id:
-              lease.id,
+              expirationLease.id,
 
-            status,
+            end_date:
+              expirationEndDate,
+
+            status:
+              "expired",
           } as any,
         );
 
-        if (
-          status ===
-          "active"
-        ) {
-          toast.success(
-            "Bail activé. Le bien est maintenant marqué Loué.",
-          );
-        } else {
-          toast.success(
-            "Statut du bail mis à jour",
-          );
-        }
+        toast.success(
+          "Bail expiré. Un contrôle du bien est maintenant requis.",
+        );
+
+        closeExpirationDialog();
       } catch (
         error: any
       ) {
         toast.error(
           error?.message ??
-            "Impossible de modifier le bail",
+            "Impossible d'expirer le bail",
         );
       }
     };
 
+  const closeTerminationDialog =
+    () => {
+      setTerminationLease(
+        null,
+      );
+
+      setTerminationDate(
+        "",
+      );
+
+      setTerminationReason(
+        "",
+      );
+    };
+
+  const handleTerminateLease =
+    async () => {
+      if (
+        !terminationLease
+      ) {
+        return;
+      }
+
+      if (
+        !terminationDate
+      ) {
+        toast.error(
+          "La date effective de résiliation est obligatoire.",
+        );
+
+        return;
+      }
+
+      if (
+        terminationDate <
+        terminationLease.start_date
+      ) {
+        toast.error(
+          "La date de résiliation ne peut pas être antérieure au début du bail.",
+        );
+
+        return;
+      }
+
+      if (
+        terminationDate >
+        getTodayInputValue()
+      ) {
+        toast.error(
+          "La date de résiliation ne peut pas être future.",
+        );
+
+        return;
+      }
+
+      try {
+        await updateLease.mutateAsync(
+          {
+            id:
+              terminationLease.id,
+
+            status:
+              "terminated",
+
+            termination_date:
+              terminationDate,
+
+            termination_reason:
+              terminationReason.trim() ||
+              null,
+          } as any,
+        );
+
+        toast.success(
+          "Bail résilié. Un contrôle du bien est maintenant requis.",
+        );
+
+        closeTerminationDialog();
+      } catch (
+        error: any
+      ) {
+        toast.error(
+          error?.message ??
+            "Impossible de résilier le bail",
+        );
+      }
+    };
   const closeDialog =
     () => {
       setOpen(false);
@@ -685,7 +958,11 @@ const ContractsPage = () => {
                                 )
                               }
                               disabled={
-                                updateLease.isPending
+                                updateLease.isPending ||
+                                lease.status ===
+                                  "expired" ||
+                                lease.status ===
+                                  "terminated"
                               }
                             >
                               <SelectTrigger className="w-[145px] h-8">
@@ -701,21 +978,49 @@ const ContractsPage = () => {
                               </SelectTrigger>
 
                               <SelectContent>
-                                <SelectItem value="pending">
-                                  En attente
-                                </SelectItem>
+                                {lease.status ===
+                                  "pending" && (
+                                  <>
+                                    <SelectItem value="pending">
+                                      En attente
+                                    </SelectItem>
 
-                                <SelectItem value="active">
-                                  Actif
-                                </SelectItem>
+                                    <SelectItem value="active">
+                                      Activer
+                                    </SelectItem>
+                                  </>
+                                )}
 
-                                <SelectItem value="expired">
-                                  Expiré
-                                </SelectItem>
+                                {lease.status ===
+                                  "active" && (
+                                  <>
+                                    <SelectItem value="active">
+                                      Actif
+                                    </SelectItem>
 
-                                <SelectItem value="terminated">
-                                  Résilié
-                                </SelectItem>
+                                    <SelectItem value="expired">
+                                      Expirer
+                                    </SelectItem>
+
+                                    <SelectItem value="terminated">
+                                      Résilier
+                                    </SelectItem>
+                                  </>
+                                )}
+
+                                {lease.status ===
+                                  "expired" && (
+                                  <SelectItem value="expired">
+                                    Expiré
+                                  </SelectItem>
+                                )}
+
+                                {lease.status ===
+                                  "terminated" && (
+                                  <SelectItem value="terminated">
+                                    Résilié
+                                  </SelectItem>
+                                )}
                               </SelectContent>
                             </Select>
                           </TableCell>
@@ -762,6 +1067,219 @@ const ContractsPage = () => {
         </>
       )}
 
+      {/* ===================================================== */}
+      {/* EXPIRATION DU BAIL                                    */}
+      {/* ===================================================== */}
+
+      <Dialog
+        open={
+          Boolean(
+            expirationLease,
+          )
+        }
+        onOpenChange={(
+          value,
+        ) => {
+          if (
+            !value
+          ) {
+            closeExpirationDialog();
+          }
+        }}
+      >
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="font-display">
+              Expirer le bail
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-5">
+            <div className="rounded-lg bg-muted/60 p-3">
+              <p className="text-sm text-muted-foreground">
+                Confirmez la date de fin contractuelle. Le bien passera en contrôle avant toute remise en disponibilité.
+              </p>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label>
+                Date de fin contractuelle *
+              </Label>
+
+              <Input
+                type="date"
+                value={
+                  expirationEndDate
+                }
+                min={
+                  expirationLease?.start_date ??
+                  undefined
+                }
+                max={
+                  getTodayInputValue()
+                }
+                onChange={(
+                  event,
+                ) =>
+                  setExpirationEndDate(
+                    event.target.value,
+                  )
+                }
+              />
+            </div>
+
+            <div className="flex justify-end gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={
+                  closeExpirationDialog
+                }
+                disabled={
+                  updateLease.isPending
+                }
+              >
+                Annuler
+              </Button>
+
+              <Button
+                type="button"
+                onClick={() =>
+                  void handleExpireLease()
+                }
+                disabled={
+                  updateLease.isPending ||
+                  !expirationEndDate
+                }
+              >
+                {updateLease.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : null}
+
+                Confirmer l'expiration
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ===================================================== */}
+      {/* RESILIATION DU BAIL                                   */}
+      {/* ===================================================== */}
+
+      <Dialog
+        open={
+          Boolean(
+            terminationLease,
+          )
+        }
+        onOpenChange={(
+          value,
+        ) => {
+          if (
+            !value
+          ) {
+            closeTerminationDialog();
+          }
+        }}
+      >
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="font-display">
+              Résilier le bail
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-5">
+            <div className="rounded-lg bg-destructive/10 p-3">
+              <p className="text-sm text-destructive">
+                Cette opération met fin au bail et déclenche un contrôle obligatoire du bien avant sa remise en disponibilité.
+              </p>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label>
+                Date effective de résiliation *
+              </Label>
+
+              <Input
+                type="date"
+                value={
+                  terminationDate
+                }
+                min={
+                  terminationLease?.start_date ??
+                  undefined
+                }
+                max={
+                  getTodayInputValue()
+                }
+                onChange={(
+                  event,
+                ) =>
+                  setTerminationDate(
+                    event.target.value,
+                  )
+                }
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label>
+                Motif de résiliation
+              </Label>
+
+              <Textarea
+                rows={4}
+                value={
+                  terminationReason
+                }
+                onChange={(
+                  event,
+                ) =>
+                  setTerminationReason(
+                    event.target.value,
+                  )
+                }
+                placeholder="Motif facultatif..."
+              />
+            </div>
+
+            <div className="flex justify-end gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={
+                  closeTerminationDialog
+                }
+                disabled={
+                  updateLease.isPending
+                }
+              >
+                Annuler
+              </Button>
+
+              <Button
+                type="button"
+                variant="destructive"
+                onClick={() =>
+                  void handleTerminateLease()
+                }
+                disabled={
+                  updateLease.isPending ||
+                  !terminationDate
+                }
+              >
+                {updateLease.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : null}
+
+                Confirmer la résiliation
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
       {/* ===================================================== */}
       {/* FORMULAIRE                                            */}
       {/* ===================================================== */}
