@@ -25,7 +25,9 @@ import EmptyState from "@/components/admin/EmptyState";
 import {
   useCreateLease,
   useDeleteLease,
+  useExpireLease,
   useLeases,
+  useTerminateLease,
   useUpdateLease,
 } from "@/hooks/use-leases";
 
@@ -198,6 +200,12 @@ const ContractsPage = () => {
   const updateLease =
     useUpdateLease();
 
+  const expireLease =
+    useExpireLease();
+
+  const terminateLease =
+    useTerminateLease();
+
   const deleteLease =
     useDeleteLease();
 
@@ -213,10 +221,6 @@ const ContractsPage = () => {
     null,
   );
 
-  const [
-    expirationEndDate,
-    setExpirationEndDate,
-  ] = useState("");
 
   const [
     terminationLease,
@@ -569,13 +573,29 @@ const ContractsPage = () => {
         status ===
           "expired"
       ) {
+        if (
+          !lease.end_date
+        ) {
+          toast.error(
+            "Ce bail n'a pas de date de fin contractuelle. Utilisez la résiliation.",
+          );
+
+          return;
+        }
+
+        if (
+          lease.end_date >
+          getTodayInputValue()
+        ) {
+          toast.error(
+            "Le bail ne peut pas être expiré avant sa date de fin contractuelle.",
+          );
+
+          return;
+        }
+
         setExpirationLease(
           lease,
-        );
-
-        setExpirationEndDate(
-          lease.end_date ||
-            getTodayInputValue(),
         );
 
         return;
@@ -612,10 +632,6 @@ const ContractsPage = () => {
       setExpirationLease(
         null,
       );
-
-      setExpirationEndDate(
-        "",
-      );
     };
 
   const handleExpireLease =
@@ -626,54 +642,21 @@ const ContractsPage = () => {
         return;
       }
 
-      if (
-        !expirationEndDate
-      ) {
-        toast.error(
-          "La date de fin contractuelle est obligatoire.",
-        );
-
-        return;
-      }
-
-      if (
-        expirationEndDate <
-        expirationLease.start_date
-      ) {
-        toast.error(
-          "La date de fin ne peut pas être antérieure au début du bail.",
-        );
-
-        return;
-      }
-
-      if (
-        expirationEndDate >
-        getTodayInputValue()
-      ) {
-        toast.error(
-          "Un bail ne peut pas être marqué expiré avant sa date de fin.",
-        );
-
-        return;
-      }
-
       try {
-        await updateLease.mutateAsync(
-          {
-            id:
-              expirationLease.id,
-
-            end_date:
-              expirationEndDate,
-
-            status:
-              "expired",
-          } as any,
-        );
+        const result =
+          await expireLease.mutateAsync(
+            {
+              leaseId:
+                expirationLease.id,
+            },
+          );
 
         toast.success(
-          "Bail expiré. Un contrôle du bien est maintenant requis.",
+          `Bail expiré. Facture finale ${result.final_invoice_number} : ${Number(
+            result.final_invoice_amount,
+          ).toLocaleString(
+            "fr-FR",
+          )} GNF.`,
         );
 
         closeExpirationDialog();
@@ -743,25 +726,25 @@ const ContractsPage = () => {
       }
 
       try {
-        await updateLease.mutateAsync(
-          {
-            id:
-              terminationLease.id,
+        const result =
+          await terminateLease.mutateAsync(
+            {
+              leaseId:
+                terminationLease.id,
 
-            status:
-              "terminated",
-
-            termination_date:
               terminationDate,
 
-            termination_reason:
-              terminationReason.trim() ||
-              null,
-          } as any,
-        );
+              reason:
+                terminationReason,
+            },
+          );
 
         toast.success(
-          "Bail résilié. Un contrôle du bien est maintenant requis.",
+          `Bail résilié. Facture finale ${result.final_invoice_number} : ${Number(
+            result.final_invoice_amount,
+          ).toLocaleString(
+            "fr-FR",
+          )} GNF.`,
         );
 
         closeTerminationDialog();
@@ -959,6 +942,8 @@ const ContractsPage = () => {
                               }
                               disabled={
                                 updateLease.isPending ||
+                                expireLease.isPending ||
+                                terminateLease.isPending ||
                                 lease.status ===
                                   "expired" ||
                                 lease.status ===
@@ -998,9 +983,13 @@ const ContractsPage = () => {
                                       Actif
                                     </SelectItem>
 
-                                    <SelectItem value="expired">
-                                      Expirer
-                                    </SelectItem>
+                                    {lease.end_date &&
+                                      lease.end_date <=
+                                        getTodayInputValue() && (
+                                        <SelectItem value="expired">
+                                          Expirer
+                                        </SelectItem>
+                                      )}
 
                                     <SelectItem value="terminated">
                                       Résilier
@@ -1097,34 +1086,22 @@ const ContractsPage = () => {
           <div className="space-y-5">
             <div className="rounded-lg bg-muted/60 p-3">
               <p className="text-sm text-muted-foreground">
-                Confirmez la date de fin contractuelle. Le bien passera en contrôle avant toute remise en disponibilité.
+                L'expiration utilisera la date de fin contractuelle du bail et générera automatiquement la facture finale proratisée avant le contrôle du bien.
               </p>
             </div>
 
             <div className="space-y-1.5">
               <Label>
-                Date de fin contractuelle *
+                Date de fin contractuelle
               </Label>
 
               <Input
                 type="date"
                 value={
-                  expirationEndDate
+                  expirationLease?.end_date ??
+                  ""
                 }
-                min={
-                  expirationLease?.start_date ??
-                  undefined
-                }
-                max={
-                  getTodayInputValue()
-                }
-                onChange={(
-                  event,
-                ) =>
-                  setExpirationEndDate(
-                    event.target.value,
-                  )
-                }
+                disabled
               />
             </div>
 
@@ -1136,7 +1113,7 @@ const ContractsPage = () => {
                   closeExpirationDialog
                 }
                 disabled={
-                  updateLease.isPending
+                  expireLease.isPending
                 }
               >
                 Annuler
@@ -1148,11 +1125,10 @@ const ContractsPage = () => {
                   void handleExpireLease()
                 }
                 disabled={
-                  updateLease.isPending ||
-                  !expirationEndDate
+                  expireLease.isPending
                 }
               >
-                {updateLease.isPending ? (
+                {expireLease.isPending ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : null}
 
@@ -1163,8 +1139,7 @@ const ContractsPage = () => {
         </DialogContent>
       </Dialog>
 
-      {/* ===================================================== */}
-      {/* RESILIATION DU BAIL                                   */}
+      {/* ===================================================== */}      {/* RESILIATION DU BAIL                                   */}
       {/* ===================================================== */}
 
       <Dialog
@@ -1253,7 +1228,7 @@ const ContractsPage = () => {
                   closeTerminationDialog
                 }
                 disabled={
-                  updateLease.isPending
+                  terminateLease.isPending
                 }
               >
                 Annuler
@@ -1266,11 +1241,11 @@ const ContractsPage = () => {
                   void handleTerminateLease()
                 }
                 disabled={
-                  updateLease.isPending ||
+                  terminateLease.isPending ||
                   !terminationDate
                 }
               >
-                {updateLease.isPending ? (
+                {terminateLease.isPending ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : null}
 

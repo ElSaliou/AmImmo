@@ -144,6 +144,103 @@ export const useUpdateLease = () => {
   });
 };
 
+export const useTerminateLease = () => {
+  const qc =
+    useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      leaseId,
+      terminationDate,
+      reason,
+    }: {
+      leaseId: string;
+      terminationDate: string;
+      reason?: string | null;
+    }) => {
+      const {
+        data,
+        error,
+      } = await supabase.rpc(
+        "terminate_lease_with_final_invoice",
+        {
+          p_lease_id:
+            leaseId,
+
+          p_termination_date:
+            terminationDate,
+
+          p_reason:
+            reason?.trim() ||
+            null,
+        },
+      );
+
+      if (error) {
+        throw error;
+      }
+
+      const result =
+        data?.[0];
+
+      if (!result) {
+        throw new Error(
+          "La résiliation n'a retourné aucun résultat.",
+        );
+      }
+
+      return result;
+    },
+
+    onSuccess: () => {
+      invalidateRealEstate(qc);
+    },
+  });
+};
+
+export const useExpireLease = () => {
+  const qc =
+    useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      leaseId,
+    }: {
+      leaseId: string;
+    }) => {
+      const {
+        data,
+        error,
+      } = await supabase.rpc(
+        "expire_lease_with_final_invoice",
+        {
+          p_lease_id:
+            leaseId,
+        },
+      );
+
+      if (error) {
+        throw error;
+      }
+
+      const result =
+        data?.[0];
+
+      if (!result) {
+        throw new Error(
+          "L'expiration n'a retourné aucun résultat.",
+        );
+      }
+
+      return result;
+    },
+
+    onSuccess: () => {
+      invalidateRealEstate(qc);
+    },
+  });
+};
+
 export const useDeleteLease = () => {
   const qc =
     useQueryClient();

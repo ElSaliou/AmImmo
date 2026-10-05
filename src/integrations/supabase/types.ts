@@ -6854,6 +6854,30 @@ export type Database = {
         }[]
       }
       current_org_id: { Args: never; Returns: string }
+      ensure_lease_final_rent_invoice: {
+        Args: { p_exit_date: string; p_lease_id: string }
+        Returns: {
+          invoice_amount: number
+          invoice_id: string
+          invoice_number: string
+          period_end: string
+          period_start: string
+          reused: boolean
+        }[]
+      }
+      expire_lease_with_final_invoice: {
+        Args: { p_lease_id: string }
+        Returns: {
+          end_date: string
+          final_invoice_amount: number
+          final_invoice_id: string
+          final_invoice_number: string
+          invoice_reused: boolean
+          lease_id: string
+          lease_reference: string
+          lease_status: Database["public"]["Enums"]["lease_status"]
+        }[]
+      }
       finalize_short_rental_provider_payment: {
         Args: {
           p_paid_at?: string
@@ -7505,6 +7529,23 @@ export type Database = {
         Returns: Json
       }
       sync_existing_owner_rent_ledgers: { Args: never; Returns: number }
+      terminate_lease_with_final_invoice: {
+        Args: {
+          p_lease_id: string
+          p_reason?: string
+          p_termination_date: string
+        }
+        Returns: {
+          final_invoice_amount: number
+          final_invoice_id: string
+          final_invoice_number: string
+          invoice_reused: boolean
+          lease_id: string
+          lease_reference: string
+          lease_status: Database["public"]["Enums"]["lease_status"]
+          termination_date: string
+        }[]
+      }
       unlink_owner_user: { Args: { p_owner_id: string }; Returns: undefined }
       withhold_short_rental_deposit: {
         Args: {
