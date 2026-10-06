@@ -1,4 +1,4 @@
-export type Json =
+﻿export type Json =
   | string
   | number
   | boolean
@@ -2101,7 +2101,13 @@ export type Database = {
           start_date: string
           status: Database["public"]["Enums"]["lease_status"]
           tenant_id: string
+          termination_billing_rule:
+            | Database["public"]["Enums"]["rent_billing_rule"]
+            | null
           termination_date: string | null
+          termination_initiator:
+            | Database["public"]["Enums"]["lease_termination_initiator"]
+            | null
           termination_reason: string | null
           updated_at: string
         }
@@ -2124,7 +2130,13 @@ export type Database = {
           start_date: string
           status?: Database["public"]["Enums"]["lease_status"]
           tenant_id: string
+          termination_billing_rule?:
+            | Database["public"]["Enums"]["rent_billing_rule"]
+            | null
           termination_date?: string | null
+          termination_initiator?:
+            | Database["public"]["Enums"]["lease_termination_initiator"]
+            | null
           termination_reason?: string | null
           updated_at?: string
         }
@@ -2147,7 +2159,13 @@ export type Database = {
           start_date?: string
           status?: Database["public"]["Enums"]["lease_status"]
           tenant_id?: string
+          termination_billing_rule?:
+            | Database["public"]["Enums"]["rent_billing_rule"]
+            | null
           termination_date?: string | null
+          termination_initiator?:
+            | Database["public"]["Enums"]["lease_termination_initiator"]
+            | null
           termination_reason?: string | null
           updated_at?: string
         }
@@ -4272,6 +4290,91 @@ export type Database = {
             columns: ["property_id"]
             isOneToOne: false
             referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      rent_invoice_calculations: {
+        Row: {
+          billed_days: number
+          billing_context: Database["public"]["Enums"]["long_term_rent_billing_context"]
+          billing_month: string
+          billing_rule: Database["public"]["Enums"]["rent_billing_rule"]
+          charges_amount: number
+          created_at: string
+          days_in_month: number
+          effective_date: string
+          id: string
+          invoice_id: string
+          lease_id: string
+          monthly_charges_snapshot: number
+          monthly_rent_snapshot: number
+          period_end: string
+          period_start: string
+          policy_version: string
+          rent_amount: number
+          total_amount: number
+        }
+        Insert: {
+          billed_days: number
+          billing_context: Database["public"]["Enums"]["long_term_rent_billing_context"]
+          billing_month: string
+          billing_rule: Database["public"]["Enums"]["rent_billing_rule"]
+          charges_amount: number
+          created_at?: string
+          days_in_month: number
+          effective_date: string
+          id?: string
+          invoice_id: string
+          lease_id: string
+          monthly_charges_snapshot: number
+          monthly_rent_snapshot: number
+          period_end: string
+          period_start: string
+          policy_version: string
+          rent_amount: number
+          total_amount: number
+        }
+        Update: {
+          billed_days?: number
+          billing_context?: Database["public"]["Enums"]["long_term_rent_billing_context"]
+          billing_month?: string
+          billing_rule?: Database["public"]["Enums"]["rent_billing_rule"]
+          charges_amount?: number
+          created_at?: string
+          days_in_month?: number
+          effective_date?: string
+          id?: string
+          invoice_id?: string
+          lease_id?: string
+          monthly_charges_snapshot?: number
+          monthly_rent_snapshot?: number
+          period_end?: string
+          period_start?: string
+          policy_version?: string
+          rent_amount?: number
+          total_amount?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rent_invoice_calculations_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: true
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rent_invoice_calculations_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: true
+            referencedRelation: "tenant_receivables"
+            referencedColumns: ["invoice_id"]
+          },
+          {
+            foreignKeyName: "rent_invoice_calculations_lease_id_fkey"
+            columns: ["lease_id"]
+            isOneToOne: false
+            referencedRelation: "leases"
             referencedColumns: ["id"]
           },
         ]
@@ -6854,17 +6957,34 @@ export type Database = {
         }[]
       }
       current_org_id: { Args: never; Returns: string }
-      ensure_lease_final_rent_invoice: {
-        Args: { p_exit_date: string; p_lease_id: string }
-        Returns: {
-          invoice_amount: number
-          invoice_id: string
-          invoice_number: string
-          period_end: string
-          period_start: string
-          reused: boolean
-        }[]
-      }
+      ensure_lease_final_rent_invoice:
+        | {
+            Args: {
+              p_billing_context: Database["public"]["Enums"]["long_term_rent_billing_context"]
+              p_effective_date: string
+              p_lease_id: string
+              p_requested_rule?: Database["public"]["Enums"]["rent_billing_rule"]
+            }
+            Returns: {
+              invoice_amount: number
+              invoice_id: string
+              invoice_number: string
+              period_end: string
+              period_start: string
+              reused: boolean
+            }[]
+          }
+        | {
+            Args: { p_exit_date: string; p_lease_id: string }
+            Returns: {
+              invoice_amount: number
+              invoice_id: string
+              invoice_number: string
+              period_end: string
+              period_start: string
+              reused: boolean
+            }[]
+          }
       expire_lease_with_final_invoice: {
         Args: { p_lease_id: string }
         Returns: {
@@ -7362,6 +7482,53 @@ export type Database = {
         Args: { p_invoice_id: string }
         Returns: string
       }
+      preview_lease_expiration_billing: {
+        Args: { p_lease_id: string }
+        Returns: {
+          billed_days: number
+          billing_context: Database["public"]["Enums"]["long_term_rent_billing_context"]
+          billing_month: string
+          billing_rule: Database["public"]["Enums"]["rent_billing_rule"]
+          charges_amount: number
+          days_in_month: number
+          effective_date: string
+          monthly_charges_snapshot: number
+          monthly_rent_snapshot: number
+          period_end: string
+          period_start: string
+          policy_version: string
+          rent_amount: number
+          resolution_code: string
+          resolution_status: string
+          total_amount: number
+        }[]
+      }
+      preview_lease_termination_billing: {
+        Args: {
+          p_billing_rule: Database["public"]["Enums"]["rent_billing_rule"]
+          p_initiator: Database["public"]["Enums"]["lease_termination_initiator"]
+          p_lease_id: string
+          p_termination_date: string
+        }
+        Returns: {
+          billed_days: number
+          billing_context: Database["public"]["Enums"]["long_term_rent_billing_context"]
+          billing_month: string
+          billing_rule: Database["public"]["Enums"]["rent_billing_rule"]
+          charges_amount: number
+          days_in_month: number
+          effective_date: string
+          monthly_charges_snapshot: number
+          monthly_rent_snapshot: number
+          period_end: string
+          period_start: string
+          policy_version: string
+          rent_amount: number
+          resolution_code: string
+          resolution_status: string
+          total_amount: number
+        }[]
+      }
       record_finance_expense: {
         Args: {
           p_amount: number
@@ -7508,6 +7675,35 @@ export type Database = {
         Args: { p_due_day: number; p_month: number; p_year: number }
         Returns: string
       }
+      resolve_long_term_rent_billing: {
+        Args: {
+          p_billing_context: Database["public"]["Enums"]["long_term_rent_billing_context"]
+          p_billing_month: string
+          p_effective_date?: string
+          p_lease_start_date: string
+          p_monthly_charges: number
+          p_monthly_rent: number
+          p_requested_rule?: Database["public"]["Enums"]["rent_billing_rule"]
+        }
+        Returns: {
+          billed_days: number
+          billing_context: Database["public"]["Enums"]["long_term_rent_billing_context"]
+          billing_month: string
+          billing_rule: Database["public"]["Enums"]["rent_billing_rule"]
+          charges_amount: number
+          days_in_month: number
+          effective_date: string
+          monthly_charges_snapshot: number
+          monthly_rent_snapshot: number
+          period_end: string
+          period_start: string
+          policy_version: string
+          rent_amount: number
+          resolution_code: string
+          resolution_status: string
+          total_amount: number
+        }[]
+      }
       resolve_management_commission: {
         Args: {
           p_effective_date?: string
@@ -7529,23 +7725,43 @@ export type Database = {
         Returns: Json
       }
       sync_existing_owner_rent_ledgers: { Args: never; Returns: number }
-      terminate_lease_with_final_invoice: {
-        Args: {
-          p_lease_id: string
-          p_reason?: string
-          p_termination_date: string
-        }
-        Returns: {
-          final_invoice_amount: number
-          final_invoice_id: string
-          final_invoice_number: string
-          invoice_reused: boolean
-          lease_id: string
-          lease_reference: string
-          lease_status: Database["public"]["Enums"]["lease_status"]
-          termination_date: string
-        }[]
-      }
+      terminate_lease_with_final_invoice:
+        | {
+            Args: {
+              p_billing_rule: Database["public"]["Enums"]["rent_billing_rule"]
+              p_initiator: Database["public"]["Enums"]["lease_termination_initiator"]
+              p_lease_id: string
+              p_reason?: string
+              p_termination_date: string
+            }
+            Returns: {
+              final_invoice_amount: number
+              final_invoice_id: string
+              final_invoice_number: string
+              invoice_reused: boolean
+              lease_id: string
+              lease_reference: string
+              lease_status: Database["public"]["Enums"]["lease_status"]
+              termination_date: string
+            }[]
+          }
+        | {
+            Args: {
+              p_lease_id: string
+              p_reason?: string
+              p_termination_date: string
+            }
+            Returns: {
+              final_invoice_amount: number
+              final_invoice_id: string
+              final_invoice_number: string
+              invoice_reused: boolean
+              lease_id: string
+              lease_reference: string
+              lease_status: Database["public"]["Enums"]["lease_status"]
+              termination_date: string
+            }[]
+          }
       unlink_owner_user: { Args: { p_owner_id: string }; Returns: undefined }
       withhold_short_rental_deposit: {
         Args: {
@@ -7644,7 +7860,15 @@ export type Database = {
         | "application_received"
         | "negotiation"
       lease_status: "active" | "expired" | "terminated" | "pending"
+      lease_termination_initiator: "landlord" | "tenant" | "mutual_agreement"
       listing_type: "short_rental" | "long_rental" | "sale"
+      long_term_rent_billing_context:
+        | "regular_month"
+        | "lease_start"
+        | "contract_expiration"
+        | "termination_landlord"
+        | "termination_tenant"
+        | "termination_mutual"
       maintenance_priority: "low" | "medium" | "high" | "urgent"
       maintenance_status: "open" | "in_progress" | "resolved" | "closed"
       mandate_status: "draft" | "active" | "expired" | "terminated"
@@ -7682,6 +7906,7 @@ export type Database = {
         | "shop"
         | "warehouse"
         | "parking"
+      rent_billing_rule: "prorata" | "full_month"
       sale_commission_status: "pending" | "partial" | "paid" | "cancelled"
       sale_status:
         | "prospect"
@@ -7932,7 +8157,16 @@ export const Constants = {
         "negotiation",
       ],
       lease_status: ["active", "expired", "terminated", "pending"],
+      lease_termination_initiator: ["landlord", "tenant", "mutual_agreement"],
       listing_type: ["short_rental", "long_rental", "sale"],
+      long_term_rent_billing_context: [
+        "regular_month",
+        "lease_start",
+        "contract_expiration",
+        "termination_landlord",
+        "termination_tenant",
+        "termination_mutual",
+      ],
       maintenance_priority: ["low", "medium", "high", "urgent"],
       maintenance_status: ["open", "in_progress", "resolved", "closed"],
       mandate_status: ["draft", "active", "expired", "terminated"],
@@ -7973,6 +8207,7 @@ export const Constants = {
         "warehouse",
         "parking",
       ],
+      rent_billing_rule: ["prorata", "full_month"],
       sale_commission_status: ["pending", "partial", "paid", "cancelled"],
       sale_status: [
         "prospect",

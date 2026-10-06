@@ -7,34 +7,212 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 
 import type {
+  Database,
+} from "@/integrations/supabase/types";
+
+import type {
   LeaseInsert,
   LeaseUpdate,
 } from "@/types/real-estate";
 
 const KEY = "leases";
 
-const invalidateRealEstate = (
+export type LeaseTerminationInitiator =
+  Database["public"]["Enums"]["lease_termination_initiator"];
+
+export type RentBillingRule =
+  Database["public"]["Enums"]["rent_billing_rule"];
+
+export interface LeaseBillingPreview {
+  resolution_status: string;
+  resolution_code: string;
+  billing_month: string | null;
+  billing_context: string | null;
+  billing_rule: RentBillingRule | null;
+  policy_version: string | null;
+  effective_date: string | null;
+  period_start: string | null;
+  period_end: string | null;
+  days_in_month: number | null;
+  billed_days: number | null;
+  monthly_rent_snapshot: number | null;
+  monthly_charges_snapshot: number | null;
+  rent_amount: number | null;
+  charges_amount: number | null;
+  total_amount: number | null;
+}
+
+export interface LeaseTerminationResult {
+  lease_id: string;
+  lease_reference: string | null;
+  lease_status: string;
+  termination_date: string;
+  final_invoice_id: string;
+  final_invoice_number: string;
+  final_invoice_amount: number;
+  invoice_reused: boolean;
+}
+
+export interface LeaseExpirationResult {
+  lease_id: string;
+  lease_reference: string | null;
+  lease_status: string;
+  end_date: string;
+  final_invoice_id: string;
+  final_invoice_number: string;
+  final_invoice_amount: number;
+  invoice_reused: boolean;
+}
+
+const toNullableNumber = (
+  value: unknown,
+): number | null => {
+  if (
+    value === null ||
+    value === undefined ||
+    value === ""
+  ) {
+    return null;
+  }
+
+  const parsed =
+    Number(value);
+
+  return Number.isFinite(parsed)
+    ? parsed
+    : null;
+};
+
+const normalizeBillingPreview = (
+  row: any,
+): LeaseBillingPreview => ({
+  resolution_status:
+    row?.resolution_status ?? "invalid",
+
+  resolution_code:
+    row?.resolution_code ??
+    "BILLING_UNKNOWN",
+
+  billing_month:
+    row?.billing_month ?? null,
+
+  billing_context:
+    row?.billing_context ?? null,
+
+  billing_rule:
+    row?.billing_rule ?? null,
+
+  policy_version:
+    row?.policy_version ?? null,
+
+  effective_date:
+    row?.effective_date ?? null,
+
+  period_start:
+    row?.period_start ?? null,
+
+  period_end:
+    row?.period_end ?? null,
+
+  days_in_month:
+    toNullableNumber(
+      row?.days_in_month,
+    ),
+
+  billed_days:
+    toNullableNumber(
+      row?.billed_days,
+    ),
+
+  monthly_rent_snapshot:
+    toNullableNumber(
+      row?.monthly_rent_snapshot,
+    ),
+
+  monthly_charges_snapshot:
+    toNullableNumber(
+      row?.monthly_charges_snapshot,
+    ),
+
+  rent_amount:
+    toNullableNumber(
+      row?.rent_amount,
+    ),
+
+  charges_amount:
+    toNullableNumber(
+      row?.charges_amount,
+    ),
+
+  total_amount:
+    toNullableNumber(
+      row?.total_amount,
+    ),
+});
+
+const firstRpcRow = (
+  data: any,
+) =>
+  Array.isArray(data)
+    ? data[0]
+    : data;
+
+const invalidateRealEstate = async (
   qc: ReturnType<typeof useQueryClient>,
 ) => {
-  qc.invalidateQueries({
-    queryKey: [KEY],
-  });
+  await Promise.all([
+    qc.invalidateQueries({
+      queryKey: [KEY],
+    }),
 
-  qc.invalidateQueries({
-    queryKey: ["properties"],
-  });
+    qc.invalidateQueries({
+      queryKey: ["properties"],
+    }),
 
-  qc.invalidateQueries({
-    queryKey: ["marketplace"],
-  });
+    qc.invalidateQueries({
+      queryKey: ["marketplace"],
+    }),
 
-  qc.invalidateQueries({
-    queryKey: ["tenants"],
-  });
+    qc.invalidateQueries({
+      queryKey: ["tenants"],
+    }),
 
-  qc.invalidateQueries({
-    queryKey: ["leads"],
-  });
+    qc.invalidateQueries({
+      queryKey: ["leads"],
+    }),
+  ]);
+};
+
+const invalidateLeaseClosureData = async (
+  qc: ReturnType<typeof useQueryClient>,
+) => {
+  await Promise.all([
+    invalidateRealEstate(qc),
+
+    qc.invalidateQueries({
+      queryKey: [
+        "tenant-receivables",
+      ],
+    }),
+
+    qc.invalidateQueries({
+      queryKey: [
+        "tenant-receivables-kpis",
+      ],
+    }),
+
+    qc.invalidateQueries({
+      queryKey: [
+        "tenant-receivable-balances",
+      ],
+    }),
+
+    qc.invalidateQueries({
+      queryKey: [
+        "finance-report",
+      ],
+    }),
+  ]);
 };
 
 export const useLeases = () =>
@@ -104,8 +282,10 @@ export const useCreateLease = () => {
       return data;
     },
 
-    onSuccess: () => {
-      invalidateRealEstate(qc);
+    onSuccess: async () => {
+      await invalidateRealEstate(
+        qc,
+      );
     },
   });
 };
@@ -138,11 +318,108 @@ export const useUpdateLease = () => {
       return data;
     },
 
-    onSuccess: () => {
-      invalidateRealEstate(qc);
+    onSuccess: async () => {
+      await invalidateRealEstate(
+        qc,
+      );
     },
   });
 };
+
+export const usePreviewLeaseTerminationBilling =
+  () =>
+    useMutation({
+      mutationFn:
+        async ({
+          leaseId,
+          terminationDate,
+          initiator,
+          billingRule,
+        }: {
+          leaseId: string;
+          terminationDate: string;
+          initiator:
+            LeaseTerminationInitiator;
+          billingRule:
+            RentBillingRule;
+        }) => {
+          const {
+            data,
+            error,
+          } = await supabase.rpc(
+            "preview_lease_termination_billing",
+            {
+              p_lease_id:
+                leaseId,
+
+              p_termination_date:
+                terminationDate,
+
+              p_initiator:
+                initiator,
+
+              p_billing_rule:
+                billingRule,
+            },
+          );
+
+          if (error) {
+            throw error;
+          }
+
+          const row =
+            firstRpcRow(data);
+
+          if (!row) {
+            throw new Error(
+              "L'aperçu de résiliation n'a retourné aucun résultat.",
+            );
+          }
+
+          return normalizeBillingPreview(
+            row,
+          );
+        },
+    });
+
+export const usePreviewLeaseExpirationBilling =
+  () =>
+    useMutation({
+      mutationFn:
+        async ({
+          leaseId,
+        }: {
+          leaseId: string;
+        }) => {
+          const {
+            data,
+            error,
+          } = await supabase.rpc(
+            "preview_lease_expiration_billing",
+            {
+              p_lease_id:
+                leaseId,
+            },
+          );
+
+          if (error) {
+            throw error;
+          }
+
+          const row =
+            firstRpcRow(data);
+
+          if (!row) {
+            throw new Error(
+              "L'aperçu d'expiration n'a retourné aucun résultat.",
+            );
+          }
+
+          return normalizeBillingPreview(
+            row,
+          );
+        },
+    });
 
 export const useTerminateLease = () => {
   const qc =
@@ -152,10 +429,16 @@ export const useTerminateLease = () => {
     mutationFn: async ({
       leaseId,
       terminationDate,
+      initiator,
+      billingRule,
       reason,
     }: {
       leaseId: string;
       terminationDate: string;
+      initiator:
+        LeaseTerminationInitiator;
+      billingRule:
+        RentBillingRule;
       reason?: string | null;
     }) => {
       const {
@@ -170,6 +453,12 @@ export const useTerminateLease = () => {
           p_termination_date:
             terminationDate,
 
+          p_initiator:
+            initiator,
+
+          p_billing_rule:
+            billingRule,
+
           p_reason:
             reason?.trim() ||
             null,
@@ -181,7 +470,7 @@ export const useTerminateLease = () => {
       }
 
       const result =
-        data?.[0];
+        firstRpcRow(data);
 
       if (!result) {
         throw new Error(
@@ -189,11 +478,24 @@ export const useTerminateLease = () => {
         );
       }
 
-      return result;
+      return {
+        ...result,
+        final_invoice_amount:
+          Number(
+            result.final_invoice_amount ??
+              0,
+          ),
+        invoice_reused:
+          Boolean(
+            result.invoice_reused,
+          ),
+      } as LeaseTerminationResult;
     },
 
-    onSuccess: () => {
-      invalidateRealEstate(qc);
+    onSuccess: async () => {
+      await invalidateLeaseClosureData(
+        qc,
+      );
     },
   });
 };
@@ -224,7 +526,7 @@ export const useExpireLease = () => {
       }
 
       const result =
-        data?.[0];
+        firstRpcRow(data);
 
       if (!result) {
         throw new Error(
@@ -232,11 +534,24 @@ export const useExpireLease = () => {
         );
       }
 
-      return result;
+      return {
+        ...result,
+        final_invoice_amount:
+          Number(
+            result.final_invoice_amount ??
+              0,
+          ),
+        invoice_reused:
+          Boolean(
+            result.invoice_reused,
+          ),
+      } as LeaseExpirationResult;
     },
 
-    onSuccess: () => {
-      invalidateRealEstate(qc);
+    onSuccess: async () => {
+      await invalidateLeaseClosureData(
+        qc,
+      );
     },
   });
 };
@@ -260,8 +575,10 @@ export const useDeleteLease = () => {
       }
     },
 
-    onSuccess: () => {
-      invalidateRealEstate(qc);
+    onSuccess: async () => {
+      await invalidateRealEstate(
+        qc,
+      );
     },
   });
 };
