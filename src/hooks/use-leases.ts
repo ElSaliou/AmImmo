@@ -64,6 +64,8 @@ export interface LeaseExpirationResult {
   invoice_reused: boolean;
 }
 
+export type LeaseTermVersionRow =
+  Database["public"]["Tables"]["lease_term_versions"]["Row"];
 export type LeaseAmendmentRow =
   Database["public"]["Tables"]["lease_amendments"]["Row"];
 
@@ -271,6 +273,51 @@ export const useLeases = () =>
     },
   });
 
+export const useLeaseTermVersions = (
+  leaseId: string | null | undefined,
+) =>
+  useQuery({
+    queryKey: [
+      KEY,
+      "term-versions",
+      leaseId,
+    ],
+
+    enabled:
+      Boolean(leaseId),
+
+    queryFn:
+      async (): Promise<
+        LeaseTermVersionRow[]
+      > => {
+        if (!leaseId) {
+          return [];
+        }
+
+        const {
+          data,
+          error,
+        } = await supabase
+          .from("lease_term_versions")
+          .select("*")
+          .eq(
+            "lease_id",
+            leaseId,
+          )
+          .order(
+            "version_no",
+            {
+              ascending: false,
+            },
+          );
+
+        if (error) {
+          throw error;
+        }
+
+        return data ?? [];
+      },
+  });
 export const useLeaseAmendments = (
   leaseId: string | null | undefined,
 ) =>
