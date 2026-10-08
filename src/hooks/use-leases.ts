@@ -64,6 +64,19 @@ export interface LeaseExpirationResult {
   invoice_reused: boolean;
 }
 
+export type LeaseAmendmentRow =
+  Database["public"]["Tables"]["lease_amendments"]["Row"];
+
+export type LeaseAmendmentApplicationResult =
+  Database["public"]["Functions"]["apply_lease_amendment"]["Returns"][number];
+
+export type LeaseAmendmentChanges = Partial<{
+  monthly_rent: number;
+  charges: number;
+  due_day: number;
+  deposit: number;
+  end_date: string | null;
+}>;
 const toNullableNumber = (
   value: unknown,
 ): number | null => {
@@ -258,6 +271,121 @@ export const useLeases = () =>
     },
   });
 
+export const useLeaseAmendments = (
+  leaseId: string | null | undefined,
+) =>
+  useQuery({
+    queryKey: [
+      KEY,
+      "amendments",
+      leaseId,
+    ],
+
+    enabled:
+      Boolean(leaseId),
+
+    queryFn:
+      async (): Promise<
+        LeaseAmendmentRow[]
+      > => {
+        if (!leaseId) {
+          return [];
+        }
+
+        const {
+          data,
+          error,
+        } = await supabase
+          .from("lease_amendments")
+          .select("*")
+          .eq(
+            "lease_id",
+            leaseId,
+          )
+          .order(
+            "effective_date",
+            {
+              ascending: false,
+            },
+          )
+          .order(
+            "created_at",
+            {
+              ascending: false,
+            },
+          );
+
+        if (error) {
+          throw error;
+        }
+
+        return data ?? [];
+      },
+  });
+
+export const useApplyLeaseAmendment =
+  () => {
+    const qc =
+      useQueryClient();
+
+    return useMutation({
+      mutationFn:
+        async ({
+          leaseId,
+          effectiveDate,
+          reason,
+          changes,
+        }: {
+          leaseId: string;
+          effectiveDate: string;
+          reason: string;
+          changes:
+            LeaseAmendmentChanges;
+        }) => {
+          const {
+            data,
+            error,
+          } = await supabase.rpc(
+            "apply_lease_amendment",
+            {
+              p_lease_id:
+                leaseId,
+
+              p_effective_date:
+                effectiveDate,
+
+              p_reason:
+                reason.trim(),
+
+              p_changes:
+                changes as Database["public"]["Functions"]["apply_lease_amendment"]["Args"]["p_changes"],
+            },
+          );
+
+          if (error) {
+            throw error;
+          }
+
+          const result =
+            data?.[0];
+
+          if (!result) {
+            throw new Error(
+              "L'avenant n'a retourné aucun résultat.",
+            );
+          }
+
+          return result as LeaseAmendmentApplicationResult;
+        },
+
+      onSuccess:
+        async () => {
+          await invalidateRealEstate(
+            qc,
+          );
+        },
+    });
+  };
 export const useCreateLease = () => {
   const qc =
     useQueryClient();

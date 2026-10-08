@@ -12,31 +12,6 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.5"
   }
-  graphql_public: {
-    Tables: {
-      [_ in never]: never
-    }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      graphql: {
-        Args: {
-          extensions?: Json
-          operationName?: string
-          query?: string
-          variables?: Json
-        }
-        Returns: Json
-      }
-    }
-    Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
-  }
   public: {
     Tables: {
       accounting_accounts: {
@@ -2077,6 +2052,116 @@ export type Database = {
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lease_amendments: {
+        Row: {
+          changed_fields: string[]
+          created_at: string
+          created_by: string | null
+          effective_date: string
+          id: string
+          lease_id: string
+          new_terms: Json
+          previous_terms: Json
+          reason: string
+          reference: string
+        }
+        Insert: {
+          changed_fields: string[]
+          created_at?: string
+          created_by?: string | null
+          effective_date: string
+          id?: string
+          lease_id: string
+          new_terms: Json
+          previous_terms: Json
+          reason: string
+          reference: string
+        }
+        Update: {
+          changed_fields?: string[]
+          created_at?: string
+          created_by?: string | null
+          effective_date?: string
+          id?: string
+          lease_id?: string
+          new_terms?: Json
+          previous_terms?: Json
+          reason?: string
+          reference?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lease_amendments_lease_id_fkey"
+            columns: ["lease_id"]
+            isOneToOne: false
+            referencedRelation: "leases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lease_term_versions: {
+        Row: {
+          amendment_id: string | null
+          charges: number
+          created_at: string
+          created_by: string | null
+          deposit: number
+          due_day: number
+          effective_from: string
+          end_date: string | null
+          id: string
+          lease_id: string
+          monthly_rent: number
+          source_kind: string
+          version_no: number
+        }
+        Insert: {
+          amendment_id?: string | null
+          charges: number
+          created_at?: string
+          created_by?: string | null
+          deposit: number
+          due_day: number
+          effective_from: string
+          end_date?: string | null
+          id?: string
+          lease_id: string
+          monthly_rent: number
+          source_kind: string
+          version_no: number
+        }
+        Update: {
+          amendment_id?: string | null
+          charges?: number
+          created_at?: string
+          created_by?: string | null
+          deposit?: number
+          due_day?: number
+          effective_from?: string
+          end_date?: string | null
+          id?: string
+          lease_id?: string
+          monthly_rent?: number
+          source_kind?: string
+          version_no?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lease_term_versions_amendment_id_fkey"
+            columns: ["amendment_id"]
+            isOneToOne: false
+            referencedRelation: "lease_amendments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lease_term_versions_lease_id_fkey"
+            columns: ["lease_id"]
+            isOneToOne: false
+            referencedRelation: "leases"
             referencedColumns: ["id"]
           },
         ]
@@ -5673,6 +5758,30 @@ export type Database = {
         }
         Relationships: []
       }
+      v_calc_count: {
+        Row: {
+          count: number | null
+        }
+        Insert: {
+          count?: number | null
+        }
+        Update: {
+          count?: number | null
+        }
+        Relationships: []
+      }
+      v_calc_id: {
+        Row: {
+          id: string | null
+        }
+        Insert: {
+          id?: string | null
+        }
+        Update: {
+          id?: string | null
+        }
+        Relationships: []
+      }
       vendors: {
         Row: {
           active: boolean
@@ -6694,6 +6803,26 @@ export type Database = {
       }
     }
     Functions: {
+      apply_lease_amendment: {
+        Args: {
+          p_changes: Json
+          p_effective_date: string
+          p_lease_id: string
+          p_reason: string
+        }
+        Returns: {
+          amendment_id: string
+          amendment_reference: string
+          changed_fields: string[]
+          effective_date: string
+          effective_now: boolean
+          lease_id: string
+          new_terms: Json
+          previous_terms: Json
+          version_id: string
+          version_no: number
+        }[]
+      }
       approve_expense: {
         Args: { p_expense_id: string; p_note?: string }
         Returns: Json
@@ -6985,6 +7114,10 @@ export type Database = {
               reused: boolean
             }[]
           }
+      ensure_lease_initial_term_version: {
+        Args: { p_lease_id: string }
+        Returns: string
+      }
       expire_lease_with_final_invoice: {
         Args: { p_lease_id: string }
         Returns: {
@@ -7675,6 +7808,22 @@ export type Database = {
         Args: { p_due_day: number; p_month: number; p_year: number }
         Returns: string
       }
+      resolve_lease_terms_at_date: {
+        Args: { p_effective_date: string; p_lease_id: string }
+        Returns: {
+          amendment_id: string
+          charges: number
+          deposit: number
+          due_day: number
+          effective_from: string
+          end_date: string
+          lease_id: string
+          monthly_rent: number
+          source_kind: string
+          version_id: string
+          version_no: number
+        }[]
+      }
       resolve_long_term_rent_billing: {
         Args: {
           p_billing_context: Database["public"]["Enums"]["long_term_rent_billing_context"]
@@ -8073,9 +8222,6 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
-  graphql_public: {
-    Enums: {},
-  },
   public: {
     Enums: {
       account_kind: ["asset", "liability", "equity", "income", "expense"],
