@@ -12,6 +12,7 @@ import {
   AlertTriangle,
   FileText,
   Loader2,
+  Pencil,
   Plus,
   Trash2,
 } from "lucide-react";
@@ -21,6 +22,9 @@ import { toast } from "sonner";
 import PageShell from "@/components/PageShell";
 import EmptyState from "@/components/admin/EmptyState";
 import TableSkeleton from "@/components/admin/TableSkeleton";
+import LeaseAmendmentDialog, {
+  type LeaseAmendmentDialogLease,
+} from "@/components/admin/LeaseAmendmentDialog";
 
 import {
   type LeaseBillingPreview,
@@ -610,6 +614,13 @@ const ContractsPage = () => {
 
   const deleteLease =
     useDeleteLease();
+
+  const [
+    amendmentLease,
+    setAmendmentLease,
+  ] = useState<LeaseAmendmentDialogLease | null>(
+    null,
+  );
 
   const [
     open,
@@ -1719,38 +1730,58 @@ const ContractsPage = () => {
                       </TableCell>
 
                       <TableCell className="text-right">
-                        {lease.status ===
-                          "pending" && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 opacity-0 group-hover:opacity-100"
-                            title="Supprimer ce bail en attente"
-                            onClick={() =>
-                              deleteLease.mutate(
-                                lease.id,
-                                {
-                                  onSuccess:
-                                    () =>
-                                      toast.success(
-                                        "Bail en attente supprimé",
-                                      ),
+                        <div className="flex justify-end gap-1">
+                          {lease.status ===
+                            "active" && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-8"
+                              title="Créer ou consulter les avenants"
+                              onClick={() =>
+                                setAmendmentLease(
+                                  lease,
+                                )
+                              }
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                              Avenant
+                            </Button>
+                          )}
 
-                                  onError:
-                                    (
-                                      error: any,
-                                    ) =>
-                                      toast.error(
-                                        error?.message ??
-                                          "Impossible de supprimer ce bail",
-                                      ),
-                                },
-                              )
-                            }
-                          >
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        )}
+                          {lease.status ===
+                            "pending" && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 opacity-0 group-hover:opacity-100"
+                              title="Supprimer ce bail en attente"
+                              onClick={() =>
+                                deleteLease.mutate(
+                                  lease.id,
+                                  {
+                                    onSuccess:
+                                      () =>
+                                        toast.success(
+                                          "Bail en attente supprimé",
+                                        ),
+
+                                    onError:
+                                      (
+                                        error: any,
+                                      ) =>
+                                        toast.error(
+                                          error?.message ??
+                                            "Impossible de supprimer ce bail",
+                                        ),
+                                  },
+                                )
+                              }
+                            >
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          )}
+                        </div>
                       </TableCell>
                     </TableRow>
                   );
@@ -1761,6 +1792,15 @@ const ContractsPage = () => {
         </div>
       )}
 
+      {/* AVENANTS */}
+      <LeaseAmendmentDialog
+        lease={amendmentLease}
+        onClose={() =>
+          setAmendmentLease(
+            null,
+          )
+        }
+      />
       {/* EXPIRATION DU BAIL */}
       <Dialog
         open={Boolean(
