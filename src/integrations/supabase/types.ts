@@ -1,4 +1,4 @@
-﻿export type Json =
+export type Json =
   | string
   | number
   | boolean
@@ -11,6 +11,31 @@ export type Database = {
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "14.5"
+  }
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
   }
   public: {
     Tables: {
@@ -840,28 +865,40 @@ export type Database = {
         Row: {
           entity_id: string
           entity_type: string
+          file_size: number | null
           file_type: string
-          file_url: string
+          file_url: string | null
           id: string
+          mime_type: string | null
           name: string
+          storage_bucket: string | null
+          storage_path: string | null
           uploaded_at: string
         }
         Insert: {
           entity_id: string
           entity_type: string
+          file_size?: number | null
           file_type?: string
-          file_url: string
+          file_url?: string | null
           id?: string
+          mime_type?: string | null
           name: string
+          storage_bucket?: string | null
+          storage_path?: string | null
           uploaded_at?: string
         }
         Update: {
           entity_id?: string
           entity_type?: string
+          file_size?: number | null
           file_type?: string
-          file_url?: string
+          file_url?: string | null
           id?: string
+          mime_type?: string | null
           name?: string
+          storage_bucket?: string | null
+          storage_path?: string | null
           uploaded_at?: string
         }
         Relationships: []
@@ -8222,6 +8259,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {
       account_kind: ["asset", "liability", "equity", "income", "expense"],
