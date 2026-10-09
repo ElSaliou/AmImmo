@@ -2,7 +2,11 @@ import { useParams, Link } from "react-router-dom";
 import PageShell from "@/components/PageShell";
 import { useOwner, useOwnerProperties } from "@/hooks/use-owners";
 import { useMandates, useDeleteMandate } from "@/hooks/use-mandates";
-import { useDocuments } from "@/hooks/use-documents";
+import {
+  createDocumentAccessUrl,
+  useDocuments,
+} from "@/hooks/use-documents";
+import type { Document as DocumentRecord } from "@/types/real-estate";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -16,6 +20,7 @@ import { toast } from "sonner";
 import {
   ArrowLeft, Pencil, Plus, Users, Building2, FileSignature, FolderOpen, Home,
   Mail, Phone, MapPin, IdCard, Landmark, Smartphone, StickyNote, Trash2,
+  ExternalLink, Loader2,
 } from "lucide-react";
 
 const typeLabels: Record<string, string> = { management: "Gestion", rental: "Location", sale: "Vente" };
@@ -43,6 +48,59 @@ const OwnerDetailPage = () => {
   const [editOpen, setEditOpen] = useState(false);
   const [mandateOpen, setMandateOpen] = useState(false);
   const [mandateId, setMandateId] = useState<string | undefined>();
+  const [
+    openingDocumentId,
+    setOpeningDocumentId,
+  ] = useState<string | null>(null);
+
+  const handleOpenDocument =
+    async (
+      document: DocumentRecord,
+    ) => {
+      const popup =
+        window.open(
+          "about:blank",
+          "_blank",
+        );
+
+      if (!popup) {
+        toast.error(
+          "Autorisez les fenêtres contextuelles pour ouvrir ce document.",
+        );
+
+        return;
+      }
+
+      popup.opener = null;
+
+      setOpeningDocumentId(
+        document.id,
+      );
+
+      try {
+        const url =
+          await createDocumentAccessUrl(
+            document,
+          );
+
+        popup.location.href =
+          url;
+      } catch (
+        error: unknown
+      ) {
+        popup.close();
+
+        toast.error(
+          error instanceof Error
+            ? error.message
+            : "Impossible d'ouvrir ce document.",
+        );
+      } finally {
+        setOpeningDocumentId(
+          null,
+        );
+      }
+    };
 
   if (isLoading) {
     return (
@@ -192,11 +250,42 @@ const OwnerDetailPage = () => {
             <EmptyState icon={FolderOpen} title="Aucun document" description="Les documents liés à ce propriétaire apparaîtront ici." />
           ) : (
             <div className="premium-card divide-y">
-              {(documents ?? []).map((d: any) => (
-                <a key={d.id} href={d.file_url} target="_blank" rel="noreferrer" className="flex items-center justify-between px-4 py-3 hover:bg-muted/30">
-                  <span className="text-sm font-medium">{d.name}</span>
-                  <span className="text-xs text-muted-foreground">{new Date(d.uploaded_at).toLocaleDateString("fr-FR")}</span>
-                </a>
+              {(documents ?? []).map((d) => (
+                <button
+                  key={d.id}
+                  type="button"
+                  disabled={
+                    openingDocumentId ===
+                    d.id
+                  }
+                  onClick={() =>
+                    void handleOpenDocument(
+                      d,
+                    )
+                  }
+                  className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left hover:bg-muted/30 disabled:opacity-60"
+                >
+                  <span className="min-w-0 flex-1 truncate text-sm font-medium">
+                    {d.name}
+                  </span>
+
+                  <span className="flex shrink-0 items-center gap-2">
+                    <span className="text-xs text-muted-foreground">
+                      {new Date(
+                        d.uploaded_at,
+                      ).toLocaleDateString(
+                        "fr-FR",
+                      )}
+                    </span>
+
+                    {openingDocumentId ===
+                    d.id ? (
+                      <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                    ) : (
+                      <ExternalLink className="h-4 w-4 text-muted-foreground" />
+                    )}
+                  </span>
+                </button>
               ))}
             </div>
           )}
