@@ -6,8 +6,11 @@ import {
 
 import {
   AlertTriangle,
+  ExternalLink,
+  FileText,
   History,
   Loader2,
+  Paperclip,
 } from "lucide-react";
 
 import { toast } from "sonner";
@@ -18,6 +21,18 @@ import {
   useLeaseAmendments,
   useLeaseTermVersions,
 } from "@/hooks/use-leases";
+
+import {
+  createDocumentAccessUrl,
+  ENTITY_DOCUMENT_ALLOWED_TYPES,
+  ENTITY_DOCUMENT_MAX_SIZE,
+  useDocumentsByEntityIds,
+  useUploadEntityDocuments,
+} from "@/hooks/use-documents";
+
+import type {
+  Document as DocumentRecord,
+} from "@/types/real-estate";
 
 import {
   Badge,
@@ -123,6 +138,36 @@ const numericFields: Array<{
     min: 0,
   },
 ];
+
+const documentSelectionError =
+  (
+    files: File[],
+  ) => {
+    for (
+      const file
+      of files
+    ) {
+      if (
+        file.size >
+        ENTITY_DOCUMENT_MAX_SIZE
+      ) {
+        return `${file.name} dépasse la taille maximale de 10 Mo.`;
+      }
+
+      if (
+        !file.type ||
+        !ENTITY_DOCUMENT_ALLOWED_TYPES.includes(
+          file.type as (
+            typeof ENTITY_DOCUMENT_ALLOWED_TYPES
+          )[number],
+        )
+      ) {
+        return `${file.name} : format non autorisé. Utilisez PDF, JPG, PNG ou WEBP.`;
+      }
+    }
+
+    return null;
+  };
 
 const emptySelection =
   (): Record<
@@ -421,6 +466,71 @@ const LeaseAmendmentDialog =
     const applyAmendment =
       useApplyLeaseAmendment();
 
+    const uploadDocuments =
+      useUploadEntityDocuments();
+
+    const amendmentIds =
+      useMemo(
+        () =>
+          amendments.map(
+            (
+              amendment,
+            ) =>
+              amendment.id,
+          ),
+        [
+          amendments,
+        ],
+      );
+
+    const {
+      data:
+        amendmentDocuments = [],
+      isLoading:
+        amendmentDocumentsLoading,
+      error:
+        amendmentDocumentsError,
+    } =
+      useDocumentsByEntityIds(
+        "lease_amendment",
+        amendmentIds,
+      );
+
+    const documentsByAmendmentId =
+      useMemo(
+        () => {
+          const grouped =
+            new Map<
+              string,
+              DocumentRecord[]
+            >();
+
+          for (
+            const document
+            of amendmentDocuments
+          ) {
+            const current =
+              grouped.get(
+                document.entity_id,
+              ) ?? [];
+
+            current.push(
+              document,
+            );
+
+            grouped.set(
+              document.entity_id,
+              current,
+            );
+          }
+
+          return grouped;
+        },
+        [
+          amendmentDocuments,
+        ],
+      );
+
     const latestVersion =
       termVersions[0] ??
       null;
@@ -549,6 +659,28 @@ const LeaseAmendmentDialog =
       setReason,
     ] = useState("");
 
+    const [
+      pendingFiles,
+      setPendingFiles,
+    ] =
+      useState<File[]>([]);
+
+    const [
+      uploadingAmendmentId,
+      setUploadingAmendmentId,
+    ] =
+      useState<
+        string | null
+      >(null);
+
+    const [
+      openingDocumentId,
+      setOpeningDocumentId,
+    ] =
+      useState<
+        string | null
+      >(null);
+
     useEffect(() => {
       if (!lease) {
         return;
@@ -590,6 +722,10 @@ const LeaseAmendmentDialog =
       });
 
       setReason("");
+
+      setPendingFiles(
+        [],
+      );
 
       const financialDefault =
         firstFinancialDate(
@@ -650,11 +786,175 @@ const LeaseAmendmentDialog =
         );
       };
 
+    const documentErrorMessage =
+      (
+        error: unknown,
+      ) => {
+        if (
+          error instanceof Error
+        ) {
+          return error.message;
+        }
+
+        if (
+          typeof error ===
+            "object" &&
+          error !== null &&
+          "message" in error
+        ) {
+          return String(
+            (
+              error as {
+                message?:
+                  unknown;
+              }
+            ).message ??
+              "",
+          );
+        }
+
+        return "Une erreur est survenue pendant le traitement du document.";
+      };
+
+    const handleOpenDocument =
+      async (
+        document:
+          DocumentRecord,
+      ) => {
+        const popup =
+          window.open(
+            "about:blank",
+            "_blank",
+          );
+
+        if (
+          !popup
+        ) {
+          toast.error(
+            "Autorisez les fenêtres contextuelles pour ouvrir cette pièce jointe.",
+          );
+
+          return;
+        }
+
+        popup.opener =
+          null;
+
+        setOpeningDocumentId(
+          document.id,
+        );
+
+        try {
+          const url =
+            await createDocumentAccessUrl(
+              document,
+            );
+
+          popup.location.href =
+            url;
+        } catch (
+          error: unknown
+        ) {
+          popup.close();
+
+          toast.error(
+            documentErrorMessage(
+              error,
+            ),
+          );
+        } finally {
+          setOpeningDocumentId(
+            null,
+          );
+        }
+      };
+
+    const handleHistoryUpload =
+      async (
+        amendmentId:
+          string,
+        files:
+          File[],
+      ) => {
+        if (
+          files.length ===
+          0
+        ) {
+          return;
+        }
+
+        const validationError =
+          documentSelectionError(
+            files,
+          );
+
+        if (
+          validationError
+        ) {
+          toast.error(
+            validationError,
+          );
+
+          return;
+        }
+
+        setUploadingAmendmentId(
+          amendmentId,
+        );
+
+        try {
+          await uploadDocuments
+            .mutateAsync({
+              entityType:
+                "lease_amendment",
+
+              entityId:
+                amendmentId,
+
+              files,
+            });
+
+          toast.success(
+            files.length ===
+              1
+              ? "Pièce jointe ajoutée à l'avenant."
+              : `${files.length} pièces jointes ajoutées à l'avenant.`,
+          );
+        } catch (
+          error: unknown
+        ) {
+          toast.error(
+            documentErrorMessage(
+              error,
+            ),
+          );
+        } finally {
+          setUploadingAmendmentId(
+            null,
+          );
+        }
+      };
+
     const handleSubmit =
       async () => {
         if (
           termVersionsLoading
         ) {
+          return;
+        }
+
+        const attachmentError =
+          documentSelectionError(
+            pendingFiles,
+          );
+
+        if (
+          attachmentError
+        ) {
+          toast.error(
+            attachmentError,
+          );
+
           return;
         }
 
@@ -972,8 +1272,41 @@ const LeaseAmendmentDialog =
                 changes,
               });
 
+          if (
+            pendingFiles.length >
+            0
+          ) {
+            try {
+              await uploadDocuments
+                .mutateAsync({
+                  entityType:
+                    "lease_amendment",
+
+                  entityId:
+                    result.amendment_id,
+
+                  files:
+                    pendingFiles,
+                });
+            } catch (
+              uploadError:
+                unknown
+            ) {
+              toast.warning(
+                `Avenant ${result.amendment_reference} enregistré, mais les pièces jointes n'ont pas pu être ajoutées. L'avenant est conservé ; ajoutez les pièces depuis l'historique. ${documentErrorMessage(
+                  uploadError,
+                )}`,
+              );
+
+              return;
+            }
+          }
+
           toast.success(
-            `Avenant ${result.amendment_reference} enregistré. Version contractuelle n°${result.version_no}.`,
+            pendingFiles.length >
+              0
+              ? `Avenant ${result.amendment_reference} enregistré avec ${pendingFiles.length} pièce(s) jointe(s). Version contractuelle n°${result.version_no}.`
+              : `Avenant ${result.amendment_reference} enregistré. Version contractuelle n°${result.version_no}.`,
           );
 
           onClose();
@@ -994,7 +1327,13 @@ const LeaseAmendmentDialog =
         onOpenChange={(
           value,
         ) => {
-          if (!value) {
+          if (
+            !value &&
+            !applyAmendment
+              .isPending &&
+            !uploadDocuments
+              .isPending
+          ) {
             onClose();
           }
         }}
@@ -1166,6 +1505,121 @@ const LeaseAmendmentDialog =
                   placeholder="Ex. révision annuelle du loyer, prolongation du bail..."
                 />
               </div>
+            </div>
+
+            <div className="space-y-2 rounded-lg border p-4">
+              <div className="flex items-start gap-2">
+                <Paperclip className="mt-0.5 h-4 w-4 shrink-0" />
+
+                <div>
+                  <p className="text-sm font-semibold">
+                    Pièces jointes
+                  </p>
+
+                  <p className="text-xs text-muted-foreground">
+                    Facultatif — les fichiers seront rattachés à l'avenant après sa création.
+                  </p>
+                </div>
+              </div>
+
+              <Input
+                type="file"
+                multiple
+                accept="application/pdf,image/jpeg,image/png,image/webp,.pdf,.jpg,.jpeg,.png,.webp"
+                disabled={
+                  applyAmendment
+                    .isPending ||
+                  uploadDocuments
+                    .isPending
+                }
+                onChange={(
+                  event,
+                ) => {
+                  const files =
+                    Array.from(
+                      event.target
+                        .files ??
+                        [],
+                    );
+
+                  event.target.value =
+                    "";
+
+                  const validationError =
+                    documentSelectionError(
+                      files,
+                    );
+
+                  if (
+                    validationError
+                  ) {
+                    toast.error(
+                      validationError,
+                    );
+
+                    return;
+                  }
+
+                  setPendingFiles(
+                    files,
+                  );
+                }}
+              />
+
+              <p className="text-xs text-muted-foreground">
+                PDF, JPG, PNG ou WEBP — 10 Mo maximum par fichier.
+              </p>
+
+              {pendingFiles.length >
+              0 ? (
+                <div className="space-y-2 pt-1">
+                  {pendingFiles.map(
+                    (
+                      file,
+                      index,
+                    ) => (
+                      <div
+                        key={`${file.name}-${file.size}-${index}`}
+                        className="flex items-center gap-2 rounded-md bg-muted/40 px-3 py-2 text-xs"
+                      >
+                        <FileText className="h-4 w-4 shrink-0" />
+
+                        <span className="min-w-0 flex-1 truncate">
+                          {file.name}
+                        </span>
+
+                        <button
+                          type="button"
+                          className="text-destructive hover:underline"
+                          disabled={
+                            applyAmendment
+                              .isPending ||
+                            uploadDocuments
+                              .isPending
+                          }
+                          onClick={() =>
+                            setPendingFiles(
+                              (
+                                previous,
+                              ) =>
+                                previous.filter(
+                                  (
+                                    _,
+                                    fileIndex,
+                                  ) =>
+                                    fileIndex !==
+                                    index,
+                                ),
+                            )
+                          }
+                        >
+                          Retirer
+                        </button>
+                      </div>
+                    ),
+                  )}
+                </div>
+              ) : null}
             </div>
 
             <div className="space-y-3">
@@ -1365,6 +1819,8 @@ const LeaseAmendmentDialog =
                 onClick={onClose}
                 disabled={
                   applyAmendment
+                    .isPending ||
+                  uploadDocuments
                     .isPending
                 }
               >
@@ -1379,10 +1835,14 @@ const LeaseAmendmentDialog =
                 disabled={
                   applyAmendment
                     .isPending ||
+                  uploadDocuments
+                    .isPending ||
                   termVersionsLoading
                 }
               >
                 {applyAmendment
+                  .isPending ||
+                uploadDocuments
                   .isPending ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
                   ) : null}
@@ -1405,6 +1865,12 @@ const LeaseAmendmentDialog =
                   </p>
                 </div>
               </div>
+
+              {amendmentDocumentsError ? (
+                <div className="mb-3 rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
+                  Impossible de charger les pièces jointes des avenants.
+                </div>
+              ) : null}
 
               {amendmentsError ? (
                 <div className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
@@ -1491,6 +1957,133 @@ const LeaseAmendmentDialog =
                                 </Badge>
                               ),
                             )}
+                        </div>
+
+                        <div className="mt-4 rounded-md border bg-muted/20 p-3">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="flex items-center gap-2">
+                              <Paperclip className="h-4 w-4" />
+
+                              <p className="text-xs font-semibold">
+                                Pièces jointes
+                              </p>
+                            </div>
+
+                            <label
+                              className={`inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors ${
+                                uploadingAmendmentId !==
+                                  null ||
+                                uploadDocuments
+                                  .isPending
+                                  ? "pointer-events-none opacity-50"
+                                  : "cursor-pointer hover:bg-muted"
+                              }`}
+                            >
+                              {uploadingAmendmentId ===
+                              amendment.id ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                <Paperclip className="h-3.5 w-3.5" />
+                              )}
+
+                              Ajouter
+
+                              <input
+                                type="file"
+                                multiple
+                                accept="application/pdf,image/jpeg,image/png,image/webp,.pdf,.jpg,.jpeg,.png,.webp"
+                                className="sr-only"
+                                disabled={
+                                  uploadingAmendmentId !==
+                                    null ||
+                                  uploadDocuments
+                                    .isPending
+                                }
+                                onChange={(
+                                  event,
+                                ) => {
+                                  const files =
+                                    Array.from(
+                                      event.target
+                                        .files ??
+                                        [],
+                                    );
+
+                                  event.target.value =
+                                    "";
+
+                                  void handleHistoryUpload(
+                                    amendment.id,
+                                    files,
+                                  );
+                                }}
+                              />
+                            </label>
+                          </div>
+
+                          {amendmentDocumentsError ? (
+                            <p className="mt-2 text-xs text-destructive">
+                              Pièces jointes indisponibles.
+                            </p>
+                          ) : amendmentDocumentsLoading ? (
+                            <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              Chargement des pièces...
+                            </div>
+                          ) : (
+                            documentsByAmendmentId.get(
+                              amendment.id,
+                            ) ?? []
+                          ).length ===
+                          0 ? (
+                            <p className="mt-2 text-xs text-muted-foreground">
+                              Aucune pièce jointe.
+                            </p>
+                          ) : (
+                            <div className="mt-2 space-y-1.5">
+                              {(
+                                documentsByAmendmentId.get(
+                                  amendment.id,
+                                ) ?? []
+                              ).map(
+                                (
+                                  document,
+                                ) => (
+                                  <button
+                                    key={
+                                      document.id
+                                    }
+                                    type="button"
+                                    className="flex w-full items-center gap-2 rounded-md bg-background px-2.5 py-2 text-left text-xs transition-colors hover:bg-muted"
+                                    disabled={
+                                      openingDocumentId ===
+                                      document.id
+                                    }
+                                    onClick={() =>
+                                      void handleOpenDocument(
+                                        document,
+                                      )
+                                    }
+                                  >
+                                    {openingDocumentId ===
+                                    document.id ? (
+                                      <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" />
+                                    ) : (
+                                      <FileText className="h-3.5 w-3.5 shrink-0" />
+                                    )}
+
+                                    <span className="min-w-0 flex-1 truncate">
+                                      {
+                                        document.name
+                                      }
+                                    </span>
+
+                                    <ExternalLink className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                                  </button>
+                                ),
+                              )}
+                            </div>
+                          )}
                         </div>
 
                         <div className="mt-3 space-y-1.5 text-xs">
