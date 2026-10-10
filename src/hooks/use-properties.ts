@@ -406,172 +406,31 @@ export const usePropertyControlDecision =
 
         note?: string;
       }) => {
-        /*
-         * On récupère d'abord
-         * l'état actuel.
-         */
         const {
-          data: property,
-          error:
-            propertyError,
-        } = await supabase
-          .from(
-            "properties",
-          )
-          .select(
-            "id, status, control_required",
-          )
-          .eq(
-            "id",
-            propertyId,
-          )
-          .single();
-
-        if (
-          propertyError
-        ) {
-          throw propertyError;
-        }
-
-        if (
-          !(
-            property as any
-          ).control_required
-        ) {
-          throw new Error(
-            "Ce bien n'est pas actuellement en attente de contrôle.",
-          );
-        }
-
-        const oldStatus =
-          property.status;
-
-        const now =
-          new Date().toISOString();
-
-        const updatePayload =
-          decision ===
-          "maintenance"
-            ? {
-                status:
-                  "maintenance",
-
-                control_required:
-                  false,
-
-                availability_reason:
-                  "maintenance",
-
-                availability_note:
-                  note?.trim() ||
-                  "Travaux ou maintenance requis après contrôle.",
-
-                status_changed_at:
-                  now,
-
-                updated_at:
-                  now,
-              }
-            : {
-                status:
-                  "archived",
-
-                published:
-                  false,
-
-                control_required:
-                  false,
-
-                availability_reason:
-                  "owner_request",
-
-                availability_note:
-                  note?.trim() ||
-                  "Bien retiré de la commercialisation après contrôle.",
-
-                status_changed_at:
-                  now,
-
-                updated_at:
-                  now,
-              };
-
-        /*
-         * Les types locaux peuvent
-         * ne pas encore connaître
-         * les nouvelles colonnes.
-         */
-        const {
-          error:
-            updateError,
+          data,
+          error,
         } = await (
           supabase as any
-        )
-          .from("properties")
-          .update(
-            updatePayload,
-          )
-          .eq(
-            "id",
-            propertyId,
-          );
-
-        if (
-          updateError
-        ) {
-          throw updateError;
-        }
-
-        /*
-         * Historique du statut.
-         */
-        const {
-          error:
-            historyError,
-        } = await (
-          supabase as any
-        )
-          .from(
-            "property_status_history",
-          )
-          .insert({
-            property_id:
+        ).rpc(
+          "apply_property_control_decision",
+          {
+            p_property_id:
               propertyId,
 
-            old_status:
-              oldStatus,
-
-            new_status:
+            p_decision:
               decision,
 
-            reason:
-              decision ===
-              "maintenance"
-                ? "maintenance"
-                : "owner_request",
-
-            note:
+            p_note:
               note?.trim() ||
-              (decision ===
-              "maintenance"
-                ? "Contrôle terminé : maintenance requise."
-                : "Contrôle terminé : bien archivé."),
-          });
+              null,
+          },
+        );
 
-        if (
-          historyError
-        ) {
-          console.warn(
-            "[Properties] Historique non enregistré :",
-            historyError,
-          );
+        if (error) {
+          throw error;
         }
 
-        return {
-          success: true,
-          propertyId,
-          decision,
-        };
+        return data;
       },
 
       onSuccess: () => {
