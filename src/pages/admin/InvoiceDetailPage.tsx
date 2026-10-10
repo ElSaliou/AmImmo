@@ -1,5 +1,8 @@
+import { useState } from "react";
+
 import {
   ArrowLeft,
+  Banknote,
   CalendarDays,
   Download,
   FileText,
@@ -9,6 +12,8 @@ import {
   User,
   XCircle,
 } from "lucide-react";
+
+import { toast } from "sonner";
 
 import {
   useQuery,
@@ -30,6 +35,11 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
 import PageShell from "@/components/PageShell";
+
+import {
+  type RecordTenantPaymentInput,
+  useRecordTenantPayment,
+} from "@/hooks/use-receivables";
 
 import { supabase } from "@/integrations/supabase/client";
 
@@ -54,8 +64,37 @@ import {
 } from "@/components/ui/card";
 
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+
+import {
+  Input,
+} from "@/components/ui/input";
+
+import {
+  Label,
+} from "@/components/ui/label";
+
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
+import {
   Separator,
 } from "@/components/ui/separator";
+
+import {
+  Textarea,
+} from "@/components/ui/textarea";
 
 import {
   Table,
@@ -476,6 +515,36 @@ export default function InvoiceDetailPage() {
     invoiceId: string;
   }>();
 
+  const recordPayment =
+    useRecordTenantPayment();
+
+  const [
+    paymentOpen,
+    setPaymentOpen,
+  ] = useState(false);
+
+  const [
+    paymentAmount,
+    setPaymentAmount,
+  ] = useState("");
+
+  const [
+    paymentMethod,
+    setPaymentMethod,
+  ] = useState<
+    RecordTenantPaymentInput["paymentMethod"]
+  >("mobile_money");
+
+  const [
+    paymentReference,
+    setPaymentReference,
+  ] = useState("");
+
+  const [
+    paymentNotes,
+    setPaymentNotes,
+  ] = useState("");
+
   // ==========================================================
   // QUERY
   // ==========================================================
@@ -780,6 +849,159 @@ export default function InvoiceDetailPage() {
             ?.reference ??
           null
         : null;
+
+  const canRecordRentPayment =
+    isRentInvoice &&
+    remaining > 0 &&
+    invoice.status !==
+      "paid" &&
+    invoice.status !==
+      "cancelled";
+
+  const openPaymentDialog =
+    () => {
+      if (
+        !canRecordRentPayment
+      ) {
+        return;
+      }
+
+      setPaymentAmount(
+        String(remaining),
+      );
+
+      setPaymentMethod(
+        "mobile_money",
+      );
+
+      setPaymentReference(
+        "",
+      );
+
+      setPaymentNotes(
+        "",
+      );
+
+      setPaymentOpen(
+        true,
+      );
+    };
+
+  const closePaymentDialog =
+    () => {
+      if (
+        recordPayment.isPending
+      ) {
+        return;
+      }
+
+      setPaymentOpen(
+        false,
+      );
+
+      setPaymentAmount(
+        "",
+      );
+
+      setPaymentReference(
+        "",
+      );
+
+      setPaymentNotes(
+        "",
+      );
+    };
+
+  const handleRecordPayment =
+    async () => {
+      if (
+        !canRecordRentPayment
+      ) {
+        return;
+      }
+
+      const numericAmount =
+        Number(
+          paymentAmount,
+        );
+
+      if (
+        !Number.isFinite(
+          numericAmount,
+        ) ||
+        numericAmount <= 0
+      ) {
+        toast.error(
+          "Le montant de l'encaissement doit être supérieur à zéro.",
+        );
+
+        return;
+      }
+
+      if (
+        numericAmount >
+        remaining
+      ) {
+        toast.error(
+          `Le reste dû est de ${formatMoney(
+            remaining,
+            invoice.currency,
+          )}.`,
+        );
+
+        return;
+      }
+
+      try {
+        await recordPayment.mutateAsync(
+          {
+            invoiceId:
+              invoice.id,
+
+            amount:
+              numericAmount,
+
+            paymentMethod,
+
+            reference:
+              paymentReference,
+
+            notes:
+              paymentNotes,
+          },
+        );
+
+        toast.success(
+          `${formatMoney(
+            numericAmount,
+            invoice.currency,
+          )} encaissé pour ${customerName}.`,
+        );
+
+        setPaymentOpen(
+          false,
+        );
+
+        setPaymentAmount(
+          "",
+        );
+
+        setPaymentReference(
+          "",
+        );
+
+        setPaymentNotes(
+          "",
+        );
+      } catch (
+        error: any
+      ) {
+        toast.error(
+          error?.message ??
+            "Une erreur est survenue pendant l'encaissement.",
+        );
+      }
+    };
 
   // ==========================================================
   // PDF
@@ -1481,6 +1703,19 @@ export default function InvoiceDetailPage() {
             Retour
           </Button>
 
+          {canRecordRentPayment && (
+            <Button
+              onClick={openPaymentDialog}
+              disabled={
+                recordPayment.isPending
+              }
+            >
+              <Banknote className="mr-2 h-4 w-4" />
+
+              Encaisser
+            </Button>
+          )}
+
           <Button
             onClick={
               handleDownloadPdf
@@ -1874,6 +2109,202 @@ export default function InvoiceDetailPage() {
           </Card>
         )}
       </div>
+
+      <Dialog
+        open={paymentOpen}
+        onOpenChange={(
+          open,
+        ) => {
+          if (!open) {
+            closePaymentDialog();
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>
+              Encaisser un loyer
+            </DialogTitle>
+
+            <DialogDescription>
+              Le paiement mettra automatiquement à jour la facture,
+              la créance, la trésorerie et la comptabilité.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-5">
+            <div className="rounded-lg border bg-muted/30 p-4">
+              <div className="font-medium">
+                {customerName}
+              </div>
+
+              <div className="text-sm text-muted-foreground">
+                {invoice.property
+                  ?.title ||
+                  invoice.property
+                    ?.reference ||
+                  "—"}
+              </div>
+
+              <div className="mt-3 flex justify-between text-sm">
+                <span>
+                  Facture
+                </span>
+
+                <span>
+                  {invoice.number}
+                </span>
+              </div>
+
+              <div className="flex justify-between text-sm">
+                <span>
+                  Reste à payer
+                </span>
+
+                <span className="font-semibold">
+                  {formatMoney(
+                    remaining,
+                    invoice.currency,
+                  )}
+                </span>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>
+                Montant encaissé
+              </Label>
+
+              <Input
+                type="number"
+                min="1"
+                max={remaining}
+                value={paymentAmount}
+                onChange={(
+                  event,
+                ) =>
+                  setPaymentAmount(
+                    event.target.value,
+                  )
+                }
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>
+                Mode d'encaissement
+              </Label>
+
+              <Select
+                value={paymentMethod}
+                onValueChange={(
+                  value,
+                ) =>
+                  setPaymentMethod(
+                    value as RecordTenantPaymentInput["paymentMethod"],
+                  )
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+
+                <SelectContent>
+                  <SelectItem value="cash">
+                    Espèces
+                  </SelectItem>
+
+                  <SelectItem value="transfer">
+                    Virement bancaire
+                  </SelectItem>
+
+                  <SelectItem value="mobile_money">
+                    Mobile Money
+                  </SelectItem>
+
+                  <SelectItem value="card">
+                    Carte bancaire
+                  </SelectItem>
+
+                  <SelectItem value="cheque">
+                    Chèque
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>
+                Référence externe
+              </Label>
+
+              <Input
+                placeholder="Optionnel"
+                value={paymentReference}
+                onChange={(
+                  event,
+                ) =>
+                  setPaymentReference(
+                    event.target.value,
+                  )
+                }
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>
+                Notes
+              </Label>
+
+              <Textarea
+                placeholder="Informations complémentaires..."
+                value={paymentNotes}
+                onChange={(
+                  event,
+                ) =>
+                  setPaymentNotes(
+                    event.target.value,
+                  )
+                }
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={
+                closePaymentDialog
+              }
+              disabled={
+                recordPayment.isPending
+              }
+            >
+              Annuler
+            </Button>
+
+            <Button
+              onClick={
+                handleRecordPayment
+              }
+              disabled={
+                recordPayment.isPending
+              }
+              className="gap-2"
+            >
+              {recordPayment.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Banknote className="h-4 w-4" />
+              )}
+
+              {recordPayment.isPending
+                ? "Encaissement..."
+                : "Valider l'encaissement"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </PageShell>
   );
 }

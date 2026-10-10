@@ -200,8 +200,12 @@ export function useRecordTenantPayment() {
       return data as string;
     },
 
-    onSuccess: async () => {
+    onSuccess: async (_paymentId, input) => {
       await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: ["invoice", input.invoiceId],
+        }),
+
         queryClient.invalidateQueries({
           queryKey: ["tenant-receivables"],
         }),
