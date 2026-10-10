@@ -103,6 +103,20 @@ interface InvoiceBooking {
   check_out: string;
 }
 
+interface InvoiceTenant {
+  id: string;
+  full_name: string | null;
+  email: string | null;
+  phone: string | null;
+}
+
+interface InvoiceLease {
+  id: string;
+  reference: string | null;
+  start_date: string;
+  end_date: string | null;
+}
+
 interface InvoiceProperty {
   id: string;
   reference: string | null;
@@ -143,6 +157,14 @@ interface InvoiceDetail {
 
   booking:
     | InvoiceBooking
+    | null;
+
+  tenant:
+    | InvoiceTenant
+    | null;
+
+  lease:
+    | InvoiceLease
     | null;
 
   property:
@@ -340,6 +362,36 @@ const getInvoiceKindLabel = (
   return kind;
 };
 
+const getInvoiceSubtitle = (
+  kind: string,
+) => {
+  switch (kind) {
+    case "booking":
+      return "Facture de séjour";
+
+    case "rent":
+      return "Facture de loyer";
+
+    case "deposit":
+      return "Facture de caution";
+
+    case "charges":
+      return "Facture de charges";
+
+    case "service":
+      return "Facture de service";
+
+    case "commission":
+      return "Facture de commission";
+
+    case "penalty":
+      return "Facture de pénalité";
+
+    default:
+      return "Facture";
+  }
+};
+
 // ============================================================
 // STATUS
 // ============================================================
@@ -500,6 +552,20 @@ export default function InvoiceDetailPage() {
               guest_name,
               check_in,
               check_out
+            ),
+
+            tenant:tenants (
+              id,
+              full_name,
+              email,
+              phone
+            ),
+
+            lease:leases (
+              id,
+              reference,
+              start_date,
+              end_date
             ),
 
             property:properties (
@@ -667,6 +733,54 @@ export default function InvoiceDetailPage() {
         ),
     );
 
+  const isBookingInvoice =
+    invoice.kind ===
+    "booking";
+
+  const isRentInvoice =
+    invoice.kind ===
+    "rent";
+
+  const customerLabel =
+    isRentInvoice
+      ? "Locataire"
+      : isBookingInvoice
+        ? "Voyageur"
+        : "Client";
+
+  const customerName =
+    isRentInvoice
+      ? invoice.tenant
+          ?.full_name ||
+        "—"
+      : isBookingInvoice
+        ? invoice.booking
+            ?.guest_name ||
+          "—"
+        : invoice.tenant
+            ?.full_name ||
+          invoice.booking
+            ?.guest_name ||
+          "—";
+
+  const contextReferenceLabel =
+    isRentInvoice
+      ? "Bail"
+      : isBookingInvoice
+        ? "Réservation"
+        : null;
+
+  const contextReference =
+    isRentInvoice
+      ? invoice.lease
+          ?.reference ??
+        null
+      : isBookingInvoice
+        ? invoice.booking
+            ?.reference ??
+          null
+        : null;
+
   // ==========================================================
   // PDF
   // ==========================================================
@@ -830,7 +944,7 @@ export default function InvoiceDetailPage() {
       );
 
       // ======================================================
-      // VOYAGEUR
+      // CLIENT / CONTEXTE METIER
       // ======================================================
 
       doc.setFont(
@@ -843,7 +957,7 @@ export default function InvoiceDetailPage() {
       );
 
       doc.text(
-        "Voyageur",
+        customerLabel,
         margin,
         57,
       );
@@ -854,19 +968,17 @@ export default function InvoiceDetailPage() {
       );
 
       doc.text(
-        invoice.booking
-          ?.guest_name ||
-          "—",
+        customerName,
         margin,
         63,
       );
 
       if (
-        invoice.booking
-          ?.reference
+        contextReferenceLabel &&
+        contextReference
       ) {
         doc.text(
-          `Réservation : ${invoice.booking.reference}`,
+          `${contextReferenceLabel} : ${contextReference}`,
           margin,
           69,
         );
@@ -1408,7 +1520,9 @@ export default function InvoiceDetailPage() {
                 </div>
 
                 <p className="mt-2 text-sm text-muted-foreground">
-                  Facture de séjour
+                  {getInvoiceSubtitle(
+                    invoice.kind,
+                  )}
                 </p>
               </div>
 
@@ -1476,30 +1590,37 @@ export default function InvoiceDetailPage() {
               <CardTitle className="flex items-center gap-2 text-base">
                 <User className="h-4 w-4" />
 
-                Voyageur
+                {customerLabel}
               </CardTitle>
             </CardHeader>
 
             <CardContent>
               <p className="font-medium">
-                {invoice.booking
-                  ?.guest_name ||
-                  "—"}
+                {customerName}
               </p>
 
-              {invoice.booking && (
-                <Button
-                  variant="link"
-                  className="mt-2 h-auto p-0"
-                  onClick={() =>
-                    navigate(
-                      `/admin/bookings/${invoice.booking?.id}`,
-                    )
-                  }
-                >
-                  Voir la réservation
-                </Button>
-              )}
+              {isBookingInvoice &&
+                invoice.booking && (
+                  <Button
+                    variant="link"
+                    className="mt-2 h-auto p-0"
+                    onClick={() =>
+                      navigate(
+                        `/admin/bookings/${invoice.booking?.id}`,
+                      )
+                    }
+                  >
+                    Voir la réservation
+                  </Button>
+                )}
+
+              {isRentInvoice &&
+                contextReference && (
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    Bail :{" "}
+                    {contextReference}
+                  </p>
+                )}
             </CardContent>
           </Card>
 
