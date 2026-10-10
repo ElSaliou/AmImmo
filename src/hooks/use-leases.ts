@@ -861,38 +861,10 @@ export const useDeleteLease = () => {
         .maybeSingle();
 
       if (error) {
-        const message =
-          String(
-            error.message ??
-              "",
-          );
-
-        if (
-          message.includes(
-            "seuls les baux en attente peuvent être supprimés",
-          )
-        ) {
-          throw new Error(
-            "Seuls les baux en attente peuvent être supprimés.",
-          );
-        }
-
-        if (
-          message.includes(
-            "une ou plusieurs factures lui sont déjà rattachées",
-          )
-        ) {
-          throw new Error(
-            "Ce bail ne peut plus être supprimé car une ou plusieurs factures lui sont déjà rattachées.",
-          );
-        }
-
-        throw new Error(
-          "Impossible de supprimer ce bail.",
-        );
+        throw error;
       }
 
-      if (!data) {
+if (!data) {
         throw new Error(
           "Ce bail est introuvable ou n'est plus en attente.",
         );

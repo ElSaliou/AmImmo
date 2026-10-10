@@ -16,6 +16,10 @@ import {
 import { toast } from "sonner";
 
 import {
+  getRealEstateErrorMessage,
+} from "@/lib/real-estate-errors";
+
+import {
   type LeaseAmendmentChanges,
   useApplyLeaseAmendment,
   useLeaseAmendments,
@@ -398,39 +402,6 @@ const formatTermValue =
         "string"
         ? value
         : null,
-    );
-  };
-
-const amendmentErrorMessage =
-  (
-    error: unknown,
-  ) => {
-    const message =
-      error instanceof Error
-      ? error.message
-      : typeof error === "object" &&
-          error !== null &&
-          "message" in error
-        ? String(
-            (
-              error as {
-                message?: unknown;
-              }
-            ).message ?? "",
-          )
-        : "";
-
-    if (
-      message.includes(
-        "BILLING_AMENDMENT_EXISTING_INVOICE_CONFLICT",
-      )
-    ) {
-      return "Une facture de loyer existe déjà pour le mois d'effet de cet avenant ou pour un mois ultérieur. Régularisez la facturation avant de modifier les conditions financières.";
-    }
-
-    return (
-      message ||
-      "Impossible d'appliquer l'avenant."
     );
   };
 
@@ -1314,8 +1285,9 @@ const LeaseAmendmentDialog =
           error: unknown
         ) {
           toast.error(
-            amendmentErrorMessage(
+            getRealEstateErrorMessage(
               error,
+              "Impossible d'appliquer l'avenant.",
             ),
           );
         }

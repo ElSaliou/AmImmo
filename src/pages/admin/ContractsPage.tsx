@@ -18,6 +18,10 @@ import {
 } from "lucide-react";
 
 import { toast } from "sonner";
+import {
+  getLeaseBillingResolutionMessage,
+  getRealEstateErrorMessage,
+} from "@/lib/real-estate-errors";
 
 import PageShell from "@/components/PageShell";
 import EmptyState from "@/components/admin/EmptyState";
@@ -350,110 +354,6 @@ const formatDate =
     return `${day}/${month}/${year}`;
   };
 
-const billingResolutionMessage =
-  (
-    code:
-      | string
-      | null
-      | undefined,
-  ) => {
-    switch (code) {
-      case "BILLING_MUTUAL_RULE_REQUIRED":
-        return "Pour un accord mutuel, choisissez explicitement Prorata ou Mois complet.";
-
-      case "BILLING_RULE_NOT_ALLOWED":
-        return "La règle de facturation choisie n'est pas autorisée pour cet initiateur.";
-
-      case "BILLING_TERMINATION_NOT_EARLY":
-        return "La résiliation doit être strictement antérieure à la date de fin contractuelle.";
-
-      case "BILLING_SAME_MONTH_POLICY_CONFLICT":
-        return "Ce cas nécessite une revue manuelle avant clôture du bail.";
-
-      case "BILLING_INVALID_EFFECTIVE_DATE":
-        return "La date effective de sortie n'est pas valide.";
-
-      case "BILLING_CONTEXT_MISMATCH":
-        return "Le contexte de facturation ne correspond pas à la sortie demandée.";
-
-      default:
-        return code
-          ? `Le calcul n'est pas validé (${code}).`
-          : "Le calcul de facturation n'est pas validé.";
-    }
-  };
-
-const billingRpcErrorMessage =
-  (
-    error: any,
-    fallback: string,
-  ) => {
-    const message =
-      String(
-        error?.message ??
-          "",
-      );
-
-    if (
-      message.includes(
-        "BILLING_EXISTING_INVOICE_CONFLICT",
-      )
-    ) {
-      return "Une facture de loyer déjà comptabilisée est incompatible avec cette sortie. Une régularisation comptable est nécessaire avant de clôturer le bail.";
-    }
-
-    if (
-      message.includes(
-        "BILLING_LATER_INVOICE_REQUIRES_REGULARIZATION",
-      )
-    ) {
-      return "Une facture existe pour un mois postérieur à la date de sortie. Régularisez-la avant de clôturer le bail.";
-    }
-
-    if (
-      message.includes(
-        "BILLING_EXISTING_INVOICE_PERIOD_INVALID",
-      )
-    ) {
-      return "Une facture existante possède une période invalide. Une régularisation est requise avant la clôture.";
-    }
-
-    if (
-      message.includes(
-        "BILLING_TERMINATION_NOT_EARLY",
-      )
-    ) {
-      return "Pour un bail à durée déterminée, la date de résiliation doit être strictement antérieure à la date de fin contractuelle.";
-    }
-
-    if (
-      message.includes(
-        "BILLING_MUTUAL_RULE_REQUIRED",
-      )
-    ) {
-      return "Pour un accord mutuel, choisissez explicitement Prorata ou Mois complet.";
-    }
-
-    if (
-      message.includes(
-        "BILLING_RULE_NOT_ALLOWED",
-      )
-    ) {
-      return "La règle de facturation sélectionnée n'est pas autorisée pour cet initiateur.";
-    }
-
-    if (
-      message.includes(
-        "BILLING_SAME_MONTH_POLICY_CONFLICT",
-      )
-    ) {
-      return "Ce cas nécessite une revue manuelle avant clôture du bail.";
-    }
-
-    return message ||
-      fallback;
-  };
-
 const BillingPreviewCard =
   ({
     preview,
@@ -475,7 +375,7 @@ const BillingPreviewCard =
             </p>
 
             <p className="text-xs">
-              {billingResolutionMessage(
+              {getLeaseBillingResolutionMessage(
                 preview.resolution_code,
               )}
             </p>
@@ -952,8 +852,10 @@ const ContractsPage = () => {
         error: any
       ) {
         toast.error(
-          error?.message ??
-            "Impossible de créer le bail",
+          getRealEstateErrorMessage(
+            error,
+            "Impossible de créer le bail.",
+          ),
         );
       }
     };
@@ -1016,8 +918,10 @@ const ContractsPage = () => {
           error: any
         ) {
           toast.error(
-            error?.message ??
-              "Impossible d'activer le bail",
+            getRealEstateErrorMessage(
+              error,
+              "Impossible d'activer le bail.",
+            ),
           );
         }
 
@@ -1133,7 +1037,7 @@ const ContractsPage = () => {
           "resolved"
         ) {
           toast.error(
-            billingResolutionMessage(
+            getLeaseBillingResolutionMessage(
               preview.resolution_code,
             ),
           );
@@ -1146,7 +1050,7 @@ const ContractsPage = () => {
         );
 
         toast.error(
-          billingRpcErrorMessage(
+          getRealEstateErrorMessage(
             error,
             "Impossible de calculer l'aperçu d'expiration.",
           ),
@@ -1198,7 +1102,7 @@ const ContractsPage = () => {
         error: any
       ) {
         toast.error(
-          billingRpcErrorMessage(
+          getRealEstateErrorMessage(
             error,
             "Impossible d'expirer le bail",
           ),
@@ -1402,7 +1306,7 @@ const ContractsPage = () => {
           "resolved"
         ) {
           toast.error(
-            billingResolutionMessage(
+            getLeaseBillingResolutionMessage(
               preview.resolution_code,
             ),
           );
@@ -1415,7 +1319,7 @@ const ContractsPage = () => {
         );
 
         toast.error(
-          billingRpcErrorMessage(
+          getRealEstateErrorMessage(
             error,
             "Impossible de calculer l'aperçu de résiliation.",
           ),
@@ -1481,7 +1385,7 @@ const ContractsPage = () => {
         error: any
       ) {
         toast.error(
-          billingRpcErrorMessage(
+          getRealEstateErrorMessage(
             error,
             "Impossible de résilier le bail",
           ),
@@ -1513,9 +1417,10 @@ const ContractsPage = () => {
         error: any
       ) {
         toast.error(
-          error instanceof Error
-            ? error.message
-            : "Impossible de supprimer ce bail.",
+          getRealEstateErrorMessage(
+            error,
+            "Impossible de supprimer ce bail.",
+          ),
         );
       }
     };
