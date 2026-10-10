@@ -105,6 +105,37 @@ export interface OwnerSettlement {
   created_at: string;
 }
 
+export interface OwnerSettlementAllocation {
+  allocation_id: string;
+
+  settlement_id: string;
+  ledger_id: string;
+
+  allocated_amount: number;
+
+  owner_id: string | null;
+  owner_name: string | null;
+
+  property_id: string | null;
+  property_title: string | null;
+
+  invoice_id: string | null;
+  invoice_number: string | null;
+
+  payment_id: string | null;
+  payment_reference: string | null;
+
+  collected_at: string | null;
+
+    ledger_created_at: string | null;
+
+currency: string;
+
+  gross_collected: number;
+  commission_amount: number;
+  net_owner_amount: number;
+}
+
 export interface TreasuryAccount {
   id: string;
   code: string;
@@ -275,6 +306,237 @@ export function useOwnerSettlements() {
         amount:
           numberValue(row.amount),
       }));
+    },
+
+    staleTime: 15_000,
+  });
+}
+
+export function useOwnerSettlementAllocations(
+  settlementId?: string | null
+) {
+  return useQuery({
+    queryKey: [
+      "owner-settlement-allocations",
+      settlementId,
+    ],
+
+    enabled: Boolean(settlementId),
+
+    queryFn: async (): Promise<
+      OwnerSettlementAllocation[]
+    > => {
+      if (!settlementId) {
+        return [];
+      }
+
+      const {
+        data: itemRows,
+        error: itemsError,
+      } = await (supabase as any)
+        .from("owner_settlement_items")
+        .select(
+          `
+          id,
+          settlement_id,
+          ledger_id,
+          amount
+          `
+        )
+        .eq(
+          "settlement_id",
+          settlementId
+        );
+
+      if (itemsError) {
+        throw itemsError;
+      }
+
+      if (!itemRows?.length) {
+        return [];
+      }
+
+      const ledgerIds = Array.from(
+        new Set(
+          itemRows.map(
+            (row: any) =>
+              row.ledger_id
+          )
+        )
+      );
+
+      const {
+        data: ledgerRows,
+        error: ledgerError,
+      } = await (supabase as any)
+        .from("owner_rent_ledger_view")
+        .select(
+          `
+          ledger_id,
+          owner_id,
+          owner_name,
+          property_id,
+          property_title,
+          invoice_id,
+          invoice_number,
+          payment_id,
+          payment_reference,
+          collected_at,
+          currency,
+          gross_collected,
+          commission_amount,
+          net_owner_amount,
+          created_at
+          `
+        )
+        .in(
+          "ledger_id",
+          ledgerIds
+        );
+
+      if (ledgerError) {
+        throw ledgerError;
+      }
+
+      const ledgerById =
+        new Map<string, any>(
+          (ledgerRows ?? []).map(
+            (row: any) => [
+              row.ledger_id,
+              row,
+            ]
+          )
+        );
+
+      return itemRows
+        .map(
+          (
+            item: any
+          ): OwnerSettlementAllocation => {
+            const ledger =
+              ledgerById.get(
+                item.ledger_id
+              ) ?? null;
+
+            return {
+              allocation_id:
+                item.id,
+
+              settlement_id:
+                item.settlement_id,
+
+              ledger_id:
+                item.ledger_id,
+
+              allocated_amount:
+                numberValue(
+                  item.amount
+                ),
+
+              owner_id:
+                ledger?.owner_id ??
+                null,
+
+              owner_name:
+                ledger?.owner_name ??
+                null,
+
+              property_id:
+                ledger?.property_id ??
+                null,
+
+              property_title:
+                ledger?.property_title ??
+                null,
+
+              invoice_id:
+                ledger?.invoice_id ??
+                null,
+
+              invoice_number:
+                ledger?.invoice_number ??
+                null,
+
+              payment_id:
+                ledger?.payment_id ??
+                null,
+
+              payment_reference:
+                ledger?.payment_reference ??
+                null,
+
+              collected_at:
+                ledger?.collected_at ??
+                null,
+
+              ledger_created_at:
+                ledger?.created_at ??
+                null,
+
+              currency:
+                ledger?.currency ??
+                "GNF",
+
+              gross_collected:
+                numberValue(
+                  ledger?.gross_collected
+                ),
+
+              commission_amount:
+                numberValue(
+                  ledger?.commission_amount
+                ),
+
+              net_owner_amount:
+                numberValue(
+                  ledger?.net_owner_amount
+                ),
+            };
+          }
+        )
+        .sort(
+          (
+            a,
+            b
+          ) => {
+            const aTime =
+              a.collected_at
+                ? new Date(
+                    a.collected_at
+                  ).getTime()
+                : 0;
+
+            const bTime =
+              b.collected_at
+                ? new Date(
+                    b.collected_at
+                  ).getTime()
+                : 0;
+
+            if (aTime !== bTime) {
+              return aTime - bTime;
+            }
+
+            const aCreatedTime =
+              a.ledger_created_at
+                ? new Date(
+                    a.ledger_created_at
+                  ).getTime()
+                : 0;
+
+            const bCreatedTime =
+              b.ledger_created_at
+                ? new Date(
+                    b.ledger_created_at
+                  ).getTime()
+                : 0;
+
+            return (
+              aCreatedTime -
+              bCreatedTime
+            );
+          }
+        );
     },
 
     staleTime: 15_000,

@@ -13,6 +13,10 @@ import {
   WalletCards,
 } from "lucide-react";
 
+import {
+  useNavigate,
+} from "react-router-dom";
+
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
@@ -65,8 +69,10 @@ import { useToast } from "@/hooks/use-toast";
 
 import {
   OwnerRentBalance,
+  OwnerSettlement,
   useOwnerRentBalances,
   useOwnerRentLedger,
+  useOwnerSettlementAllocations,
   useOwnerSettlementKpis,
   useOwnerSettlements,
   useOwnerTreasuryAccounts,
@@ -104,6 +110,9 @@ const formatDate = (
 export default function OwnerSettlementsPage() {
   const { toast } = useToast();
 
+  const navigate =
+    useNavigate();
+
   const kpis =
     useOwnerSettlementKpis();
 
@@ -121,6 +130,22 @@ export default function OwnerSettlementsPage() {
 
   const recordSettlement =
     useRecordOwnerSettlement();
+
+
+  const [
+    selectedSettlement,
+    setSelectedSettlement,
+  ] =
+    useState<OwnerSettlement | null>(
+      null
+    );
+
+
+  const settlementAllocations =
+    useOwnerSettlementAllocations(
+      selectedSettlement?.settlement_id ??
+        null
+    );
 
 
   const [
@@ -223,6 +248,27 @@ export default function OwnerSettlementsPage() {
       ledger.data,
       normalizedSearch,
     ]);
+
+
+  const allocationRows =
+    settlementAllocations.data ??
+      [];
+
+
+  const allocatedTotal =
+    useMemo(
+      () =>
+        allocationRows.reduce(
+          (
+            total,
+            row
+          ) =>
+            total +
+            row.allocated_amount,
+          0
+        ),
+      [allocationRows]
+    );
 
 
   const settlementRows =
@@ -998,6 +1044,10 @@ export default function OwnerSettlementsPage() {
                         Statut
                       </TableHead>
 
+                      <TableHead className="text-right">
+                        Action
+                      </TableHead>
+
                     </TableRow>
 
                   </TableHeader>
@@ -1011,7 +1061,7 @@ export default function OwnerSettlementsPage() {
                       <TableRow>
 
                         <TableCell
-                          colSpan={6}
+                          colSpan={7}
                           className="h-28 text-center text-muted-foreground"
                         >
                           Aucun reversement enregistré.
@@ -1064,8 +1114,30 @@ export default function OwnerSettlementsPage() {
 
                             <TableCell>
                               <Badge variant="outline">
-                                Effectué
+                                {row.status === "completed"
+                                  ? "Effectué"
+                                  : row.status === "cancelled"
+                                    ? "Annulé"
+                                    : row.status}
                               </Badge>
+                            </TableCell>
+
+
+                            <TableCell className="text-right">
+
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                aria-label="Ouvrir le détail du reversement"
+                                onClick={() =>
+                                  setSelectedSettlement(
+                                    row
+                                  )
+                                }
+                              >
+                                Détail
+                              </Button>
+
                             </TableCell>
 
                           </TableRow>
@@ -1088,6 +1160,401 @@ export default function OwnerSettlementsPage() {
         </CardContent>
 
       </Card>
+
+
+      {/* ===================================================== */}
+      {/* DIALOG DETAIL REVERSEMENT                            */}
+      {/* ===================================================== */}
+
+      <Dialog
+        open={Boolean(
+          selectedSettlement
+        )}
+        onOpenChange={(open) => {
+          if (!open) {
+            setSelectedSettlement(
+              null
+            );
+          }
+        }}
+      >
+
+        <DialogContent className="sm:max-w-5xl">
+
+          <DialogHeader>
+
+            <DialogTitle>
+              Détail du reversement
+            </DialogTitle>
+
+            <DialogDescription>
+              Affectations FIFO et preuve financière du reversement propriétaire.
+            </DialogDescription>
+
+          </DialogHeader>
+
+
+          {selectedSettlement && (
+
+            <div className="space-y-5">
+
+              <div className="grid gap-3 rounded-lg border bg-muted/30 p-4 md:grid-cols-2 lg:grid-cols-3">
+
+                <div>
+                  <div className="text-xs text-muted-foreground">
+                    Référence
+                  </div>
+
+                  <div className="font-medium">
+                    {selectedSettlement.reference}
+                  </div>
+                </div>
+
+
+                <div>
+                  <div className="text-xs text-muted-foreground">
+                    Propriétaire
+                  </div>
+
+                  <div className="font-medium">
+                    {selectedSettlement.owner_name}
+                  </div>
+                </div>
+
+
+                <div>
+                  <div className="text-xs text-muted-foreground">
+                    Date
+                  </div>
+
+                  <div className="font-medium">
+                    {formatDate(
+                      selectedSettlement.settlement_date
+                    )}
+                  </div>
+                </div>
+
+
+                <div>
+                  <div className="text-xs text-muted-foreground">
+                    Trésorerie
+                  </div>
+
+                  <div className="font-medium">
+                    {selectedSettlement.treasury_name ??
+                      selectedSettlement.treasury_code ??
+                      "—"}
+                  </div>
+                </div>
+
+
+                <div>
+                  <div className="text-xs text-muted-foreground">
+                    Montant
+                  </div>
+
+                  <div className="font-semibold">
+                    {formatMoney(
+                      selectedSettlement.amount,
+                      selectedSettlement.currency
+                    )}
+                  </div>
+                </div>
+
+
+                <div>
+                  <div className="text-xs text-muted-foreground">
+                    Statut
+                  </div>
+
+                  <Badge variant="outline">
+                    {selectedSettlement.status ===
+                    "completed"
+                      ? "Effectué"
+                      : selectedSettlement.status ===
+                          "cancelled"
+                        ? "Annulé"
+                        : selectedSettlement.status}
+                  </Badge>
+                </div>
+
+              </div>
+
+
+              {(selectedSettlement.external_reference ||
+                selectedSettlement.notes) && (
+
+                <div className="rounded-lg border p-4 text-sm">
+
+                  {selectedSettlement.external_reference && (
+                    <div>
+                      <span className="text-muted-foreground">
+                        Référence externe :{" "}
+                      </span>
+
+                      <span className="font-medium">
+                        {selectedSettlement.external_reference}
+                      </span>
+                    </div>
+                  )}
+
+
+                  {selectedSettlement.notes && (
+                    <div className="mt-2 whitespace-pre-wrap">
+                      <span className="text-muted-foreground">
+                        Notes :{" "}
+                      </span>
+
+                      {selectedSettlement.notes}
+                    </div>
+                  )}
+
+                </div>
+
+              )}
+
+
+              <div className="space-y-3">
+
+                <div className="flex items-center justify-between gap-3">
+
+                  <div>
+                    <h3 className="font-medium">
+                      Affectations FIFO
+                    </h3>
+
+                    <p className="text-xs text-muted-foreground">
+                      Loyers auxquels ce reversement a été affecté.
+                    </p>
+                  </div>
+
+                  <Badge variant="secondary">
+                    {allocationRows.length} ligne(s)
+                  </Badge>
+
+                </div>
+
+
+                <div className="rounded-md border">
+
+                  {settlementAllocations.isLoading ? (
+
+                    <div className="p-6 text-sm text-muted-foreground">
+                      Chargement des affectations...
+                    </div>
+
+                  ) : settlementAllocations.isError ? (
+
+                    <div className="p-6 text-sm text-destructive">
+                      Impossible de charger les affectations FIFO.
+                    </div>
+
+                  ) : allocationRows.length === 0 ? (
+
+                    <div className="p-6 text-sm text-muted-foreground">
+                      Aucune affectation enregistrée pour ce reversement.
+                    </div>
+
+                  ) : (
+
+                    <div className="overflow-x-auto">
+
+                      <Table>
+
+                        <TableHeader>
+
+                          <TableRow>
+
+                            <TableHead>
+                              Date encaissement
+                            </TableHead>
+
+                            <TableHead>
+                              Bien
+                            </TableHead>
+
+                            <TableHead>
+                              Facture
+                            </TableHead>
+
+                            <TableHead>
+                              Paiement
+                            </TableHead>
+
+                            <TableHead className="text-right">
+                              Net propriétaire
+                            </TableHead>
+
+                            <TableHead className="text-right">
+                              Affecté
+                            </TableHead>
+
+                          </TableRow>
+
+                        </TableHeader>
+
+
+                        <TableBody>
+
+                          {allocationRows.map(
+                            (allocation) => (
+
+                              <TableRow
+                                key={
+                                  allocation.allocation_id
+                                }
+                              >
+
+                                <TableCell className="whitespace-nowrap">
+                                  {formatDate(
+                                    allocation.collected_at
+                                  )}
+                                </TableCell>
+
+
+                                <TableCell>
+                                  {allocation.property_title ??
+                                    "—"}
+                                </TableCell>
+
+
+                                <TableCell className="font-medium">
+                                  {allocation.invoice_number ??
+                                    "—"}
+                                </TableCell>
+
+
+                                <TableCell>
+                                  {allocation.payment_reference ??
+                                    "—"}
+                                </TableCell>
+
+
+                                <TableCell className="text-right">
+                                  {formatMoney(
+                                    allocation.net_owner_amount,
+                                    allocation.currency
+                                  )}
+                                </TableCell>
+
+
+                                <TableCell className="text-right font-semibold">
+                                  {formatMoney(
+                                    allocation.allocated_amount,
+                                    selectedSettlement.currency
+                                  )}
+                                </TableCell>
+
+                              </TableRow>
+
+                            )
+                          )}
+
+                        </TableBody>
+
+                      </Table>
+
+                    </div>
+
+                  )}
+
+                </div>
+
+
+                <div
+                  className="ml-auto w-full max-w-sm space-y-2 rounded-lg border p-4 text-sm"
+                  hidden={
+                    settlementAllocations.isLoading ||
+                    settlementAllocations.isError
+                  }
+                >
+
+                  <div className="flex justify-between gap-4">
+                    <span className="text-muted-foreground">
+                      Total affecté
+                    </span>
+
+                    <span className="font-medium">
+                      {formatMoney(
+                        allocatedTotal,
+                        selectedSettlement.currency
+                      )}
+                    </span>
+                  </div>
+
+
+                  <div className="flex justify-between gap-4">
+                    <span className="text-muted-foreground">
+                      Montant du reversement
+                    </span>
+
+                    <span className="font-medium">
+                      {formatMoney(
+                        selectedSettlement.amount,
+                        selectedSettlement.currency
+                      )}
+                    </span>
+                  </div>
+
+
+                  <div className="flex justify-between gap-4 border-t pt-2">
+                    <span>
+                      Écart
+                    </span>
+
+                    <span className="font-semibold">
+                      {formatMoney(
+                        selectedSettlement.amount -
+                          allocatedTotal,
+                        selectedSettlement.currency
+                      )}
+                    </span>
+                  </div>
+
+                </div>
+
+              </div>
+
+            </div>
+
+          )}
+
+
+          <DialogFooter>
+
+            <Button
+              variant="outline"
+              onClick={() =>
+                setSelectedSettlement(
+                  null
+                )
+              }
+            >
+              Fermer
+            </Button>
+
+
+            {selectedSettlement?.accounting_entry_id && (
+
+              <Button
+                onClick={() =>
+                  navigate(
+                    `/admin/finance?accountingEntryId=${encodeURIComponent(
+                      selectedSettlement.accounting_entry_id!
+                    )}`
+                  )
+                }
+              >
+                Voir la preuve financière
+              </Button>
+
+            )}
+
+          </DialogFooter>
+
+        </DialogContent>
+
+      </Dialog>
 
 
       {/* ===================================================== */}
