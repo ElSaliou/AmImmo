@@ -1,7 +1,9 @@
 import {
   Building2,
   ExternalLink,
+  FileText,
   Home,
+  LayoutDashboard,
   LogOut,
   Menu,
   X,
@@ -43,7 +45,19 @@ const tenantNavItems = [
   {
     label: "Tableau de bord",
     path: "/tenant",
+    icon: LayoutDashboard,
+  },
+
+  {
+    label: "Mon logement",
+    path: "/tenant/property",
     icon: Home,
+  },
+
+  {
+    label: "Mon bail",
+    path: "/tenant/lease",
+    icon: FileText,
   },
 ];
 

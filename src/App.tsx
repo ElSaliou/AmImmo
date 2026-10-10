@@ -121,6 +121,20 @@ const TenantHomePage = lazy(
     ),
 );
 
+const TenantPropertyPage = lazy(
+  () =>
+    import(
+      "@/pages/tenant/TenantPropertyPage"
+    ),
+);
+
+const TenantLeasePage = lazy(
+  () =>
+    import(
+      "@/pages/tenant/TenantLeasePage"
+    ),
+);
+
 // ============================================================
 // OWNER PORTAL
 // ============================================================
@@ -549,6 +563,20 @@ const App = () => {
                     index
                     element={
                       <TenantHomePage />
+                    }
+                  />
+
+                  <Route
+                    path="property"
+                    element={
+                      <TenantPropertyPage />
+                    }
+                  />
+
+                  <Route
+                    path="lease"
+                    element={
+                      <TenantLeasePage />
                     }
                   />
                 </Route>
