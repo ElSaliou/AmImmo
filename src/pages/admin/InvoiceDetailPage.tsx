@@ -134,6 +134,21 @@ interface InvoiceLine {
   created_at: string;
 }
 
+interface InvoicePayment {
+  id: string;
+  reference: string;
+  invoice_id: string | null;
+  method: string;
+  status: string;
+  amount: number;
+  currency: string;
+  paid_at: string;
+  is_refund: boolean;
+  notes: string;
+  accounting_entry_id: string | null;
+  created_at: string;
+}
+
 interface InvoiceBooking {
   id: string;
   reference: string;
@@ -193,6 +208,7 @@ interface InvoiceDetail {
   updated_at: string;
 
   invoice_lines: InvoiceLine[];
+  payments: InvoicePayment[];
 
   booking:
     | InvoiceBooking
@@ -319,6 +335,81 @@ const formatDateShort = (
     );
   } catch {
     return value;
+  }
+};
+
+const formatDateTime = (
+  value:
+    | string
+    | null
+    | undefined,
+) => {
+  if (!value) {
+    return "—";
+  }
+
+  try {
+    return format(
+      parseISO(value),
+      "dd MMM yyyy 'à' HH:mm",
+      {
+        locale: fr,
+      },
+    );
+  } catch {
+    return value;
+  }
+};
+
+const getPaymentMethodLabel = (
+  method: string,
+) => {
+  switch (method) {
+    case "cash":
+      return "Espèces";
+
+    case "transfer":
+    case "bank_transfer":
+      return "Virement bancaire";
+
+    case "mobile_money":
+      return "Mobile Money";
+
+    case "card":
+      return "Carte bancaire";
+
+    case "cheque":
+      return "Chèque";
+
+    case "other":
+      return "Autre";
+
+    default:
+      return method || "Non renseigné";
+  }
+};
+
+const getPaymentStatusLabel = (
+  status: string,
+) => {
+  switch (status) {
+    case "completed":
+      return "Effectué";
+
+    case "pending":
+      return "En attente";
+
+    case "failed":
+      return "Échoué";
+
+    case "cancelled":
+      return "Annulé";
+
+    case "refunded":
+      return "Remboursé";
+
+    default:
+      return status;
   }
 };
 
@@ -615,6 +706,21 @@ export default function InvoiceDetailPage() {
               created_at
             ),
 
+            payments (
+              id,
+              reference,
+              invoice_id,
+              method,
+              status,
+              amount,
+              currency,
+              paid_at,
+              is_refund,
+              notes,
+              accounting_entry_id,
+              created_at
+            ),
+
             booking:bookings (
               id,
               reference,
@@ -673,6 +779,45 @@ export default function InvoiceDetailPage() {
               data.paid_amount ??
                 0,
             ),
+
+          payments:
+            Array.isArray(
+              data.payments,
+            )
+              ? data.payments
+                  .map(
+                    (
+                      payment: any,
+                    ): InvoicePayment => ({
+                      ...payment,
+
+                      amount:
+                        Number(
+                          payment.amount ??
+                            0,
+                        ),
+
+                      is_refund:
+                        Boolean(
+                          payment.is_refund,
+                        ),
+                    }),
+                  )
+                  .sort(
+                    (
+                      a:
+                        InvoicePayment,
+                      b:
+                        InvoicePayment,
+                    ) =>
+                      new Date(
+                        b.paid_at,
+                      ).getTime() -
+                      new Date(
+                        a.paid_at,
+                      ).getTime(),
+                  )
+              : [],
 
           invoice_lines:
             Array.isArray(
@@ -2083,6 +2228,132 @@ export default function InvoiceDetailPage() {
                   facturé.
                 </AlertDescription>
               </Alert>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* ==================================================== */}
+        {/* PAYMENT HISTORY                                    */}
+        {/* ==================================================== */}
+
+        <Card className="premium-card overflow-hidden">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Banknote className="h-4 w-4" />
+
+              Historique des règlements
+            </CardTitle>
+          </CardHeader>
+
+          <CardContent className="p-0">
+            {invoice.payments.length ===
+            0 ? (
+              <div className="p-6 text-sm text-muted-foreground">
+                Aucun règlement enregistré pour cette facture.
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>
+                        Date
+                      </TableHead>
+
+                      <TableHead>
+                        Type
+                      </TableHead>
+
+                      <TableHead>
+                        Référence
+                      </TableHead>
+
+                      <TableHead>
+                        Moyen
+                      </TableHead>
+
+                      <TableHead>
+                        Statut
+                      </TableHead>
+
+                      <TableHead className="text-right">
+                        Montant
+                      </TableHead>
+                    </TableRow>
+                  </TableHeader>
+
+                  <TableBody>
+                    {invoice.payments.map(
+                      (
+                        payment,
+                      ) => (
+                        <TableRow
+                          key={
+                            payment.id
+                          }
+                        >
+                          <TableCell className="whitespace-nowrap">
+                            {formatDateTime(
+                              payment.paid_at,
+                            )}
+                          </TableCell>
+
+                          <TableCell>
+                            {payment.is_refund
+                              ? "Remboursement"
+                              : "Encaissement"}
+                          </TableCell>
+
+                          <TableCell>
+                            <div className="font-medium">
+                              {
+                                payment.reference
+                              }
+                            </div>
+
+                            {payment.notes && (
+                              <div className="mt-1 max-w-[320px] whitespace-pre-wrap text-xs text-muted-foreground">
+                                {
+                                  payment.notes
+                                }
+                              </div>
+                            )}
+
+                            {payment.accounting_entry_id && (
+                              <div className="mt-1 text-xs text-muted-foreground">
+                                Écriture comptable liée
+                              </div>
+                            )}
+                          </TableCell>
+
+                          <TableCell className="whitespace-nowrap">
+                            {getPaymentMethodLabel(
+                              payment.method,
+                            )}
+                          </TableCell>
+
+                          <TableCell>
+                            <Badge variant="outline">
+                              {getPaymentStatusLabel(
+                                payment.status,
+                              )}
+                            </Badge>
+                          </TableCell>
+
+                          <TableCell className="whitespace-nowrap text-right font-medium">
+                            {formatMoney(
+                              payment.is_refund
+                                ? -payment.amount
+                                : payment.amount,
+                              payment.currency,
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ),
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
             )}
           </CardContent>
         </Card>
