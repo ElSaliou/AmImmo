@@ -1,11 +1,13 @@
 import {
   FormEvent,
+  useEffect,
   useMemo,
   useState,
 } from "react";
 
 import {
   Link,
+  useSearchParams,
 } from "react-router-dom";
 
 import {
@@ -324,6 +326,17 @@ const createInitialTreasuryFlowForm =
 
 const FinancePage =
   () => {
+    const [
+      searchParams,
+      setSearchParams,
+    ] =
+      useSearchParams();
+
+    const accountingEntryId =
+      searchParams.get(
+        "accountingEntryId",
+      );
+
     // ========================================================
     // DATA
     // ========================================================
@@ -831,7 +844,81 @@ const FinancePage =
         setSelectedTreasuryLineId(
           null,
         );
+
+        if (
+          searchParams.has(
+            "accountingEntryId",
+          )
+        ) {
+          const nextSearchParams =
+            new URLSearchParams(
+              searchParams,
+            );
+
+          nextSearchParams.delete(
+            "accountingEntryId",
+          );
+
+          setSearchParams(
+            nextSearchParams,
+            {
+              replace: true,
+            },
+          );
+        }
       };
+
+    // ========================================================
+    // DEEP-LINK PREUVE FINANCIERE
+    // ========================================================
+
+    useEffect(
+      () => {
+        if (
+          !accountingEntryId ||
+          treasuryJournalLoading ||
+          !treasuryJournal
+        ) {
+          return;
+        }
+
+        const matchingLine =
+          treasuryJournal.find(
+            (
+              row,
+            ) =>
+              row.accounting_entry_id ===
+              accountingEntryId,
+          );
+
+        if (!matchingLine) {
+          return;
+        }
+
+        if (
+          selectedTreasuryLineId ===
+            matchingLine.line_id &&
+          treasuryDetailOpen
+        ) {
+          return;
+        }
+
+        setSelectedTreasuryLineId(
+          matchingLine.line_id,
+        );
+
+        setTreasuryDetailOpen(
+          true,
+        );
+      },
+      [
+        accountingEntryId,
+        treasuryJournal,
+        treasuryJournalLoading,
+        selectedTreasuryLineId,
+        treasuryDetailOpen,
+      ],
+    );
 
     // ========================================================
     // SOLDE INITIAL

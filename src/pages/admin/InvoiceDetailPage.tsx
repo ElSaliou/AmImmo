@@ -2320,9 +2320,20 @@ export default function InvoiceDetailPage() {
                             )}
 
                             {payment.accounting_entry_id && (
-                              <div className="mt-1 text-xs text-muted-foreground">
-                                Écriture comptable liée
-                              </div>
+                              <Button
+                                type="button"
+                                variant="link"
+                                className="mt-1 h-auto p-0 text-xs"
+                                onClick={() =>
+                                  navigate(
+                                    `/admin/finance?accountingEntryId=${encodeURIComponent(
+                                      payment.accounting_entry_id!,
+                                    )}`,
+                                  )
+                                }
+                              >
+                                Voir la preuve financière
+                              </Button>
                             )}
                           </TableCell>
 
