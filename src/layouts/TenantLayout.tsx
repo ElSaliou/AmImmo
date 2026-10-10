@@ -3,6 +3,8 @@ import {
   ExternalLink,
   Home,
   LogOut,
+  Menu,
+  X,
 } from "lucide-react";
 
 import {
@@ -12,10 +14,26 @@ import {
   useNavigate,
 } from "react-router-dom";
 
-import { supabase } from "@/integrations/supabase/client";
+import {
+  useState,
+} from "react";
 
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import {
+  AnimatePresence,
+  motion,
+} from "framer-motion";
+
+import {
+  supabase,
+} from "@/integrations/supabase/client";
+
+import {
+  Button,
+} from "@/components/ui/button";
+
+import {
+  cn,
+} from "@/lib/utils";
 
 // ============================================================
 // TENANT NAVIGATION
@@ -34,17 +52,31 @@ const tenantNavItems = [
 // ============================================================
 
 const TenantLayout = () => {
-  const { pathname } =
-    useLocation();
+  const {
+    pathname,
+  } = useLocation();
 
   const navigate =
     useNavigate();
 
+  const [
+    mobileOpen,
+    setMobileOpen,
+  ] = useState(false);
+
+  // ==========================================================
+  // ACTIVE PATH
+  // ==========================================================
+
   const isActivePath = (
     path: string,
   ) => {
-    if (path === "/tenant") {
-      return pathname === "/tenant";
+    if (
+      path === "/tenant"
+    ) {
+      return (
+        pathname === "/tenant"
+      );
     }
 
     return (
@@ -55,9 +87,15 @@ const TenantLayout = () => {
     );
   };
 
+  // ==========================================================
+  // LOGOUT
+  // ==========================================================
+
   const handleLogout =
     async () => {
-      const { error } =
+      const {
+        error,
+      } =
         await supabase.auth.signOut();
 
       if (error) {
@@ -69,6 +107,8 @@ const TenantLayout = () => {
         return;
       }
 
+      setMobileOpen(false);
+
       navigate(
         "/login",
         {
@@ -77,103 +117,245 @@ const TenantLayout = () => {
       );
     };
 
+  // ==========================================================
+  // UI
+  // ==========================================================
+
   return (
-    <div className="min-h-screen bg-muted/20">
+    <div className="min-h-screen bg-background">
+      {/* ==================================================== */}
+      {/* TOP ACCENT                                           */}
+      {/* ==================================================== */}
+
+      <div className="h-1 bg-gradient-to-r from-primary via-secondary to-primary" />
+
       {/* ==================================================== */}
       {/* HEADER                                               */}
       {/* ==================================================== */}
 
-      <header className="border-b bg-background">
-        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
+      <header className="sticky top-0 z-50 border-b bg-card/95 shadow-[var(--shadow-sm)] backdrop-blur-xl">
+        <div className="container flex h-[72px] items-center justify-between gap-4">
+          {/* ================================================= */}
+          {/* BRAND                                             */}
+          {/* ================================================= */}
+
           <Link
             to="/tenant"
-            className="flex min-w-0 items-center gap-3"
+            className="flex min-w-0 items-center gap-2.5"
           >
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground">
-              <Building2 className="h-5 w-5" />
+            <div className="gradient-primary flex h-10 w-10 shrink-0 items-center justify-center rounded-xl shadow-lg shadow-primary/20">
+              <Building2 className="h-5 w-5 text-primary-foreground" />
             </div>
 
             <div className="min-w-0">
-              <p className="truncate font-display text-lg font-bold">
+              <span className="block truncate font-display text-xl font-bold text-foreground">
                 ImmoPlate
-              </p>
+              </span>
 
-              <p className="truncate text-xs text-muted-foreground">
+              <span className="block truncate text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
                 Espace locataire
-              </p>
+              </span>
             </div>
           </Link>
 
-          <div className="flex shrink-0 items-center gap-2">
+          {/* ================================================= */}
+          {/* DESKTOP NAVIGATION                                */}
+          {/* ================================================= */}
+
+          <nav className="hidden items-center gap-1 lg:flex">
+            {tenantNavItems.map(
+              (item) => {
+                const Icon =
+                  item.icon;
+
+                const active =
+                  isActivePath(
+                    item.path,
+                  );
+
+                return (
+                  <Link
+                    key={item.path}
+                    to={item.path}
+                    className={cn(
+                      "flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium transition-all duration-200",
+
+                      active
+                        ? "bg-primary text-primary-foreground shadow-md shadow-primary/15"
+                        : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                    )}
+                  >
+                    <Icon className="h-4 w-4" />
+
+                    {item.label}
+                  </Link>
+                );
+              },
+            )}
+          </nav>
+
+          {/* ================================================= */}
+          {/* DESKTOP ACTIONS                                   */}
+          {/* ================================================= */}
+
+          <div className="hidden items-center gap-2 lg:flex">
             <Button
               asChild
-              variant="ghost"
+              variant="outline"
               size="sm"
-              className="hidden sm:inline-flex"
+              className="rounded-xl"
             >
               <Link to="/">
-                <ExternalLink className="mr-2 h-4 w-4" />
+                <ExternalLink className="h-4 w-4" />
+
                 Site public
               </Link>
             </Button>
 
             <Button
               type="button"
-              variant="outline"
               size="sm"
+              className="rounded-xl"
               onClick={() => {
                 void handleLogout();
               }}
             >
-              <LogOut className="mr-2 h-4 w-4" />
+              <LogOut className="h-4 w-4" />
+
               Déconnexion
             </Button>
           </div>
+
+          {/* ================================================= */}
+          {/* MOBILE TOGGLE                                     */}
+          {/* ================================================= */}
+
+          <button
+            type="button"
+            aria-label={
+              mobileOpen
+                ? "Fermer le menu"
+                : "Ouvrir le menu"
+            }
+            onClick={() =>
+              setMobileOpen(
+                (current) =>
+                  !current,
+              )
+            }
+            className="flex h-10 w-10 items-center justify-center rounded-xl border bg-background text-foreground lg:hidden"
+          >
+            {mobileOpen ? (
+              <X className="h-5 w-5" />
+            ) : (
+              <Menu className="h-5 w-5" />
+            )}
+          </button>
         </div>
-      </header>
 
-      {/* ==================================================== */}
-      {/* NAVIGATION                                           */}
-      {/* ==================================================== */}
+        {/* =================================================== */}
+        {/* MOBILE MENU                                         */}
+        {/* =================================================== */}
 
-      <div className="border-b bg-background">
-        <nav className="mx-auto flex max-w-7xl gap-1 overflow-x-auto px-4 py-2 sm:px-6 lg:px-8">
-          {tenantNavItems.map(
-            (item) => {
-              const Icon =
-                item.icon;
+        <AnimatePresence>
+          {mobileOpen && (
+            <motion.div
+              initial={{
+                height: 0,
+                opacity: 0,
+              }}
+              animate={{
+                height: "auto",
+                opacity: 1,
+              }}
+              exit={{
+                height: 0,
+                opacity: 0,
+              }}
+              transition={{
+                duration: 0.2,
+              }}
+              className="overflow-hidden border-t bg-card/98 backdrop-blur-xl lg:hidden"
+            >
+              <div className="container space-y-1 py-4">
+                {tenantNavItems.map(
+                  (item) => {
+                    const Icon =
+                      item.icon;
 
-              const active =
-                isActivePath(
-                  item.path,
-                );
+                    const active =
+                      isActivePath(
+                        item.path,
+                      );
 
-              return (
-                <Link
-                  key={item.path}
-                  to={item.path}
-                  className={cn(
-                    "flex shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-                    active
-                      ? "bg-primary/10 text-primary"
-                      : "text-muted-foreground hover:bg-muted hover:text-foreground",
-                  )}
-                >
-                  <Icon className="h-4 w-4" />
+                    return (
+                      <Link
+                        key={item.path}
+                        to={item.path}
+                        onClick={() =>
+                          setMobileOpen(
+                            false,
+                          )
+                        }
+                        className={cn(
+                          "flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium",
 
-                  {item.label}
-                </Link>
-              );
-            },
+                          active
+                            ? "bg-primary text-primary-foreground"
+                            : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                        )}
+                      >
+                        <Icon className="h-4 w-4" />
+
+                        {item.label}
+                      </Link>
+                    );
+                  },
+                )}
+
+                <div className="grid gap-2 pt-3">
+                  <Button
+                    asChild
+                    variant="outline"
+                    className="w-full rounded-xl"
+                  >
+                    <Link
+                      to="/"
+                      onClick={() =>
+                        setMobileOpen(
+                          false,
+                        )
+                      }
+                    >
+                      <ExternalLink className="h-4 w-4" />
+
+                      Site public
+                    </Link>
+                  </Button>
+
+                  <Button
+                    type="button"
+                    className="w-full rounded-xl"
+                    onClick={() => {
+                      void handleLogout();
+                    }}
+                  >
+                    <LogOut className="h-4 w-4" />
+
+                    Déconnexion
+                  </Button>
+                </div>
+              </div>
+            </motion.div>
           )}
-        </nav>
-      </div>
+        </AnimatePresence>
+      </header>
 
       {/* ==================================================== */}
       {/* CONTENT                                              */}
       {/* ==================================================== */}
 
-      <main className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+      <main className="min-h-[calc(100vh-73px)] bg-gradient-to-b from-muted/20 via-background to-muted/30">
         <Outlet />
       </main>
     </div>
