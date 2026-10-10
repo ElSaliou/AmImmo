@@ -6,6 +6,8 @@ import {
   LayoutDashboard,
   LogOut,
   Menu,
+  ReceiptText,
+  WalletCards,
   X,
 } from "lucide-react";
 
@@ -58,6 +60,18 @@ const tenantNavItems = [
     label: "Mon bail",
     path: "/tenant/lease",
     icon: FileText,
+  },
+
+  {
+    label: "Mes loyers",
+    path: "/tenant/invoices",
+    icon: ReceiptText,
+  },
+
+  {
+    label: "Mes paiements",
+    path: "/tenant/payments",
+    icon: WalletCards,
   },
 ];
 
@@ -176,7 +190,7 @@ const TenantLayout = () => {
           {/* DESKTOP NAVIGATION                                */}
           {/* ================================================= */}
 
-          <nav className="hidden items-center gap-1 lg:flex">
+          <nav className="hidden items-center gap-1 xl:flex">
             {tenantNavItems.map(
               (item) => {
                 const Icon =
@@ -192,7 +206,7 @@ const TenantLayout = () => {
                     key={item.path}
                     to={item.path}
                     className={cn(
-                      "flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium transition-all duration-200",
+                      "flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200",
 
                       active
                         ? "bg-primary text-primary-foreground shadow-md shadow-primary/15"
@@ -212,7 +226,7 @@ const TenantLayout = () => {
           {/* DESKTOP ACTIONS                                   */}
           {/* ================================================= */}
 
-          <div className="hidden items-center gap-2 lg:flex">
+          <div className="hidden items-center gap-2 xl:flex">
             <Button
               asChild
               variant="outline"
@@ -241,7 +255,7 @@ const TenantLayout = () => {
           </div>
 
           {/* ================================================= */}
-          {/* MOBILE TOGGLE                                     */}
+          {/* MOBILE / TABLET TOGGLE                            */}
           {/* ================================================= */}
 
           <button
@@ -257,7 +271,7 @@ const TenantLayout = () => {
                   !current,
               )
             }
-            className="flex h-10 w-10 items-center justify-center rounded-xl border bg-background text-foreground lg:hidden"
+            className="flex h-10 w-10 items-center justify-center rounded-xl border bg-background text-foreground xl:hidden"
           >
             {mobileOpen ? (
               <X className="h-5 w-5" />
@@ -268,7 +282,7 @@ const TenantLayout = () => {
         </div>
 
         {/* =================================================== */}
-        {/* MOBILE MENU                                         */}
+        {/* MOBILE / TABLET MENU                                */}
         {/* =================================================== */}
 
         <AnimatePresence>
@@ -289,7 +303,7 @@ const TenantLayout = () => {
               transition={{
                 duration: 0.2,
               }}
-              className="overflow-hidden border-t bg-card/98 backdrop-blur-xl lg:hidden"
+              className="overflow-hidden border-t bg-card/98 backdrop-blur-xl xl:hidden"
             >
               <div className="container space-y-1 py-4">
                 {tenantNavItems.map(

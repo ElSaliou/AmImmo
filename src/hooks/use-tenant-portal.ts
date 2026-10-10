@@ -7,7 +7,7 @@ import {
 } from "@/integrations/supabase/client";
 
 // ============================================================
-// TYPES
+// DASHBOARD TYPES
 // ============================================================
 
 export type TenantPortalTenant = {
@@ -30,6 +30,7 @@ export type TenantPortalLease = {
   id: string;
   reference: string | null;
   status: string | null;
+
   startDate: string | null;
   endDate: string | null;
 
@@ -67,10 +68,12 @@ export type TenantPortalDashboard = {
   tenantId: string;
 
   tenant:
-    TenantPortalTenant | null;
+    | TenantPortalTenant
+    | null;
 
   activeLease:
-    TenantPortalLease | null;
+    | TenantPortalLease
+    | null;
 
   invoices:
     TenantPortalInvoiceSummary;
@@ -83,7 +86,70 @@ export type TenantPortalDashboard = {
 };
 
 // ============================================================
-// HELPERS
+// F2.1D — INVOICE TYPES
+// ============================================================
+
+export type TenantPortalInvoiceStatus =
+  | "draft"
+  | "issued"
+  | "partially_paid"
+  | "paid"
+  | "overdue"
+  | "cancelled";
+
+export type TenantPortalInvoice = {
+  id: string;
+  number: string;
+
+  kind: string;
+  status: TenantPortalInvoiceStatus;
+
+  leaseId: string | null;
+  propertyId: string | null;
+
+  issueDate: string | null;
+  dueDate: string | null;
+
+  periodStart: string | null;
+  periodEnd: string | null;
+
+  currency: string;
+
+  amount: number;
+  paidAmount: number;
+  balanceDue: number;
+
+  notes: string | null;
+  createdAt: string | null;
+};
+
+// ============================================================
+// F2.1D — PAYMENT TYPES
+// ============================================================
+
+export type TenantPortalPayment = {
+  id: string;
+  reference: string | null;
+
+  invoiceId: string | null;
+  invoiceNumber: string | null;
+
+  method: string | null;
+  status: string | null;
+
+  amount: number;
+  currency: string;
+
+  paidAt: string | null;
+
+  isRefund: boolean;
+
+  notes: string | null;
+  createdAt: string | null;
+};
+
+// ============================================================
+// GENERIC HELPERS
 // ============================================================
 
 const toNumber = (
@@ -125,12 +191,54 @@ const toNullableNumber = (
 const toNullableString = (
   value: unknown,
 ): string | null => {
-  return typeof value ===
-      "string" &&
+  return (
+    typeof value === "string" &&
     value.length > 0
+  )
     ? value
     : null;
 };
+
+// ============================================================
+// CURRENT TENANT
+//
+// Source d'autorité :
+//
+// auth.uid()
+//      ↓
+// tenants.user_id
+//      ↓
+// my_tenant_id()
+//
+// Cette fonction est utilisée par toutes les lectures
+// du portail locataire.
+// ============================================================
+
+const resolveCurrentTenantId =
+  async (): Promise<string> => {
+    const {
+      data,
+      error,
+    } =
+      await supabase.rpc(
+        "my_tenant_id",
+      );
+
+    if (error) {
+      throw error;
+    }
+
+    if (
+      typeof data !== "string" ||
+      data.length === 0
+    ) {
+      throw new Error(
+        "Aucun locataire n'est associé au compte connecté.",
+      );
+    }
+
+    return data;
+  };
 
 // ============================================================
 // TENANT DASHBOARD
@@ -150,33 +258,8 @@ export const useTenantPortalDashboard =
           // 1. IDENTITÉ LOCATAIRE
           // ==================================================
 
-          const {
-            data:
-              tenantIdData,
-
-            error:
-              tenantIdError,
-          } =
-            await supabase.rpc(
-              "my_tenant_id",
-            );
-
-          if (tenantIdError) {
-            throw tenantIdError;
-          }
-
           const tenantId =
-            typeof tenantIdData ===
-              "string" &&
-            tenantIdData.length > 0
-              ? tenantIdData
-              : null;
-
-          if (!tenantId) {
-            throw new Error(
-              "Aucun locataire n'est associé au compte connecté.",
-            );
-          }
+            await resolveCurrentTenantId();
 
           // ==================================================
           // 2. LECTURES RLS EN PARALLÈLE
@@ -381,27 +464,21 @@ export const useTenantPortalDashboard =
           // 4. TENANT
           // ==================================================
 
-          const tenant =
+          const tenant:
+            TenantPortalTenant | null =
             tenantResult.data
               ? {
                   id:
-                    tenantResult
-                      .data.id,
+                    tenantResult.data.id,
 
                   fullName:
-                    tenantResult
-                      .data
-                      .full_name,
+                    tenantResult.data.full_name,
 
                   email:
-                    tenantResult
-                      .data
-                      .email,
+                    tenantResult.data.email,
 
                   phone:
-                    tenantResult
-                      .data
-                      .phone,
+                    tenantResult.data.phone,
                 }
               : null;
 
@@ -513,7 +590,7 @@ export const useTenantPortalDashboard =
               : null;
 
           // ==================================================
-          // 6. INVOICES
+          // 6. INVOICE SUMMARY
           // ==================================================
 
           const rawInvoices =
@@ -620,7 +697,7 @@ export const useTenantPortalDashboard =
             "GNF";
 
           // ==================================================
-          // 7. PAYMENTS
+          // 7. PAYMENT SUMMARY
           // ==================================================
 
           const rawPayments =
@@ -717,5 +794,427 @@ export const useTenantPortalDashboard =
       staleTime:
         15_000,
 
-      retry: false,
+      retry:
+        false,
+    });
+
+// ============================================================
+// F2.1D — TENANT INVOICES
+//
+// READ ONLY
+//
+// RLS reste la source d'autorité de l'accès aux factures.
+// ============================================================
+
+export const useTenantPortalInvoices =
+  () =>
+    useQuery<TenantPortalInvoice[]>({
+      queryKey: [
+        "tenant-portal",
+        "invoices",
+      ],
+
+      queryFn:
+        async () => {
+          const tenantId =
+            await resolveCurrentTenantId();
+
+          const {
+            data,
+            error,
+          } =
+            await supabase
+              .from(
+                "invoices",
+              )
+              .select(
+                `
+                  id,
+                  number,
+                  kind,
+                  status,
+                  lease_id,
+                  property_id,
+                  issue_date,
+                  due_date,
+                  period_start,
+                  period_end,
+                  currency,
+                  amount,
+                  paid_amount,
+                  notes,
+                  created_at
+                `,
+              )
+              .eq(
+                "tenant_id",
+                tenantId,
+              )
+              .order(
+                "issue_date",
+                {
+                  ascending:
+                    false,
+                },
+              )
+              .order(
+                "created_at",
+                {
+                  ascending:
+                    false,
+                },
+              );
+
+          if (error) {
+            throw error;
+          }
+
+          const rows =
+            (
+              data ?? []
+            ) as Record<
+              string,
+              any
+            >[];
+
+          return rows.map(
+            (
+              row,
+            ): TenantPortalInvoice => {
+              const amount =
+                toNumber(
+                  row.amount,
+                );
+
+              const paidAmount =
+                toNumber(
+                  row.paid_amount,
+                );
+
+              return {
+                id:
+                  String(
+                    row.id,
+                  ),
+
+                number:
+                  String(
+                    row.number ??
+                    "",
+                  ),
+
+                kind:
+                  String(
+                    row.kind ??
+                    "",
+                  ),
+
+                status:
+                  row.status as
+                    TenantPortalInvoiceStatus,
+
+                leaseId:
+                  toNullableString(
+                    row.lease_id,
+                  ),
+
+                propertyId:
+                  toNullableString(
+                    row.property_id,
+                  ),
+
+                issueDate:
+                  toNullableString(
+                    row.issue_date,
+                  ),
+
+                dueDate:
+                  toNullableString(
+                    row.due_date,
+                  ),
+
+                periodStart:
+                  toNullableString(
+                    row.period_start,
+                  ),
+
+                periodEnd:
+                  toNullableString(
+                    row.period_end,
+                  ),
+
+                currency:
+                  toNullableString(
+                    row.currency,
+                  ) ??
+                  "GNF",
+
+                amount,
+
+                paidAmount,
+
+                balanceDue:
+                  Math.max(
+                    0,
+                    amount -
+                      paidAmount,
+                  ),
+
+                notes:
+                  toNullableString(
+                    row.notes,
+                  ),
+
+                createdAt:
+                  toNullableString(
+                    row.created_at,
+                  ),
+              };
+            },
+          );
+        },
+
+      staleTime:
+        15_000,
+
+      retry:
+        false,
+    });
+
+// ============================================================
+// F2.1D — TENANT PAYMENTS
+//
+// READ ONLY
+//
+// Deux lectures séparées sont volontairement utilisées :
+// - payments
+// - invoices
+//
+// Cela évite de dépendre d'un embed PostgREST ambigu et permet
+// de résoudre proprement le numéro de facture lié au paiement.
+// Les deux tables restent protégées par leurs RLS.
+// ============================================================
+
+export const useTenantPortalPayments =
+  () =>
+    useQuery<TenantPortalPayment[]>({
+      queryKey: [
+        "tenant-portal",
+        "payments",
+      ],
+
+      queryFn:
+        async () => {
+          const tenantId =
+            await resolveCurrentTenantId();
+
+          const [
+            paymentsResult,
+            invoicesResult,
+          ] =
+            await Promise.all([
+              // ----------------------------------------------
+              // PAYMENTS
+              // ----------------------------------------------
+
+              supabase
+                .from(
+                  "payments",
+                )
+                .select(
+                  `
+                    id,
+                    reference,
+                    invoice_id,
+                    method,
+                    status,
+                    amount,
+                    currency,
+                    paid_at,
+                    is_refund,
+                    notes,
+                    created_at
+                  `,
+                )
+                .eq(
+                  "tenant_id",
+                  tenantId,
+                )
+                .order(
+                  "paid_at",
+                  {
+                    ascending:
+                      false,
+                  },
+                )
+                .order(
+                  "created_at",
+                  {
+                    ascending:
+                      false,
+                  },
+                ),
+
+              // ----------------------------------------------
+              // INVOICE REFERENCES
+              //
+              // Utilisées uniquement pour afficher le numéro
+              // de facture lié à chaque paiement.
+              // ----------------------------------------------
+
+              supabase
+                .from(
+                  "invoices",
+                )
+                .select(
+                  `
+                    id,
+                    number
+                  `,
+                )
+                .eq(
+                  "tenant_id",
+                  tenantId,
+                ),
+            ]);
+
+          if (
+            paymentsResult.error
+          ) {
+            throw paymentsResult.error;
+          }
+
+          if (
+            invoicesResult.error
+          ) {
+            throw invoicesResult.error;
+          }
+
+          const invoiceRows =
+            (
+              invoicesResult.data ??
+              []
+            ) as Record<
+              string,
+              any
+            >[];
+
+          const invoiceNumberById =
+            new Map<
+              string,
+              string
+            >();
+
+          invoiceRows.forEach(
+            (invoice) => {
+              const id =
+                toNullableString(
+                  invoice.id,
+                );
+
+              const number =
+                toNullableString(
+                  invoice.number,
+                );
+
+              if (
+                id &&
+                number
+              ) {
+                invoiceNumberById.set(
+                  id,
+                  number,
+                );
+              }
+            },
+          );
+
+          const paymentRows =
+            (
+              paymentsResult.data ??
+              []
+            ) as Record<
+              string,
+              any
+            >[];
+
+          return paymentRows.map(
+            (
+              row,
+            ): TenantPortalPayment => {
+              const invoiceId =
+                toNullableString(
+                  row.invoice_id,
+                );
+
+              return {
+                id:
+                  String(
+                    row.id,
+                  ),
+
+                reference:
+                  toNullableString(
+                    row.reference,
+                  ),
+
+                invoiceId,
+
+                invoiceNumber:
+                  invoiceId
+                    ? invoiceNumberById.get(
+                        invoiceId,
+                      ) ??
+                      null
+                    : null,
+
+                method:
+                  toNullableString(
+                    row.method,
+                  ),
+
+                status:
+                  toNullableString(
+                    row.status,
+                  ),
+
+                amount:
+                  toNumber(
+                    row.amount,
+                  ),
+
+                currency:
+                  toNullableString(
+                    row.currency,
+                  ) ??
+                  "GNF",
+
+                paidAt:
+                  toNullableString(
+                    row.paid_at,
+                  ),
+
+                isRefund:
+                  row.is_refund ===
+                  true,
+
+                notes:
+                  toNullableString(
+                    row.notes,
+                  ),
+
+                createdAt:
+                  toNullableString(
+                    row.created_at,
+                  ),
+              };
+            },
+          );
+        },
+
+      staleTime:
+        15_000,
+
+      retry:
+        false,
     });
