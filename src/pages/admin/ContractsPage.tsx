@@ -5,6 +5,7 @@ import {
 } from "react";
 
 import {
+  useNavigate,
   useSearchParams,
 } from "react-router-dom";
 
@@ -472,6 +473,9 @@ const BillingPreviewCard =
   };
 
 const ContractsPage = () => {
+  const navigate =
+    useNavigate();
+
   const [
     searchParams,
     setSearchParams,
@@ -1095,6 +1099,17 @@ const ContractsPage = () => {
               ? " (facture existante réutilisée)"
               : ""
           }.`,
+          {
+            action: {
+              label:
+                "Voir la facture",
+
+              onClick: () =>
+                navigate(
+                  `/admin/invoices/${result.final_invoice_id}`,
+                ),
+            },
+          },
         );
 
         closeExpirationDialog();
@@ -1378,6 +1393,17 @@ const ContractsPage = () => {
               ? " (facture existante réutilisée)"
               : ""
           }.`,
+          {
+            action: {
+              label:
+                "Voir la facture",
+
+              onClick: () =>
+                navigate(
+                  `/admin/invoices/${result.final_invoice_id}`,
+                ),
+            },
+          },
         );
 
         closeTerminationDialog();
