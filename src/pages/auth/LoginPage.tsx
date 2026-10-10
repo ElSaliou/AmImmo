@@ -38,6 +38,8 @@ type LocationState = {
 type AccessResult = {
   isStaff: boolean;
   isOwner: boolean;
+  isTenant: boolean;
+  tenantId: string | null;
 };
 
 // ============================================================
@@ -123,11 +125,59 @@ const LoginPage = () => {
           );
         }
 
-        const result = {
+        // ------------------------------------------------------
+        // TENANT
+        //
+        // Le portail locataire ne repose PAS sur :
+        // user_roles.role = 'tenant'
+        //
+        // Source d'autorité :
+        //
+        // auth.uid()
+        //     ↓
+        // tenants.user_id
+        //     ↓
+        // my_tenant_id()
+        // ------------------------------------------------------
+
+        const {
+          data: tenantId,
+          error: tenantError,
+        } = await supabase.rpc(
+          "my_tenant_id",
+        );
+
+        if (tenantError) {
+          console.error(
+            "[LoginPage] my_tenant_id error:",
+            tenantError,
+          );
+        }
+
+        const normalizedTenantId =
+          typeof tenantId === "string" &&
+          tenantId.length > 0
+            ? tenantId
+            : null;
+
+        // ------------------------------------------------------
+        // RESULT
+        // ------------------------------------------------------
+
+        const result: AccessResult = {
           isStaff:
             staffAllowed === true,
+
           isOwner:
             ownerAllowed === true,
+
+          isTenant:
+            Boolean(
+              normalizedTenantId,
+            ),
+
+          tenantId:
+            normalizedTenantId,
         };
 
         console.log(
@@ -153,7 +203,7 @@ const LoginPage = () => {
         access: AccessResult,
       ) => {
         // ------------------------------------------------------
-        // Route initialement demandée
+        // ROUTE INITIALEMENT DEMANDÉE
         // ------------------------------------------------------
 
         if (
@@ -161,6 +211,15 @@ const LoginPage = () => {
             "/owner",
           ) &&
           access.isOwner
+        ) {
+          return requestedDestination;
+        }
+
+        if (
+          requestedDestination?.startsWith(
+            "/tenant",
+          ) &&
+          access.isTenant
         ) {
           return requestedDestination;
         }
@@ -175,7 +234,12 @@ const LoginPage = () => {
         }
 
         // ------------------------------------------------------
-        // Priorité automatique
+        // PRIORITÉ AUTOMATIQUE
+        //
+        // Un compte possédant plusieurs profils est dirigé
+        // selon cette priorité :
+        //
+        // staff > owner > tenant
         // ------------------------------------------------------
 
         if (access.isStaff) {
@@ -186,9 +250,15 @@ const LoginPage = () => {
           return "/owner";
         }
 
+        if (access.isTenant) {
+          return "/tenant";
+        }
+
         return null;
       },
-      [requestedDestination],
+      [
+        requestedDestination,
+      ],
     );
 
   // ==========================================================
@@ -221,7 +291,10 @@ const LoginPage = () => {
             data.session;
 
           if (!session?.user) {
-            setCheckingSession(false);
+            setCheckingSession(
+              false,
+            );
+
             return;
           }
 
@@ -230,6 +303,7 @@ const LoginPage = () => {
             {
               id:
                 session.user.id,
+
               email:
                 session.user.email,
             },
@@ -260,7 +334,9 @@ const LoginPage = () => {
             return;
           }
 
-          setCheckingSession(false);
+          setCheckingSession(
+            false,
+          );
         } catch (error) {
           console.error(
             "[LoginPage] Existing session error:",
@@ -268,7 +344,9 @@ const LoginPage = () => {
           );
 
           if (!cancelled) {
-            setCheckingSession(false);
+            setCheckingSession(
+              false,
+            );
           }
         }
       };
@@ -325,6 +403,7 @@ const LoginPage = () => {
           {
             email:
               email.trim(),
+
             password,
           },
         );
@@ -347,6 +426,7 @@ const LoginPage = () => {
         {
           id:
             data.user.id,
+
           email:
             data.user.email,
         },
@@ -366,12 +446,21 @@ const LoginPage = () => {
         {
           email:
             data.user.email,
+
           userId:
             data.user.id,
+
           isStaff:
             access.isStaff,
+
           isOwner:
             access.isOwner,
+
+          isTenant:
+            access.isTenant,
+
+          tenantId:
+            access.tenantId,
         },
       );
 
@@ -397,15 +486,33 @@ const LoginPage = () => {
       }
 
       // ======================================================
-      // 5. REDIRECT
+      // 5. SUCCESS MESSAGE
       // ======================================================
 
-      toast.success(
+      if (
+        access.isTenant &&
+        !access.isStaff &&
+        !access.isOwner
+      ) {
+        toast.success(
+          "Bienvenue dans votre espace locataire.",
+        );
+      } else if (
         access.isOwner &&
-          !access.isStaff
-          ? "Bienvenue dans votre espace propriétaire."
-          : "Connexion réussie.",
-      );
+        !access.isStaff
+      ) {
+        toast.success(
+          "Bienvenue dans votre espace propriétaire.",
+        );
+      } else {
+        toast.success(
+          "Connexion réussie.",
+        );
+      }
+
+      // ======================================================
+      // 6. REDIRECT
+      // ======================================================
 
       navigate(
         destination,
@@ -435,7 +542,9 @@ const LoginPage = () => {
           "Email ou mot de passe incorrect.",
         );
       } else {
-        toast.error(message);
+        toast.error(
+          message,
+        );
       }
     } finally {
       setSubmitting(false);
@@ -506,7 +615,9 @@ const LoginPage = () => {
           {/* ================================================== */}
 
           <form
-            onSubmit={handleSubmit}
+            onSubmit={
+              handleSubmit
+            }
             className="space-y-5"
           >
             {/* ================================================ */}
@@ -526,11 +637,18 @@ const LoginPage = () => {
                   type="email"
                   autoComplete="email"
                   placeholder="votre@email.com"
-                  value={email}
-                  disabled={submitting}
-                  onChange={(event) =>
+                  value={
+                    email
+                  }
+                  disabled={
+                    submitting
+                  }
+                  onChange={(
+                    event,
+                  ) =>
                     setEmail(
-                      event.target.value,
+                      event.target
+                        .value,
                     )
                   }
                   className="h-11 pl-10"
@@ -559,11 +677,18 @@ const LoginPage = () => {
                   }
                   autoComplete="current-password"
                   placeholder="Votre mot de passe"
-                  value={password}
-                  disabled={submitting}
-                  onChange={(event) =>
+                  value={
+                    password
+                  }
+                  disabled={
+                    submitting
+                  }
+                  onChange={(
+                    event,
+                  ) =>
                     setPassword(
-                      event.target.value,
+                      event.target
+                        .value,
                     )
                   }
                   className="h-11 px-10"
@@ -573,7 +698,9 @@ const LoginPage = () => {
                   type="button"
                   onClick={() =>
                     setShowPassword(
-                      (current) =>
+                      (
+                        current,
+                      ) =>
                         !current,
                     )
                   }
@@ -602,7 +729,9 @@ const LoginPage = () => {
               type="submit"
               variant="premium"
               className="h-11 w-full"
-              disabled={submitting}
+              disabled={
+                submitting
+              }
             >
               {submitting ? (
                 <>

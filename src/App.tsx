@@ -21,9 +21,11 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import PublicLayout from "@/layouts/PublicLayout";
 import AdminLayout from "@/layouts/AdminLayout";
 import OwnerLayout from "@/layouts/OwnerLayout";
+import TenantLayout from "@/layouts/TenantLayout";
 
 import RequireStaff from "@/components/auth/RequireStaff";
 import RequireOwner from "@/components/auth/RequireOwner";
+import RequireTenant from "@/components/auth/RequireTenant";
 
 import NotFound from "./pages/NotFound";
 
@@ -105,6 +107,17 @@ const ContactPage = lazy(
   () =>
     import(
       "@/pages/public/ContactPage"
+    ),
+);
+
+// ============================================================
+// TENANT PORTAL
+// ============================================================
+
+const TenantHomePage = lazy(
+  () =>
+    import(
+      "@/pages/tenant/TenantHomePage"
     ),
 );
 
@@ -518,6 +531,30 @@ const App = () => {
               </Route>
 
               {/* ============================================= */}
+              {/* TENANT PORTAL                                 */}
+              {/* ============================================= */}
+
+              <Route
+                element={
+                  <RequireTenant />
+                }
+              >
+                <Route
+                  path="/tenant"
+                  element={
+                    <TenantLayout />
+                  }
+                >
+                  <Route
+                    index
+                    element={
+                      <TenantHomePage />
+                    }
+                  />
+                </Route>
+              </Route>
+
+              {/* ============================================= */}
               {/* OWNER PORTAL                                  */}
               {/* ============================================= */}
 
@@ -728,6 +765,7 @@ const App = () => {
                    * Exemple :
                    * /admin/invoices/2e3facee-d59f-44bc-9e85-217c4c9d8ef8
                    */}
+
                   <Route
                     path="invoices/:invoiceId"
                     element={
