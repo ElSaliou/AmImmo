@@ -433,6 +433,42 @@ export const useApplyLeaseAmendment =
         },
     });
   };
+type LeaseLifecycleBlockedField =
+  | "status"
+  | "termination_date"
+  | "termination_reason"
+  | "termination_initiator"
+  | "termination_billing_rule";
+
+export type SafeLeaseUpdate = Omit<
+  LeaseUpdate,
+  LeaseLifecycleBlockedField
+>;
+
+const LEASE_LIFECYCLE_BLOCKED_FIELDS = [
+  "status",
+  "termination_date",
+  "termination_reason",
+  "termination_initiator",
+  "termination_billing_rule",
+] as const;
+
+const ACTIVE_LEASE_AMENDMENT_FIELDS = [
+  "monthly_rent",
+  "charges",
+  "due_day",
+  "deposit",
+  "end_date",
+] as const;
+
+const hasOwnField = (
+  value: Record<string, unknown>,
+  field: string,
+) =>
+  Object.prototype.hasOwnProperty.call(
+    value,
+    field,
+  );
 export const useCreateLease = () => {
   const qc =
     useQueryClient();
@@ -446,7 +482,7 @@ export const useCreateLease = () => {
         error,
       } = await supabase
         .from("leases")
-        .insert(input)
+        .insert({ ...input, status: "pending" })
         .select()
         .single();
 
@@ -465,6 +501,35 @@ export const useCreateLease = () => {
   });
 };
 
+export const useActivateLease = () => {
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ leaseId }: { leaseId: string }) => {
+      const { data, error } = await supabase
+        .from("leases")
+        .update({ status: "active" })
+        .eq("id", leaseId)
+        .eq("status", "pending")
+        .select()
+        .maybeSingle();
+
+      if (error) throw error;
+
+      if (!data) {
+        throw new Error(
+          "Impossible d'activer ce bail : il est introuvable ou n'est plus en attente.",
+        );
+      }
+
+      return data;
+    },
+
+    onSuccess: async () => {
+      await invalidateRealEstate(qc);
+    },
+  });
+};
 export const useUpdateLease = () => {
   const qc =
     useQueryClient();
@@ -473,9 +538,48 @@ export const useUpdateLease = () => {
     mutationFn: async ({
       id,
       ...updates
-    }: LeaseUpdate & {
+    }: SafeLeaseUpdate & {
       id: string;
     }) => {
+      const rawUpdates = updates as Record<string, unknown>;
+
+      const blockedField =
+        LEASE_LIFECYCLE_BLOCKED_FIELDS.find((field) =>
+          hasOwnField(rawUpdates, field),
+        );
+
+      if (blockedField) {
+        throw new Error(
+          `Le champ "${blockedField}" ne peut pas être modifié via useUpdateLease(). Utilisez le workflow métier dédié.`,
+        );
+      }
+
+      const touchesContractTerms =
+        ACTIVE_LEASE_AMENDMENT_FIELDS.some((field) =>
+          hasOwnField(rawUpdates, field),
+        );
+
+      if (touchesContractTerms) {
+        const {
+          data: currentLease,
+          error: currentLeaseError,
+        } = await supabase
+          .from("leases")
+          .select("id, status")
+          .eq("id", id)
+          .single();
+
+        if (currentLeaseError) {
+          throw currentLeaseError;
+        }
+
+        if (currentLease.status === "active") {
+          throw new Error(
+            "Les termes contractuels d'un bail actif doivent être modifiés via un avenant.",
+          );
+        }
+      }
+
       const {
         data,
         error,

@@ -30,6 +30,7 @@ import {
   type LeaseBillingPreview,
   type LeaseTerminationInitiator,
   type RentBillingRule,
+  useActivateLease,
   useCreateLease,
   useDeleteLease,
   useExpireLease,
@@ -37,7 +38,6 @@ import {
   usePreviewLeaseExpirationBilling,
   usePreviewLeaseTerminationBilling,
   useTerminateLease,
-  useUpdateLease,
 } from "@/hooks/use-leases";
 
 import {
@@ -597,8 +597,8 @@ const ContractsPage = () => {
   const createLease =
     useCreateLease();
 
-  const updateLease =
-    useUpdateLease();
+  const activateLease =
+    useActivateLease();
 
   const previewExpiration =
     usePreviewLeaseExpirationBilling();
@@ -999,15 +999,9 @@ const ContractsPage = () => {
         }
 
         try {
-          await updateLease.mutateAsync(
-            {
-              id:
-                lease.id,
-
-              status:
-                "active",
-            } as any,
-          );
+          await activateLease.mutateAsync({
+            leaseId: lease.id,
+          });
 
           toast.success(
             "Bail activé. Le bien est maintenant marqué Loué.",
@@ -1656,7 +1650,7 @@ const ContractsPage = () => {
                             )
                           }
                           disabled={
-                            updateLease.isPending ||
+                            activateLease.isPending ||
                             expireLease.isPending ||
                             terminateLease.isPending ||
                             lease.status ===
