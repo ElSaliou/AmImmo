@@ -614,6 +614,12 @@ const ContractsPage = () => {
 
   const deleteLease =
     useDeleteLease();
+  const [
+    leaseToDelete,
+    setLeaseToDelete,
+  ] = useState<any | null>(
+    null,
+  );
 
   const [
     amendmentLease,
@@ -1483,6 +1489,36 @@ const ContractsPage = () => {
       }
     };
 
+  const handleDeleteLease =
+    async () => {
+      if (
+        !leaseToDelete
+      ) {
+        return;
+      }
+
+      try {
+        await deleteLease.mutateAsync(
+          leaseToDelete.id,
+        );
+
+        toast.success(
+          "Bail en attente supprimé",
+        );
+
+        setLeaseToDelete(
+          null,
+        );
+      } catch (
+        error: any
+      ) {
+        toast.error(
+          error instanceof Error
+            ? error.message
+            : "Impossible de supprimer ce bail.",
+        );
+      }
+    };
   const closeDialog =
     () => {
       setOpen(false);
@@ -1750,29 +1786,18 @@ const ContractsPage = () => {
                               size="icon"
                               className="h-8 w-8 opacity-0 group-hover:opacity-100"
                               title="Supprimer ce bail en attente"
-                              onClick={() =>
-                                deleteLease.mutate(
-                                  lease.id,
-                                  {
-                                    onSuccess:
-                                      () =>
-                                        toast.success(
-                                          "Bail en attente supprimé",
-                                        ),
-
-                                    onError:
-                                      (
-                                        error: any,
-                                      ) =>
-                                        toast.error(
-                                          error?.message ??
-                                            "Impossible de supprimer ce bail",
-                                        ),
-                                  },
-                                )
-                              }
+                              disabled={deleteLease.isPending}
+                                onClick={() =>
+                                  setLeaseToDelete(
+                                    lease,
+                                  )
+                                }
                             >
-                              <Trash2 className="h-4 w-4 text-destructive" />
+                              {deleteLease.isPending ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <Trash2 className="h-4 w-4 text-destructive" />
+                                )}
                             </Button>
                           )}
                         </div>
@@ -1785,6 +1810,87 @@ const ContractsPage = () => {
           </Table>
         </div>
       )}
+      {/* SUPPRESSION D'UN BAIL EN ATTENTE */}
+      <Dialog
+        open={Boolean(
+          leaseToDelete,
+        )}
+        onOpenChange={(
+          value,
+        ) => {
+          if (
+            !value &&
+            !deleteLease.isPending
+          ) {
+            setLeaseToDelete(
+              null,
+            );
+          }
+        }}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="font-display">
+              Supprimer ce bail ?
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Cette suppression est définitive. Elle est autorisée uniquement
+              pour un bail encore en attente et sans facture rattachée.
+            </p>
+
+            <div className="rounded-lg bg-muted/60 p-3 text-sm">
+              <span className="text-muted-foreground">
+                Bail :{" "}
+              </span>
+
+              <strong>
+                {leaseToDelete?.reference ||
+                  "Sans référence"}
+              </strong>
+            </div>
+
+            <div className="flex justify-end gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() =>
+                  setLeaseToDelete(
+                    null,
+                  )
+                }
+                disabled={
+                  deleteLease.isPending
+                }
+              >
+                Annuler
+              </Button>
+
+              <Button
+                type="button"
+                variant="destructive"
+                onClick={() =>
+                  void handleDeleteLease()
+                }
+                disabled={
+                  deleteLease.isPending
+                }
+              >
+                {deleteLease.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Trash2 className="h-4 w-4" />
+                )}
+
+                Supprimer définitivement
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
 
       {/* AVENANTS */}
       <LeaseAmendmentDialog
