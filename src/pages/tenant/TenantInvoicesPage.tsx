@@ -8,6 +8,7 @@ import {
   CalendarDays,
   CircleDollarSign,
   Clock3,
+  Eye,
   FileCheck2,
   FileText,
   ReceiptText,
@@ -44,7 +45,8 @@ const formatMoney = (
   `${new Intl.NumberFormat(
     "fr-FR",
     {
-      maximumFractionDigits: 0,
+      maximumFractionDigits:
+        0,
     },
   ).format(amount)} ${currency}`;
 
@@ -56,7 +58,13 @@ const formatDate = (
   }
 
   const date =
-    new Date(value);
+    /^\d{4}-\d{2}-\d{2}$/.test(
+      value,
+    )
+      ? new Date(
+          `${value}T00:00:00`,
+        )
+      : new Date(value);
 
   if (
     Number.isNaN(
@@ -77,7 +85,8 @@ const formatDate = (
 };
 
 const getInvoiceStatusLabel = (
-  status: TenantPortalInvoiceStatus,
+  status:
+    TenantPortalInvoiceStatus,
 ) => {
   switch (status) {
     case "draft":
@@ -129,7 +138,8 @@ const getInvoiceKindLabel = (
       return "Commission";
 
     default:
-      return kind || "Facture";
+      return kind ||
+        "Facture";
   }
 };
 
@@ -368,7 +378,8 @@ const InvoiceCard = ({
 
             <p
               className={`mt-1 font-semibold ${
-                invoice.balanceDue > 0
+                invoice.balanceDue >
+                0
                   ? "text-amber-700"
                   : "text-emerald-700"
               }`}
@@ -437,6 +448,21 @@ const InvoiceCard = ({
             </div>
           </div>
         )}
+
+        <div className="mt-6 flex justify-end border-t pt-5">
+          <Button
+            asChild
+            variant="outline"
+            className="rounded-xl"
+          >
+            <Link
+              to={`/tenant/invoices/${invoice.id}`}
+            >
+              <Eye className="h-4 w-4" />
+              Voir le détail
+            </Link>
+          </Button>
+        </div>
       </div>
     </motion.article>
   );
@@ -446,275 +472,282 @@ const InvoiceCard = ({
 // PAGE
 // ============================================================
 
-const TenantInvoicesPage = () => {
-  const {
-    data:
-      invoices = [],
-    isLoading,
-    isError,
-    error,
-    refetch,
-  } =
-    useTenantPortalInvoices();
+const TenantInvoicesPage =
+  () => {
+    const {
+      data:
+        invoices = [],
 
-  if (isLoading) {
-    return (
-      <div className="container flex min-h-[520px] items-center justify-center py-12">
-        <div className="text-center">
-          <div className="mx-auto h-10 w-10 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+      isLoading,
 
-          <p className="mt-4 text-sm text-muted-foreground">
-            Chargement de vos loyers...
-          </p>
-        </div>
-      </div>
-    );
-  }
+      isError,
 
-  if (isError) {
-    return (
-      <div className="container py-12">
-        <div className="rounded-3xl border border-destructive/20 bg-card p-8 shadow-sm">
-          <h1 className="text-xl font-semibold text-destructive">
-            Impossible de charger vos factures
-          </h1>
+      error,
 
-          <p className="mt-2 text-sm text-muted-foreground">
-            {error instanceof Error
-              ? error.message
-              : "Une erreur est survenue."}
-          </p>
+      refetch,
+    } =
+      useTenantPortalInvoices();
 
-          <Button
-            variant="outline"
-            className="mt-5 rounded-xl"
-            onClick={() => {
-              void refetch();
-            }}
-          >
-            <RefreshCw className="h-4 w-4" />
-            Réessayer
-          </Button>
-        </div>
-      </div>
-    );
-  }
+    if (isLoading) {
+      return (
+        <div className="container flex min-h-[520px] items-center justify-center py-12">
+          <div className="text-center">
+            <div className="mx-auto h-10 w-10 animate-spin rounded-full border-2 border-primary border-t-transparent" />
 
-  const totalAmount =
-    invoices.reduce(
-      (
-        total,
-        invoice,
-      ) =>
-        total +
-        invoice.amount,
-      0,
-    );
-
-  const totalPaid =
-    invoices.reduce(
-      (
-        total,
-        invoice,
-      ) =>
-        total +
-        invoice.paidAmount,
-      0,
-    );
-
-  const totalBalance =
-    invoices.reduce(
-      (
-        total,
-        invoice,
-      ) =>
-        total +
-        invoice.balanceDue,
-      0,
-    );
-
-  const paidCount =
-    invoices.filter(
-      (invoice) =>
-        invoice.status ===
-        "paid",
-    ).length;
-
-  const openCount =
-    invoices.filter(
-      (invoice) =>
-        invoice.status !==
-          "paid" &&
-        invoice.status !==
-          "cancelled",
-    ).length;
-
-  const currency =
-    invoices[0]
-      ?.currency ??
-    "GNF";
-
-  return (
-    <div className="container space-y-8 py-8 sm:py-10">
-      <Button
-        asChild
-        variant="ghost"
-        className="-ml-3"
-      >
-        <Link to="/tenant">
-          <ArrowLeft className="h-4 w-4" />
-          Tableau de bord
-        </Link>
-      </Button>
-
-      {/* ==================================================== */}
-      {/* HERO                                                 */}
-      {/* ==================================================== */}
-
-      <section className="relative overflow-hidden rounded-[2rem] gradient-primary p-7 text-primary-foreground shadow-xl sm:p-10">
-        <div className="absolute -right-20 -top-20 h-64 w-64 rounded-full bg-secondary/20 blur-3xl" />
-
-        <div className="relative max-w-3xl">
-          <div className="inline-flex items-center gap-2 rounded-full bg-primary-foreground/10 px-4 py-2 text-sm ring-1 ring-primary-foreground/15">
-            <ReceiptText className="h-4 w-4 text-secondary" />
-            Espace financier
-          </div>
-
-          <h1 className="mt-6 font-display text-3xl font-bold sm:text-4xl">
-            Mes loyers
-          </h1>
-
-          <p className="mt-3 max-w-2xl text-primary-foreground/75">
-            Retrouvez vos factures locatives, les montants déjà réglés
-            et le solde restant pour chaque échéance.
-          </p>
-        </div>
-      </section>
-
-      {/* ==================================================== */}
-      {/* KPI                                                  */}
-      {/* ==================================================== */}
-
-      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard
-          label="Montant facturé"
-          value={
-            formatMoney(
-              totalAmount,
-              currency,
-            )
-          }
-          description={`${invoices.length} facture${invoices.length !== 1 ? "s" : ""}`}
-          icon={
-            <FileText className="h-5 w-5" />
-          }
-          className="from-primary via-primary/95 to-primary/75 shadow-primary/20"
-        />
-
-        <StatCard
-          label="Montant réglé"
-          value={
-            formatMoney(
-              totalPaid,
-              currency,
-            )
-          }
-          description={`${paidCount} facture${paidCount !== 1 ? "s" : ""} entièrement payée${paidCount !== 1 ? "s" : ""}`}
-          icon={
-            <FileCheck2 className="h-5 w-5" />
-          }
-          className="from-emerald-500 via-emerald-600 to-emerald-700 shadow-emerald-500/20"
-        />
-
-        <StatCard
-          label="Reste à payer"
-          value={
-            formatMoney(
-              totalBalance,
-              currency,
-            )
-          }
-          description={`${openCount} facture${openCount !== 1 ? "s" : ""} ouverte${openCount !== 1 ? "s" : ""}`}
-          icon={
-            <CircleDollarSign className="h-5 w-5" />
-          }
-          className="from-amber-400 via-amber-500 to-orange-500 shadow-amber-500/20"
-        />
-
-        <StatCard
-          label="Factures"
-          value={
-            String(
-              invoices.length,
-            )
-          }
-          description="Historique de votre dossier locatif"
-          icon={
-            <ReceiptText className="h-5 w-5" />
-          }
-          className="from-violet-500 via-purple-600 to-indigo-700 shadow-violet-500/20"
-        />
-      </section>
-
-      {/* ==================================================== */}
-      {/* INVOICES                                             */}
-      {/* ==================================================== */}
-
-      <section>
-        <div className="mb-5 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
-          <div>
-            <h2 className="font-display text-2xl font-bold">
-              Historique des factures
-            </h2>
-
-            <p className="mt-1 text-sm text-muted-foreground">
-              Factures visibles sur votre espace locataire.
+            <p className="mt-4 text-sm text-muted-foreground">
+              Chargement de vos loyers...
             </p>
           </div>
-
-          <Button
-            asChild
-            variant="outline"
-            className="rounded-xl"
-          >
-            <Link to="/tenant/payments">
-              <WalletCards className="h-4 w-4" />
-              Voir mes paiements
-            </Link>
-          </Button>
         </div>
+      );
+    }
 
-        {invoices.length === 0 ? (
-          <div className="rounded-3xl border bg-card p-10 text-center shadow-sm">
-            <ReceiptText className="mx-auto h-12 w-12 text-muted-foreground/30" />
-
-            <h3 className="mt-4 font-display text-xl font-bold">
-              Aucune facture
-            </h3>
+    if (isError) {
+      return (
+        <div className="container py-12">
+          <div className="rounded-3xl border border-destructive/20 bg-card p-8 shadow-sm">
+            <h1 className="text-xl font-semibold text-destructive">
+              Impossible de charger vos factures
+            </h1>
 
             <p className="mt-2 text-sm text-muted-foreground">
-              Aucune facture locative n'est disponible pour le moment.
+              {error instanceof
+              Error
+                ? error.message
+                : "Une erreur est survenue."}
+            </p>
+
+            <Button
+              variant="outline"
+              className="mt-5 rounded-xl"
+              onClick={() => {
+                void refetch();
+              }}
+            >
+              <RefreshCw className="h-4 w-4" />
+              Réessayer
+            </Button>
+          </div>
+        </div>
+      );
+    }
+
+    const totalAmount =
+      invoices.reduce(
+        (
+          total,
+          invoice,
+        ) =>
+          total +
+          invoice.amount,
+        0,
+      );
+
+    const totalPaid =
+      invoices.reduce(
+        (
+          total,
+          invoice,
+        ) =>
+          total +
+          invoice.paidAmount,
+        0,
+      );
+
+    const totalBalance =
+      invoices.reduce(
+        (
+          total,
+          invoice,
+        ) =>
+          total +
+          invoice.balanceDue,
+        0,
+      );
+
+    const paidCount =
+      invoices.filter(
+        (invoice) =>
+          invoice.status ===
+          "paid",
+      ).length;
+
+    const openCount =
+      invoices.filter(
+        (invoice) =>
+          invoice.status !==
+            "paid" &&
+          invoice.status !==
+            "cancelled",
+      ).length;
+
+    const currency =
+      invoices[0]
+        ?.currency ??
+      "GNF";
+
+    return (
+      <div className="container space-y-8 py-8 sm:py-10">
+        <Button
+          asChild
+          variant="ghost"
+          className="-ml-3"
+        >
+          <Link to="/tenant">
+            <ArrowLeft className="h-4 w-4" />
+            Tableau de bord
+          </Link>
+        </Button>
+
+        {/* ==================================================== */}
+        {/* HERO                                                 */}
+        {/* ==================================================== */}
+
+        <section className="relative overflow-hidden rounded-[2rem] gradient-primary p-7 text-primary-foreground shadow-xl sm:p-10">
+          <div className="absolute -right-20 -top-20 h-64 w-64 rounded-full bg-secondary/20 blur-3xl" />
+
+          <div className="relative max-w-3xl">
+            <div className="inline-flex items-center gap-2 rounded-full bg-primary-foreground/10 px-4 py-2 text-sm ring-1 ring-primary-foreground/15">
+              <ReceiptText className="h-4 w-4 text-secondary" />
+              Espace financier
+            </div>
+
+            <h1 className="mt-6 font-display text-3xl font-bold sm:text-4xl">
+              Mes loyers
+            </h1>
+
+            <p className="mt-3 max-w-2xl text-primary-foreground/75">
+              Retrouvez vos factures locatives, les montants déjà réglés
+              et le solde restant pour chaque échéance.
             </p>
           </div>
-        ) : (
-          <div className="space-y-5">
-            {invoices.map(
-              (invoice) => (
-                <InvoiceCard
-                  key={
-                    invoice.id
-                  }
-                  invoice={
-                    invoice
-                  }
-                />
-              ),
-            )}
+        </section>
+
+        {/* ==================================================== */}
+        {/* KPI                                                  */}
+        {/* ==================================================== */}
+
+        <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <StatCard
+            label="Montant facturé"
+            value={
+              formatMoney(
+                totalAmount,
+                currency,
+              )
+            }
+            description={`${invoices.length} facture${invoices.length !== 1 ? "s" : ""}`}
+            icon={
+              <FileText className="h-5 w-5" />
+            }
+            className="from-primary via-primary/95 to-primary/75 shadow-primary/20"
+          />
+
+          <StatCard
+            label="Montant réglé"
+            value={
+              formatMoney(
+                totalPaid,
+                currency,
+              )
+            }
+            description={`${paidCount} facture${paidCount !== 1 ? "s" : ""} entièrement payée${paidCount !== 1 ? "s" : ""}`}
+            icon={
+              <FileCheck2 className="h-5 w-5" />
+            }
+            className="from-emerald-500 via-emerald-600 to-emerald-700 shadow-emerald-500/20"
+          />
+
+          <StatCard
+            label="Reste à payer"
+            value={
+              formatMoney(
+                totalBalance,
+                currency,
+              )
+            }
+            description={`${openCount} facture${openCount !== 1 ? "s" : ""} ouverte${openCount !== 1 ? "s" : ""}`}
+            icon={
+              <CircleDollarSign className="h-5 w-5" />
+            }
+            className="from-amber-400 via-amber-500 to-orange-500 shadow-amber-500/20"
+          />
+
+          <StatCard
+            label="Factures"
+            value={
+              String(
+                invoices.length,
+              )
+            }
+            description="Historique de votre dossier locatif"
+            icon={
+              <ReceiptText className="h-5 w-5" />
+            }
+            className="from-violet-500 via-purple-600 to-indigo-700 shadow-violet-500/20"
+          />
+        </section>
+
+        {/* ==================================================== */}
+        {/* INVOICES                                             */}
+        {/* ==================================================== */}
+
+        <section>
+          <div className="mb-5 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+            <div>
+              <h2 className="font-display text-2xl font-bold">
+                Historique des factures
+              </h2>
+
+              <p className="mt-1 text-sm text-muted-foreground">
+                Factures visibles sur votre espace locataire.
+              </p>
+            </div>
+
+            <Button
+              asChild
+              variant="outline"
+              className="rounded-xl"
+            >
+              <Link to="/tenant/payments">
+                <WalletCards className="h-4 w-4" />
+                Voir mes paiements
+              </Link>
+            </Button>
           </div>
-        )}
-      </section>
-    </div>
-  );
-};
+
+          {invoices.length ===
+          0 ? (
+            <div className="rounded-3xl border bg-card p-10 text-center shadow-sm">
+              <ReceiptText className="mx-auto h-12 w-12 text-muted-foreground/30" />
+
+              <h3 className="mt-4 font-display text-xl font-bold">
+                Aucune facture
+              </h3>
+
+              <p className="mt-2 text-sm text-muted-foreground">
+                Aucune facture locative n'est disponible pour le moment.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-5">
+              {invoices.map(
+                (invoice) => (
+                  <InvoiceCard
+                    key={
+                      invoice.id
+                    }
+                    invoice={
+                      invoice
+                    }
+                  />
+                ),
+              )}
+            </div>
+          )}
+        </section>
+      </div>
+    );
+  };
 
 export default TenantInvoicesPage;

@@ -10,6 +10,7 @@ import {
   CircleDollarSign,
   Clock3,
   CreditCard,
+  Eye,
   FileText,
   Landmark,
   ReceiptText,
@@ -46,7 +47,8 @@ const formatMoney = (
   `${new Intl.NumberFormat(
     "fr-FR",
     {
-      maximumFractionDigits: 0,
+      maximumFractionDigits:
+        0,
     },
   ).format(amount)} ${currency}`;
 
@@ -79,7 +81,9 @@ const formatDate = (
 };
 
 const getPaymentMethodLabel = (
-  method: string | null,
+  method:
+    | string
+    | null,
 ) => {
   switch (method) {
     case "cash":
@@ -102,13 +106,17 @@ const getPaymentMethodLabel = (
       return "Autre";
 
     default:
-      return method ||
-        "Non renseigné";
+      return (
+        method ||
+        "Non renseigné"
+      );
   }
 };
 
 const getPaymentStatusLabel = (
-  status: string | null,
+  status:
+    | string
+    | null,
 ) => {
   switch (status) {
     case "completed":
@@ -128,8 +136,10 @@ const getPaymentStatusLabel = (
       return "Remboursé";
 
     default:
-      return status ||
-        "Non renseigné";
+      return (
+        status ||
+        "Non renseigné"
+      );
   }
 };
 
@@ -140,7 +150,9 @@ const getPaymentStatusLabel = (
 const PaymentMethodIcon = ({
   method,
 }: {
-  method: string | null;
+  method:
+    | string
+    | null;
 }) => {
   switch (method) {
     case "cash":
@@ -178,14 +190,18 @@ const PaymentMethodIcon = ({
 const PaymentStatusBadge = ({
   status,
 }: {
-  status: string | null;
+  status:
+    | string
+    | null;
 }) => {
   const base =
     "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold";
 
   if (
-    status === "completed" ||
-    status === "paid"
+    status ===
+      "completed" ||
+    status ===
+      "paid"
   ) {
     return (
       <span
@@ -198,7 +214,8 @@ const PaymentStatusBadge = ({
   }
 
   if (
-    status === "pending"
+    status ===
+    "pending"
   ) {
     return (
       <span
@@ -211,7 +228,8 @@ const PaymentStatusBadge = ({
   }
 
   if (
-    status === "refunded"
+    status ===
+    "refunded"
   ) {
     return (
       <span
@@ -223,8 +241,10 @@ const PaymentStatusBadge = ({
   }
 
   if (
-    status === "failed" ||
-    status === "cancelled"
+    status ===
+      "failed" ||
+    status ===
+      "cancelled"
   ) {
     return (
       <span
@@ -370,6 +390,7 @@ const PaymentCard = ({
             {payment.isRefund
               ? "− "
               : ""}
+
             {formatMoney(
               payment.amount,
               payment.currency,
@@ -433,6 +454,21 @@ const PaymentCard = ({
           Cette opération correspond à un remboursement.
         </div>
       )}
+
+      <div className="mt-6 flex justify-end border-t pt-5">
+        <Button
+          asChild
+          variant="outline"
+          className="rounded-xl"
+        >
+          <Link
+            to={`/tenant/payments/${payment.id}`}
+          >
+            <Eye className="h-4 w-4" />
+            Voir le détail
+          </Link>
+        </Button>
+      </div>
     </div>
   </motion.article>
 );
@@ -441,99 +477,80 @@ const PaymentCard = ({
 // PAGE
 // ============================================================
 
-const TenantPaymentsPage = () => {
-  const {
-    data:
-      payments = [],
-    isLoading,
-    isError,
-    error,
-    refetch,
-  } =
-    useTenantPortalPayments();
+const TenantPaymentsPage =
+  () => {
+    const {
+      data:
+        payments = [],
 
-  if (isLoading) {
-    return (
-      <div className="container flex min-h-[520px] items-center justify-center py-12">
-        <div className="text-center">
-          <div className="mx-auto h-10 w-10 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+      isLoading,
 
-          <p className="mt-4 text-sm text-muted-foreground">
-            Chargement de vos paiements...
-          </p>
+      isError,
+
+      error,
+
+      refetch,
+    } =
+      useTenantPortalPayments();
+
+    if (isLoading) {
+      return (
+        <div className="container flex min-h-[520px] items-center justify-center py-12">
+          <div className="text-center">
+            <div className="mx-auto h-10 w-10 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+
+            <p className="mt-4 text-sm text-muted-foreground">
+              Chargement de vos paiements...
+            </p>
+          </div>
         </div>
-      </div>
-    );
-  }
+      );
+    }
 
-  if (isError) {
-    return (
-      <div className="container py-12">
-        <div className="rounded-3xl border border-destructive/20 bg-card p-8 shadow-sm">
-          <h1 className="text-xl font-semibold text-destructive">
-            Impossible de charger vos paiements
-          </h1>
+    if (isError) {
+      return (
+        <div className="container py-12">
+          <div className="rounded-3xl border border-destructive/20 bg-card p-8 shadow-sm">
+            <h1 className="text-xl font-semibold text-destructive">
+              Impossible de charger vos paiements
+            </h1>
 
-          <p className="mt-2 text-sm text-muted-foreground">
-            {error instanceof Error
-              ? error.message
-              : "Une erreur est survenue."}
-          </p>
+            <p className="mt-2 text-sm text-muted-foreground">
+              {error instanceof
+              Error
+                ? error.message
+                : "Une erreur est survenue."}
+            </p>
 
-          <Button
-            variant="outline"
-            className="mt-5 rounded-xl"
-            onClick={() => {
-              void refetch();
-            }}
-          >
-            <RefreshCw className="h-4 w-4" />
-            Réessayer
-          </Button>
+            <Button
+              variant="outline"
+              className="mt-5 rounded-xl"
+              onClick={() => {
+                void refetch();
+              }}
+            >
+              <RefreshCw className="h-4 w-4" />
+              Réessayer
+            </Button>
+          </div>
         </div>
-      </div>
-    );
-  }
+      );
+    }
 
-  const completedPayments =
-    payments.filter(
-      (payment) =>
-        (
-          payment.status ===
-            "completed" ||
-          payment.status ===
-            "paid"
-        ) &&
-        !payment.isRefund,
-    );
-
-  const completedAmount =
-    completedPayments.reduce(
-      (
-        total,
-        payment,
-      ) =>
-        total +
-        payment.amount,
-      0,
-    );
-
-  const pendingCount =
-    payments.filter(
-      (payment) =>
-        payment.status ===
-        "pending",
-    ).length;
-
-  const refundAmount =
-    payments
-      .filter(
+    const completedPayments =
+      payments.filter(
         (payment) =>
-          payment.isRefund ||
-          payment.status ===
-            "refunded",
-      )
-      .reduce(
+          (
+            payment.status ===
+              "completed" ||
+            payment.status ===
+              "paid"
+          ) &&
+          !payment.isRefund,
+      );
+
+    const completedAmount =
+      completedPayments.reduce(
         (
           total,
           payment,
@@ -543,171 +560,197 @@ const TenantPaymentsPage = () => {
         0,
       );
 
-  const currency =
-    payments[0]
-      ?.currency ??
-    "GNF";
+    const pendingCount =
+      payments.filter(
+        (payment) =>
+          payment.status ===
+          "pending",
+      ).length;
 
-  return (
-    <div className="container space-y-8 py-8 sm:py-10">
-      <Button
-        asChild
-        variant="ghost"
-        className="-ml-3"
-      >
-        <Link to="/tenant">
-          <ArrowLeft className="h-4 w-4" />
-          Tableau de bord
-        </Link>
-      </Button>
+    const refundAmount =
+      payments
+        .filter(
+          (payment) =>
+            payment.isRefund ||
+            payment.status ===
+              "refunded",
+        )
+        .reduce(
+          (
+            total,
+            payment,
+          ) =>
+            total +
+            payment.amount,
+          0,
+        );
 
-      {/* ==================================================== */}
-      {/* HERO                                                 */}
-      {/* ==================================================== */}
+    const currency =
+      payments[0]
+        ?.currency ??
+      "GNF";
 
-      <section className="relative overflow-hidden rounded-[2rem] bg-gradient-to-br from-emerald-700 via-emerald-700 to-primary p-7 text-white shadow-xl sm:p-10">
-        <div className="absolute -right-20 -top-20 h-64 w-64 rounded-full bg-secondary/20 blur-3xl" />
+    return (
+      <div className="container space-y-8 py-8 sm:py-10">
+        <Button
+          asChild
+          variant="ghost"
+          className="-ml-3"
+        >
+          <Link to="/tenant">
+            <ArrowLeft className="h-4 w-4" />
+            Tableau de bord
+          </Link>
+        </Button>
 
-        <div className="relative max-w-3xl">
-          <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-2 text-sm ring-1 ring-white/15">
-            <WalletCards className="h-4 w-4 text-secondary" />
-            Historique financier
-          </div>
+        {/* ==================================================== */}
+        {/* HERO                                                 */}
+        {/* ==================================================== */}
 
-          <h1 className="mt-6 font-display text-3xl font-bold sm:text-4xl">
-            Mes paiements
-          </h1>
+        <section className="relative overflow-hidden rounded-[2rem] bg-gradient-to-br from-emerald-700 via-emerald-700 to-primary p-7 text-white shadow-xl sm:p-10">
+          <div className="absolute -right-20 -top-20 h-64 w-64 rounded-full bg-secondary/20 blur-3xl" />
 
-          <p className="mt-3 max-w-2xl text-white/75">
-            Consultez les règlements enregistrés sur votre dossier
-            et les factures auxquelles ils sont associés.
-          </p>
-        </div>
-      </section>
+          <div className="relative max-w-3xl">
+            <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-2 text-sm ring-1 ring-white/15">
+              <WalletCards className="h-4 w-4 text-secondary" />
+              Historique financier
+            </div>
 
-      {/* ==================================================== */}
-      {/* KPI                                                  */}
-      {/* ==================================================== */}
+            <h1 className="mt-6 font-display text-3xl font-bold sm:text-4xl">
+              Mes paiements
+            </h1>
 
-      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard
-          label="Total réglé"
-          value={
-            formatMoney(
-              completedAmount,
-              currency,
-            )
-          }
-          description="Paiements effectivement enregistrés"
-          icon={
-            <CircleDollarSign className="h-5 w-5" />
-          }
-          className="from-emerald-500 via-emerald-600 to-emerald-700 shadow-emerald-500/20"
-        />
-
-        <StatCard
-          label="Paiements effectués"
-          value={
-            String(
-              completedPayments.length,
-            )
-          }
-          description={`${payments.length} opération${payments.length !== 1 ? "s" : ""} au total`}
-          icon={
-            <BadgeCheck className="h-5 w-5" />
-          }
-          className="from-primary via-primary/95 to-primary/75 shadow-primary/20"
-        />
-
-        <StatCard
-          label="En attente"
-          value={
-            String(
-              pendingCount,
-            )
-          }
-          description="Paiements non encore finalisés"
-          icon={
-            <Clock3 className="h-5 w-5" />
-          }
-          className="from-amber-400 via-amber-500 to-orange-500 shadow-amber-500/20"
-        />
-
-        <StatCard
-          label="Remboursements"
-          value={
-            formatMoney(
-              refundAmount,
-              currency,
-            )
-          }
-          description="Montants remboursés ou extournés"
-          icon={
-            <ReceiptText className="h-5 w-5" />
-          }
-          className="from-violet-500 via-purple-600 to-indigo-700 shadow-violet-500/20"
-        />
-      </section>
-
-      {/* ==================================================== */}
-      {/* PAYMENTS                                             */}
-      {/* ==================================================== */}
-
-      <section>
-        <div className="mb-5 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
-          <div>
-            <h2 className="font-display text-2xl font-bold">
-              Historique des règlements
-            </h2>
-
-            <p className="mt-1 text-sm text-muted-foreground">
-              Toutes les opérations visibles sur votre dossier.
+            <p className="mt-3 max-w-2xl text-white/75">
+              Consultez les règlements enregistrés sur votre dossier
+              et les factures auxquelles ils sont associés.
             </p>
           </div>
+        </section>
 
-          <Button
-            asChild
-            variant="outline"
-            className="rounded-xl"
-          >
-            <Link to="/tenant/invoices">
-              <ReceiptText className="h-4 w-4" />
-              Voir mes loyers
-            </Link>
-          </Button>
-        </div>
+        {/* ==================================================== */}
+        {/* KPI                                                  */}
+        {/* ==================================================== */}
 
-        {payments.length === 0 ? (
-          <div className="rounded-3xl border bg-card p-10 text-center shadow-sm">
-            <WalletCards className="mx-auto h-12 w-12 text-muted-foreground/30" />
+        <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <StatCard
+            label="Total réglé"
+            value={
+              formatMoney(
+                completedAmount,
+                currency,
+              )
+            }
+            description="Paiements effectivement enregistrés"
+            icon={
+              <CircleDollarSign className="h-5 w-5" />
+            }
+            className="from-emerald-500 via-emerald-600 to-emerald-700 shadow-emerald-500/20"
+          />
 
-            <h3 className="mt-4 font-display text-xl font-bold">
-              Aucun paiement
-            </h3>
+          <StatCard
+            label="Paiements effectués"
+            value={
+              String(
+                completedPayments.length,
+              )
+            }
+            description={`${payments.length} opération${payments.length !== 1 ? "s" : ""} au total`}
+            icon={
+              <BadgeCheck className="h-5 w-5" />
+            }
+            className="from-primary via-primary/95 to-primary/75 shadow-primary/20"
+          />
 
-            <p className="mt-2 text-sm text-muted-foreground">
-              Aucun règlement n'est disponible pour le moment.
-            </p>
+          <StatCard
+            label="En attente"
+            value={
+              String(
+                pendingCount,
+              )
+            }
+            description="Paiements non encore finalisés"
+            icon={
+              <Clock3 className="h-5 w-5" />
+            }
+            className="from-amber-400 via-amber-500 to-orange-500 shadow-amber-500/20"
+          />
+
+          <StatCard
+            label="Remboursements"
+            value={
+              formatMoney(
+                refundAmount,
+                currency,
+              )
+            }
+            description="Montants remboursés ou extournés"
+            icon={
+              <ReceiptText className="h-5 w-5" />
+            }
+            className="from-violet-500 via-purple-600 to-indigo-700 shadow-violet-500/20"
+          />
+        </section>
+
+        {/* ==================================================== */}
+        {/* PAYMENTS                                             */}
+        {/* ==================================================== */}
+
+        <section>
+          <div className="mb-5 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+            <div>
+              <h2 className="font-display text-2xl font-bold">
+                Historique des règlements
+              </h2>
+
+              <p className="mt-1 text-sm text-muted-foreground">
+                Toutes les opérations visibles sur votre dossier.
+              </p>
+            </div>
+
+            <Button
+              asChild
+              variant="outline"
+              className="rounded-xl"
+            >
+              <Link to="/tenant/invoices">
+                <ReceiptText className="h-4 w-4" />
+                Voir mes loyers
+              </Link>
+            </Button>
           </div>
-        ) : (
-          <div className="space-y-5">
-            {payments.map(
-              (payment) => (
-                <PaymentCard
-                  key={
-                    payment.id
-                  }
-                  payment={
-                    payment
-                  }
-                />
-              ),
-            )}
-          </div>
-        )}
-      </section>
-    </div>
-  );
-};
+
+          {payments.length ===
+          0 ? (
+            <div className="rounded-3xl border bg-card p-10 text-center shadow-sm">
+              <WalletCards className="mx-auto h-12 w-12 text-muted-foreground/30" />
+
+              <h3 className="mt-4 font-display text-xl font-bold">
+                Aucun paiement
+              </h3>
+
+              <p className="mt-2 text-sm text-muted-foreground">
+                Aucun règlement n'est disponible pour le moment.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-5">
+              {payments.map(
+                (payment) => (
+                  <PaymentCard
+                    key={
+                      payment.id
+                    }
+                    payment={
+                      payment
+                    }
+                  />
+                ),
+              )}
+            </div>
+          )}
+        </section>
+      </div>
+    );
+  };
 
 export default TenantPaymentsPage;

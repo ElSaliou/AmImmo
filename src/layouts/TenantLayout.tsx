@@ -2,12 +2,14 @@ import {
   Building2,
   ExternalLink,
   FileText,
+  FolderOpen,
   Home,
   LayoutDashboard,
   LogOut,
   Menu,
   ReceiptText,
   WalletCards,
+  Wrench,
   X,
 } from "lucide-react";
 
@@ -72,6 +74,18 @@ const tenantNavItems = [
     label: "Mes paiements",
     path: "/tenant/payments",
     icon: WalletCards,
+  },
+
+  {
+    label: "Mes documents",
+    path: "/tenant/documents",
+    icon: FolderOpen,
+  },
+
+  {
+    label: "Maintenance",
+    path: "/tenant/maintenance",
+    icon: Wrench,
   },
 ];
 

@@ -14,9 +14,17 @@ import {
   QueryClientProvider,
 } from "@tanstack/react-query";
 
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
+import {
+  Toaster,
+} from "@/components/ui/toaster";
+
+import {
+  Toaster as Sonner,
+} from "@/components/ui/sonner";
+
+import {
+  TooltipProvider,
+} from "@/components/ui/tooltip";
 
 import PublicLayout from "@/layouts/PublicLayout";
 import AdminLayout from "@/layouts/AdminLayout";
@@ -86,16 +94,6 @@ const PropertyDetailPage = lazy(
     ),
 );
 
-/**
- * Page publique sécurisée de consultation
- * du paiement d'une réservation courte durée.
- *
- * Route :
- * /payment/:token
- *
- * Le token est vérifié exclusivement côté PostgreSQL via :
- * get_public_short_rental_payment_context(token)
- */
 const ShortRentalPaymentPage = lazy(
   () =>
     import(
@@ -146,6 +144,34 @@ const TenantPaymentsPage = lazy(
   () =>
     import(
       "@/pages/tenant/TenantPaymentsPage"
+    ),
+);
+
+const TenantInvoiceDetailPage = lazy(
+  () =>
+    import(
+      "@/pages/tenant/TenantInvoiceDetailPage"
+    ),
+);
+
+const TenantPaymentDetailPage = lazy(
+  () =>
+    import(
+      "@/pages/tenant/TenantPaymentDetailPage"
+    ),
+);
+
+const TenantDocumentsPage = lazy(
+  () =>
+    import(
+      "@/pages/tenant/TenantDocumentsPage"
+    ),
+);
+
+const TenantMaintenancePage = lazy(
+  () =>
+    import(
+      "@/pages/tenant/TenantMaintenancePage"
     ),
 );
 
@@ -372,12 +398,6 @@ const FinanceReportsPage = lazy(
     ),
 );
 
-/**
- * Fiche générique d'une facture.
- *
- * Route :
- * /admin/invoices/:invoiceId
- */
 const InvoiceDetailPage = lazy(
   () =>
     import(
@@ -438,7 +458,8 @@ const queryClient =
         refetchOnWindowFocus:
           false,
 
-        retry: 1,
+        retry:
+          1,
       },
     },
   });
@@ -539,10 +560,6 @@ const App = () => {
                   }
                 />
 
-                {/* =========================================== */}
-                {/* SHORT RENTAL - SECURE PAYMENT ACCESS        */}
-                {/* =========================================== */}
-
                 <Route
                   path="/payment/:token"
                   element={
@@ -602,9 +619,37 @@ const App = () => {
                   />
 
                   <Route
+                    path="invoices/:invoiceId"
+                    element={
+                      <TenantInvoiceDetailPage />
+                    }
+                  />
+
+                  <Route
                     path="payments"
                     element={
                       <TenantPaymentsPage />
+                    }
+                  />
+
+                  <Route
+                    path="payments/:paymentId"
+                    element={
+                      <TenantPaymentDetailPage />
+                    }
+                  />
+
+                  <Route
+                    path="documents"
+                    element={
+                      <TenantDocumentsPage />
+                    }
+                  />
+
+                  <Route
+                    path="maintenance"
+                    element={
+                      <TenantMaintenancePage />
                     }
                   />
                 </Route>
@@ -815,13 +860,6 @@ const App = () => {
                     }
                   />
 
-                  {/*
-                   * Fiche facture générique.
-                   *
-                   * Exemple :
-                   * /admin/invoices/2e3facee-d59f-44bc-9e85-217c4c9d8ef8
-                   */}
-
                   <Route
                     path="invoices/:invoiceId"
                     element={
@@ -917,7 +955,7 @@ const App = () => {
               {/* ============================================= */}
 
               <Route
-                path="*"
+                path="\*"
                 element={
                   <NotFound />
                 }
