@@ -2581,3 +2581,413 @@ export const useCreateTenantMaintenanceRequest =
         },
     });
   };
+// ============================================================
+// F2.1G — TENANT NOTIFICATIONS
+//
+// Backend contract:
+//
+// notifications.user_id = auth.uid()
+// channel = internal
+//
+// RLS:
+// - SELECT own notifications
+// - INSERT tenant blocked
+// - UPDATE direct blocked
+// - DELETE tenant blocked
+//
+// Read state mutations:
+// - mark_notification_read(uuid)
+// - mark_all_notifications_read()
+// ============================================================
+
+export type TenantNotificationChannel =
+  | "internal"
+  | "email"
+  | "sms"
+  | "whatsapp"
+  | "push";
+
+export type TenantPortalNotification = {
+  id: string;
+
+  channel:
+    TenantNotificationChannel;
+
+  kind: string;
+
+  title: string;
+  body: string;
+
+  link: string | null;
+
+  readAt: string | null;
+  createdAt: string | null;
+
+  isRead: boolean;
+};
+
+// ============================================================
+// F2.1G — NOTIFICATION MAPPER
+// ============================================================
+
+const mapTenantPortalNotification =
+  (
+    row: Record<
+      string,
+      any
+    >,
+  ): TenantPortalNotification => {
+    const readAt =
+      toNullableString(
+        row.read_at,
+      );
+
+    return {
+      id:
+        String(
+          row.id,
+        ),
+
+      channel:
+        row.channel as
+          TenantNotificationChannel,
+
+      kind:
+        String(
+          row.kind ??
+            "general",
+        ),
+
+      title:
+        String(
+          row.title ??
+            "",
+        ),
+
+      body:
+        String(
+          row.body ??
+            "",
+        ),
+
+      link:
+        toNullableString(
+          row.link,
+        ),
+
+      readAt,
+
+      createdAt:
+        toNullableString(
+          row.created_at,
+        ),
+
+      isRead:
+        readAt !== null,
+    };
+  };
+
+// ============================================================
+// F2.1G — RPC COMPATIBILITY
+//
+// Les deux RPC viennent d'être ajoutées côté PostgreSQL.
+// Le fichier Supabase types.ts peut ne pas encore avoir été
+// régénéré.
+//
+// Ce wrapper est volontairement limité aux deux RPC
+// notifications afin de ne pas désactiver le typage du client
+// Supabase ailleurs dans l'application.
+// ============================================================
+
+type TenantNotificationRpcClient = {
+  rpc: (
+    functionName:
+      | "mark_notification_read"
+      | "mark_all_notifications_read",
+
+    args?:
+      Record<
+        string,
+        unknown
+      >,
+  ) => PromiseLike<{
+    data: unknown;
+    error: unknown;
+  }>;
+};
+
+const tenantNotificationRpcClient =
+  supabase as unknown as
+    TenantNotificationRpcClient;
+
+// ============================================================
+// F2.1G — READ INTERNAL NOTIFICATIONS
+//
+// La RLS reste l'autorité d'isolation.
+// Le frontend limite explicitement le portail locataire
+// au canal "internal".
+// ============================================================
+
+export const useTenantPortalNotifications =
+  () =>
+    useQuery<
+      TenantPortalNotification[]
+    >({
+      queryKey: [
+        "tenant-portal",
+        "notifications",
+      ],
+
+      queryFn:
+        async () => {
+          const {
+            data,
+            error,
+          } =
+            await supabase
+              .from(
+                "notifications",
+              )
+              .select(
+                `
+                  id,
+                  channel,
+                  kind,
+                  title,
+                  body,
+                  link,
+                  read_at,
+                  created_at
+                `,
+              )
+              .eq(
+                "channel",
+                "internal",
+              )
+              .order(
+                "created_at",
+                {
+                  ascending:
+                    false,
+                },
+              )
+              .limit(
+                100,
+              );
+
+          if (error) {
+            throw error;
+          }
+
+          return (
+            (
+              data ??
+              []
+            ) as Record<
+              string,
+              any
+            >[]
+          ).map(
+            mapTenantPortalNotification,
+          );
+        },
+
+      staleTime:
+        15_000,
+
+      retry:
+        false,
+    });
+
+// ============================================================
+// F2.1G — UNREAD COUNT
+//
+// Requête HEAD uniquement :
+// aucun contenu de notification n'est téléchargé.
+// ============================================================
+
+export const useTenantPortalUnreadNotificationsCount =
+  () =>
+    useQuery<number>({
+      queryKey: [
+        "tenant-portal",
+        "notifications",
+        "unread-count",
+      ],
+
+      queryFn:
+        async () => {
+          const {
+            count,
+            error,
+          } =
+            await supabase
+              .from(
+                "notifications",
+              )
+              .select(
+                "id",
+                {
+                  count:
+                    "exact",
+
+                  head:
+                    true,
+                },
+              )
+              .eq(
+                "channel",
+                "internal",
+              )
+              .is(
+                "read_at",
+                null,
+              );
+
+          if (error) {
+            throw error;
+          }
+
+          return (
+            count ??
+            0
+          );
+        },
+
+      staleTime:
+        10_000,
+
+      retry:
+        false,
+    });
+
+// ============================================================
+// F2.1G — MARK ONE NOTIFICATION AS READ
+// ============================================================
+
+export const useMarkTenantNotificationRead =
+  () => {
+    const queryClient =
+      useQueryClient();
+
+    return useMutation({
+      mutationFn:
+        async (
+          notificationId:
+            string,
+        ) => {
+          if (
+            !notificationId
+          ) {
+            throw new Error(
+              "Identifiant de notification manquant.",
+            );
+          }
+
+          const {
+            data,
+            error,
+          } =
+            await tenantNotificationRpcClient.rpc(
+              "mark_notification_read",
+              {
+                p_notification_id:
+                  notificationId,
+              },
+            );
+
+          if (error) {
+            throw error;
+          }
+
+          if (
+            data !== true
+          ) {
+            throw new Error(
+              "Notification introuvable ou non accessible.",
+            );
+          }
+
+          return true;
+        },
+
+      onSuccess:
+        async () => {
+          await Promise.all([
+            queryClient.invalidateQueries({
+              queryKey: [
+                "tenant-portal",
+                "notifications",
+              ],
+            }),
+
+            queryClient.invalidateQueries({
+              queryKey: [
+                "tenant-portal",
+                "notifications",
+                "unread-count",
+              ],
+            }),
+          ]);
+        },
+    });
+  };
+
+// ============================================================
+// F2.1G — MARK ALL INTERNAL NOTIFICATIONS AS READ
+// ============================================================
+
+export const useMarkAllTenantNotificationsRead =
+  () => {
+    const queryClient =
+      useQueryClient();
+
+    return useMutation({
+      mutationFn:
+        async () => {
+          const {
+            data,
+            error,
+          } =
+            await tenantNotificationRpcClient.rpc(
+              "mark_all_notifications_read",
+            );
+
+          if (error) {
+            throw error;
+          }
+
+          const updatedCount =
+            Number(
+              data ??
+                0,
+            );
+
+          return Number.isFinite(
+            updatedCount,
+          )
+            ? updatedCount
+            : 0;
+        },
+
+      onSuccess:
+        async () => {
+          await Promise.all([
+            queryClient.invalidateQueries({
+              queryKey: [
+                "tenant-portal",
+                "notifications",
+              ],
+            }),
+
+            queryClient.invalidateQueries({
+              queryKey: [
+                "tenant-portal",
+                "notifications",
+                "unread-count",
+              ],
+            }),
+          ]);
+        },
+    });
+  };

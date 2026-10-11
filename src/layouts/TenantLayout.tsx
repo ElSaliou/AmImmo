@@ -1,4 +1,5 @@
 import {
+  Bell,
   Building2,
   ExternalLink,
   FileText,
@@ -40,6 +41,10 @@ import {
 import {
   cn,
 } from "@/lib/utils";
+
+import {
+  useTenantPortalUnreadNotificationsCount,
+} from "@/hooks/use-tenant-portal";
 
 // ============================================================
 // TENANT NAVIGATION
@@ -106,6 +111,12 @@ const TenantLayout = () => {
     setMobileOpen,
   ] = useState(false);
 
+  const {
+    data:
+      unreadNotificationsCount = 0,
+  } =
+    useTenantPortalUnreadNotificationsCount();
+
   // ==========================================================
   // ACTIVE PATH
   // ==========================================================
@@ -128,6 +139,23 @@ const TenantLayout = () => {
       )
     );
   };
+
+  // ==========================================================
+  // NOTIFICATION LABEL
+  // ==========================================================
+
+  const notificationLabel =
+    unreadNotificationsCount > 0
+      ? `${unreadNotificationsCount} notification${
+          unreadNotificationsCount > 1
+            ? "s"
+            : ""
+        } non lue${
+          unreadNotificationsCount > 1
+            ? "s"
+            : ""
+        }`
+      : "Notifications";
 
   // ==========================================================
   // LOGOUT
@@ -241,6 +269,37 @@ const TenantLayout = () => {
           {/* ================================================= */}
 
           <div className="hidden items-center gap-2 xl:flex">
+            <Link
+              to="/tenant/notifications"
+              aria-label={
+                notificationLabel
+              }
+              title={
+                notificationLabel
+              }
+              className={cn(
+                "relative flex h-9 w-9 items-center justify-center rounded-xl border bg-background transition-all duration-200",
+
+                isActivePath(
+                  "/tenant/notifications",
+                )
+                  ? "border-primary bg-primary text-primary-foreground shadow-md shadow-primary/15"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground",
+              )}
+            >
+              <Bell className="h-4 w-4" />
+
+              {unreadNotificationsCount >
+                0 && (
+                <span className="absolute -right-1.5 -top-1.5 flex min-h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold leading-none text-destructive-foreground shadow-sm">
+                  {unreadNotificationsCount >
+                  99
+                    ? "99+"
+                    : unreadNotificationsCount}
+                </span>
+              )}
+            </Link>
+
             <Button
               asChild
               variant="outline"
@@ -269,30 +328,68 @@ const TenantLayout = () => {
           </div>
 
           {/* ================================================= */}
-          {/* MOBILE / TABLET TOGGLE                            */}
+          {/* MOBILE / TABLET ACTIONS                           */}
           {/* ================================================= */}
 
-          <button
-            type="button"
-            aria-label={
-              mobileOpen
-                ? "Fermer le menu"
-                : "Ouvrir le menu"
-            }
-            onClick={() =>
-              setMobileOpen(
-                (current) =>
-                  !current,
-              )
-            }
-            className="flex h-10 w-10 items-center justify-center rounded-xl border bg-background text-foreground xl:hidden"
-          >
-            {mobileOpen ? (
-              <X className="h-5 w-5" />
-            ) : (
-              <Menu className="h-5 w-5" />
-            )}
-          </button>
+          <div className="flex items-center gap-2 xl:hidden">
+            <Link
+              to="/tenant/notifications"
+              aria-label={
+                notificationLabel
+              }
+              title={
+                notificationLabel
+              }
+              onClick={() =>
+                setMobileOpen(
+                  false,
+                )
+              }
+              className={cn(
+                "relative flex h-10 w-10 items-center justify-center rounded-xl border bg-background transition-all duration-200",
+
+                isActivePath(
+                  "/tenant/notifications",
+                )
+                  ? "border-primary bg-primary text-primary-foreground shadow-md shadow-primary/15"
+                  : "text-foreground hover:bg-muted",
+              )}
+            >
+              <Bell className="h-5 w-5" />
+
+              {unreadNotificationsCount >
+                0 && (
+                <span className="absolute -right-1.5 -top-1.5 flex min-h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold leading-none text-destructive-foreground shadow-sm">
+                  {unreadNotificationsCount >
+                  99
+                    ? "99+"
+                    : unreadNotificationsCount}
+                </span>
+              )}
+            </Link>
+
+            <button
+              type="button"
+              aria-label={
+                mobileOpen
+                  ? "Fermer le menu"
+                  : "Ouvrir le menu"
+              }
+              onClick={() =>
+                setMobileOpen(
+                  (current) =>
+                    !current,
+                )
+              }
+              className="flex h-10 w-10 items-center justify-center rounded-xl border bg-background text-foreground"
+            >
+              {mobileOpen ? (
+                <X className="h-5 w-5" />
+              ) : (
+                <Menu className="h-5 w-5" />
+              )}
+            </button>
+          </div>
         </div>
 
         {/* =================================================== */}
