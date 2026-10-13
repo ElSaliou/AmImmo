@@ -8,6 +8,7 @@ import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 import { InspectionHeader } from "@/components/inspections/InspectionHeader";
+import { InspectionRoomEditor } from "@/components/inspections/InspectionRoomEditor";
 
 import {
     useInspection,
@@ -144,18 +145,17 @@ export default function InspectionDetailPage() {
                 }
             />
 
-            <div className="rounded-lg border border-dashed bg-muted/20 p-6">
-                <h2 className="font-medium">
-                    Contenu de l’état des lieux
-                </h2>
-
-                <p className="mt-2 text-sm text-muted-foreground">
-                    Les pièces, équipements,
-                    compteurs, constats et photos
-                    seront intégrés dans les étapes
-                    suivantes de l’éditeur.
-                </p>
-            </div>
+            <InspectionRoomEditor
+                inspectionId={
+                    snapshot.inspection.id
+                }
+                status={
+                    snapshot.inspection.status
+                }
+                rooms={
+                    snapshot.rooms
+                }
+            />
         </div>
     );
 }
