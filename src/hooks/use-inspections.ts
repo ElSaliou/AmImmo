@@ -65,6 +65,224 @@ export type InspectionStatus =
 export type GetInspectionResult =
     RpcResult<"get_inspection">;
 
+// ============================================================
+// CANONICAL get_inspection() SNAPSHOT
+//
+// Important:
+// - Legacy inspections.rooms / meters / photos are not exposed.
+// - Legacy tenant_signature / agent_signature are not exposed.
+// - Items are nested inside rooms.
+// - Signature IP / user-agent are intentionally not exposed.
+// ============================================================
+
+export type InspectionHeader = Omit<
+    InspectionRow,
+    | "rooms"
+    | "meters"
+    | "photos"
+    | "tenant_signature"
+    | "agent_signature"
+>;
+
+export type InspectionItemSnapshot = Pick<
+    InspectionItemRow,
+    | "id"
+    | "name"
+    | "item_type"
+    | "position"
+    | "quantity"
+    | "condition"
+    | "observations"
+>;
+
+export type InspectionRoomSnapshot = Pick<
+    InspectionRoomRow,
+    | "id"
+    | "name"
+    | "room_type"
+    | "position"
+    | "condition"
+    | "observations"
+> & {
+    items: InspectionItemSnapshot[];
+};
+
+export type InspectionMeterSnapshot = Pick<
+    InspectionMeterReadingRow,
+    | "id"
+    | "meter_type"
+    | "meter_number"
+    | "reading"
+    | "unit"
+    | "observations"
+>;
+
+export type InspectionFindingSnapshot = Pick<
+    InspectionFindingRow,
+    | "id"
+    | "room_id"
+    | "item_id"
+    | "severity"
+    | "title"
+    | "description"
+    | "estimated_cost"
+    | "maintenance_request_id"
+    | "resolved"
+>;
+
+export type InspectionDocumentSnapshot = Pick<
+    InspectionDocumentRow,
+    | "id"
+    | "document_id"
+    | "room_id"
+    | "item_id"
+    | "meter_reading_id"
+    | "finding_id"
+    | "category"
+    | "created_at"
+>;
+
+export type InspectionSignatureSnapshot = Pick<
+    InspectionSignatureRow,
+    | "id"
+    | "signer_role"
+    | "signer_name"
+    | "signature_document_id"
+    | "signature_method"
+    | "accepted_version"
+    | "signed_at"
+>;
+
+export type InspectionSnapshot = {
+    inspection: InspectionHeader;
+    rooms: InspectionRoomSnapshot[];
+    meters: InspectionMeterSnapshot[];
+    findings: InspectionFindingSnapshot[];
+    documents: InspectionDocumentSnapshot[];
+    signatures: InspectionSignatureSnapshot[];
+};
+
+
+// ============================================================
+// SNAPSHOT RUNTIME NORMALIZATION
+// ============================================================
+
+const ensureRecord = (
+    value: unknown,
+    label: string,
+): Record<string, unknown> => {
+    if (
+        typeof value !== "object" ||
+        value === null ||
+        Array.isArray(value)
+    ) {
+        throw new Error(
+            `Snapshot EDL invalide : ${label} doit être un objet.`,
+        );
+    }
+
+    return value as Record<string, unknown>;
+};
+
+const ensureArray = (
+    value: unknown,
+    label: string,
+): unknown[] => {
+    if (!Array.isArray(value)) {
+        throw new Error(
+            `Snapshot EDL invalide : ${label} doit être un tableau.`,
+        );
+    }
+
+    return value;
+};
+
+const normalizeInspectionRooms = (
+    value: unknown,
+): InspectionRoomSnapshot[] =>
+    ensureArray(value, "rooms").map(
+        (rawRoom, roomIndex) => {
+            const room = ensureRecord(
+                rawRoom,
+                `rooms[${roomIndex}]`,
+            );
+
+            const items = ensureArray(
+                room.items,
+                `rooms[${roomIndex}].items`,
+            ).map(
+                (rawItem, itemIndex) =>
+                    ensureRecord(
+                        rawItem,
+                        `rooms[${roomIndex}].items[${itemIndex}]`,
+                    ) as unknown as InspectionItemSnapshot,
+            );
+
+            return {
+                ...room,
+                items,
+            } as unknown as InspectionRoomSnapshot;
+        },
+    );
+
+const normalizeSnapshotArray = <T>(
+    value: unknown,
+    label: string,
+): T[] =>
+    ensureArray(value, label).map(
+        (entry, index) =>
+            ensureRecord(
+                entry,
+                `${label}[${index}]`,
+            ) as unknown as T,
+    );
+
+export const normalizeInspectionSnapshot = (
+    raw: GetInspectionResult,
+): InspectionSnapshot => {
+    const snapshot = ensureRecord(
+        raw,
+        "racine",
+    );
+
+    const inspection = ensureRecord(
+        snapshot.inspection,
+        "inspection",
+    ) as unknown as InspectionHeader;
+
+    return {
+        inspection,
+
+        rooms: normalizeInspectionRooms(
+            snapshot.rooms,
+        ),
+
+        meters:
+            normalizeSnapshotArray<InspectionMeterSnapshot>(
+                snapshot.meters,
+                "meters",
+            ),
+
+        findings:
+            normalizeSnapshotArray<InspectionFindingSnapshot>(
+                snapshot.findings,
+                "findings",
+            ),
+
+        documents:
+            normalizeSnapshotArray<InspectionDocumentSnapshot>(
+                snapshot.documents,
+                "documents",
+            ),
+
+        signatures:
+            normalizeSnapshotArray<InspectionSignatureSnapshot>(
+                snapshot.signatures,
+                "signatures",
+            ),
+    };
+};
+
 export type CreateInspectionDraftInput =
     RpcArgs<"create_inspection_draft">;
 
@@ -155,7 +373,7 @@ const useInvalidateInspections = () => {
 export const useInspection = (
     inspectionId: string | null | undefined,
 ) =>
-    useQuery<GetInspectionResult>({
+    useQuery<InspectionSnapshot>({
         queryKey: inspectionKeys.detail(
             inspectionId ?? "__disabled__",
         ),
@@ -186,7 +404,7 @@ export const useInspection = (
                 );
             }
 
-            return data;
+            return normalizeInspectionSnapshot(data);
         },
     });
 
