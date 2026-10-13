@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { InspectionHeader } from "@/components/inspections/InspectionHeader";
 import { InspectionRoomEditor } from "@/components/inspections/InspectionRoomEditor";
 import { InspectionMeterEditor } from "@/components/inspections/InspectionMeterEditor";
+import { InspectionFindingEditor } from "@/components/inspections/InspectionFindingEditor";
 
 import {
     useInspection,
@@ -167,6 +168,21 @@ export default function InspectionDetailPage() {
                 }
                 meters={
                     snapshot.meters
+                }
+            />
+
+            <InspectionFindingEditor
+                inspectionId={
+                    snapshot.inspection.id
+                }
+                status={
+                    snapshot.inspection.status
+                }
+                findings={
+                    snapshot.findings
+                }
+                rooms={
+                    snapshot.rooms
                 }
             />
         </div>
