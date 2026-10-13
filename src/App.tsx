@@ -190,6 +190,12 @@ const OwnerMandatesPortalPage = lazy(
       "@/pages/owner/OwnerMandatesPage"
     ),
 );
+const OwnerDocumentsPage = lazy(
+  () =>
+    import(
+      "@/pages/owner/OwnerDocumentsPage"
+    ),
+);
 const OwnerProfilePage = lazy(
   () =>
     import(
@@ -614,6 +620,12 @@ const App = () => {
                     path="mandates"
                     element={
                       <OwnerMandatesPortalPage />
+                    }
+                  />
+                  <Route
+                    path="documents"
+                    element={
+                      <OwnerDocumentsPage />
                     }
                   />
                   <Route

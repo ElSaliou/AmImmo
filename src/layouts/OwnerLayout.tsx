@@ -4,6 +4,7 @@ import {
   ClipboardSignature,
   ExternalLink,
   FileText,
+  FolderOpen,
   Home,
   LayoutDashboard,
   LogOut,
@@ -87,6 +88,15 @@ const ownerNavItems = [
       "/owner/statements",
     icon:
       FileText,
+  },
+
+  {
+    label:
+      "Mes documents",
+    path:
+      "/owner/documents",
+    icon:
+      FolderOpen,
   },
 
   {

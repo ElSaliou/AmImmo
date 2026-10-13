@@ -1,17 +1,21 @@
 import {
+  useMemo,
+  useRef,
   useState,
 } from "react";
 
 import {
   ArrowLeft,
-  Download,
   ExternalLink,
   FileImage,
   FileText,
   FolderOpen,
+  Inbox,
   Loader2,
   RefreshCw,
+  Send,
   ShieldCheck,
+  Upload,
 } from "lucide-react";
 
 import {
@@ -31,10 +35,32 @@ import {
 } from "@/components/ui/button";
 
 import {
-  createTenantDocumentAccessUrl,
-  type TenantPortalDocument,
-  useTenantPortalDocuments,
-} from "@/hooks/use-tenant-portal";
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+
+import {
+  createDocumentExchangeAccessUrl,
+  DOCUMENT_EXCHANGE_CATEGORY_OPTIONS,
+  type DocumentExchangeCategory,
+  type DocumentExchangeDocument,
+  useSendTenantDocument,
+  useTenantDocumentExchange,
+} from "@/hooks/use-document-exchange";
+
+// ============================================================
+// TYPES
+// ============================================================
+
+type DocumentTab =
+  | "all"
+  | "received"
+  | "sent";
 
 // ============================================================
 // HELPERS
@@ -43,12 +69,16 @@ import {
 const formatDate = (
   value: string | null,
 ) => {
-  if (!value) {
+  if (
+    !value
+  ) {
     return "—";
   }
 
   const date =
-    new Date(value);
+    new Date(
+      value,
+    );
 
   if (
     Number.isNaN(
@@ -61,19 +91,34 @@ const formatDate = (
   return new Intl.DateTimeFormat(
     "fr-FR",
     {
-      day: "2-digit",
-      month: "long",
-      year: "numeric",
+      day:
+        "2-digit",
+
+      month:
+        "long",
+
+      year:
+        "numeric",
+
+      hour:
+        "2-digit",
+
+      minute:
+        "2-digit",
     },
-  ).format(date);
+  ).format(
+    date,
+  );
 };
 
 const formatFileSize = (
   value: number | null,
 ) => {
   if (
-    value === null ||
-    value <= 0
+    value ===
+      null ||
+    value <=
+      0
   ) {
     return null;
   }
@@ -90,38 +135,35 @@ const formatFileSize = (
     1024 * 1024
   ) {
     return `${Math.round(
-      value / 1024,
+      value /
+        1024,
     )} Ko`;
   }
 
   return `${(
     value /
     (1024 * 1024)
-  ).toFixed(1)} Mo`;
+  ).toFixed(
+    1,
+  )} Mo`;
 };
 
-const getDocumentContextLabel = (
-  entityType: string,
-) => {
-  switch (
-    entityType.toLowerCase()
-  ) {
-    case "tenant":
-    case "tenants":
-      return "Dossier locataire";
-
-    case "lease":
-    case "leases":
-      return "Bail";
-
-    default:
-      return "Document";
-  }
-};
+const getCategoryLabel = (
+  category:
+    DocumentExchangeCategory,
+) =>
+  DOCUMENT_EXCHANGE_CATEGORY_OPTIONS.find(
+    (
+      option,
+    ) =>
+      option.value ===
+      category,
+  )?.label ??
+  "Autre";
 
 const getFileIcon = (
   document:
-    TenantPortalDocument,
+    DocumentExchangeDocument,
 ) => {
   const type =
     (
@@ -133,6 +175,14 @@ const getFileIcon = (
   if (
     type.includes(
       "image",
+    ) ||
+    [
+      "png",
+      "jpg",
+      "jpeg",
+      "webp",
+    ].includes(
+      type,
     )
   ) {
     return FileImage;
@@ -151,7 +201,7 @@ const DocumentCard = ({
   onOpen,
 }: {
   document:
-    TenantPortalDocument;
+    DocumentExchangeDocument;
 
   isOpening:
     boolean;
@@ -159,7 +209,7 @@ const DocumentCard = ({
   onOpen:
     (
       document:
-        TenantPortalDocument,
+        DocumentExchangeDocument,
     ) => void;
 }) => {
   const Icon =
@@ -172,15 +222,25 @@ const DocumentCard = ({
       document.fileSize,
     );
 
+  const sent =
+    document.direction ===
+    "sent";
+
   return (
     <motion.article
       initial={{
-        opacity: 0,
-        y: 18,
+        opacity:
+          0,
+
+        y:
+          18,
       }}
       animate={{
-        opacity: 1,
-        y: 0,
+        opacity:
+          1,
+
+        y:
+          0,
       }}
       className="group overflow-hidden rounded-3xl border bg-card shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg"
     >
@@ -192,21 +252,40 @@ const DocumentCard = ({
 
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
-                {getDocumentContextLabel(
-                  document.entityType,
+              <span
+                className={
+                  sent
+                    ? "inline-flex items-center gap-1 rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700"
+                    : "inline-flex items-center gap-1 rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700"
+                }
+              >
+                {sent ? (
+                  <Send className="h-3.5 w-3.5" />
+                ) : (
+                  <Inbox className="h-3.5 w-3.5" />
                 )}
+
+                {sent
+                  ? "Envoyé"
+                  : "Reçu"}
               </span>
 
-              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
-                <ShieldCheck className="h-3.5 w-3.5" />
-                Sécurisé
+              <span className="rounded-full bg-muted px-3 py-1 text-xs font-semibold text-muted-foreground">
+                {getCategoryLabel(
+                  document.category,
+                )}
               </span>
             </div>
 
             <h2 className="mt-4 truncate font-display text-lg font-bold text-foreground">
               {document.name}
             </h2>
+
+            <p className="mt-1 truncate text-xs text-muted-foreground">
+              {
+                document.contextLabel
+              }
+            </p>
           </div>
         </div>
       </div>
@@ -215,7 +294,9 @@ const DocumentCard = ({
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
             <p className="text-xs text-muted-foreground">
-              Ajouté le
+              {sent
+                ? "Envoyé le"
+                : "Reçu le"}
             </p>
 
             <p className="mt-1 text-sm font-medium text-foreground">
@@ -237,6 +318,18 @@ const DocumentCard = ({
             </p>
           </div>
         </div>
+
+        {document.message && (
+          <div className="rounded-2xl bg-muted/50 px-4 py-3">
+            <p className="text-xs text-muted-foreground">
+              Message
+            </p>
+
+            <p className="mt-1 whitespace-pre-wrap text-sm leading-6 text-foreground">
+              {document.message}
+            </p>
+          </div>
+        )}
 
         {fileSize && (
           <div className="rounded-2xl bg-muted/50 px-4 py-3">
@@ -287,13 +380,65 @@ const TenantDocumentsPage =
   () => {
     const {
       data:
-        documents = [],
+        exchange,
+
       isLoading,
+
       isError,
+
       error,
+
       refetch,
     } =
-      useTenantPortalDocuments();
+      useTenantDocumentExchange();
+
+    const sendDocument =
+      useSendTenantDocument();
+
+    const fileInputRef =
+      useRef<HTMLInputElement | null>(
+        null,
+      );
+
+    const [
+      activeTab,
+      setActiveTab,
+    ] =
+      useState<DocumentTab>(
+        "all",
+      );
+
+    const [
+      dialogOpen,
+      setDialogOpen,
+    ] =
+      useState(
+        false,
+      );
+
+    const [
+      selectedFile,
+      setSelectedFile,
+    ] =
+      useState<File | null>(
+        null,
+      );
+
+    const [
+      category,
+      setCategory,
+    ] =
+      useState<DocumentExchangeCategory>(
+        "other",
+      );
+
+    const [
+      message,
+      setMessage,
+    ] =
+      useState(
+        "",
+      );
 
     const [
       openingDocumentId,
@@ -301,12 +446,98 @@ const TenantDocumentsPage =
     ] =
       useState<
         string | null
-      >(null);
+      >(
+        null,
+      );
+
+    const documents =
+      exchange
+        ?.documents ??
+      [];
+
+    const receivedDocuments =
+      useMemo(
+        () =>
+          documents.filter(
+            (
+              document,
+            ) =>
+              document.direction ===
+              "received",
+          ),
+        [
+          documents,
+        ],
+      );
+
+    const sentDocuments =
+      useMemo(
+        () =>
+          documents.filter(
+            (
+              document,
+            ) =>
+              document.direction ===
+              "sent",
+          ),
+        [
+          documents,
+        ],
+      );
+
+    const filteredDocuments =
+      useMemo(
+        () => {
+          if (
+            activeTab ===
+            "received"
+          ) {
+            return receivedDocuments;
+          }
+
+          if (
+            activeTab ===
+            "sent"
+          ) {
+            return sentDocuments;
+          }
+
+          return documents;
+        },
+        [
+          activeTab,
+          documents,
+          receivedDocuments,
+          sentDocuments,
+        ],
+      );
+
+    const resetForm =
+      () => {
+        setSelectedFile(
+          null,
+        );
+
+        setCategory(
+          "other",
+        );
+
+        setMessage(
+          "",
+        );
+
+        if (
+          fileInputRef.current
+        ) {
+          fileInputRef.current.value =
+            "";
+        }
+      };
 
     const handleOpen =
       async (
         document:
-          TenantPortalDocument,
+          DocumentExchangeDocument,
       ) => {
         const popup =
           window.open(
@@ -314,7 +545,9 @@ const TenantDocumentsPage =
             "_blank",
           );
 
-        if (!popup) {
+        if (
+          !popup
+        ) {
           toast.error(
             "Autorisez les fenêtres contextuelles pour ouvrir ce document.",
           );
@@ -331,7 +564,7 @@ const TenantDocumentsPage =
 
         try {
           const url =
-            await createTenantDocumentAccessUrl(
+            await createDocumentExchangeAccessUrl(
               document,
             );
 
@@ -356,7 +589,70 @@ const TenantDocumentsPage =
         }
       };
 
-    if (isLoading) {
+    const handleSend =
+      async () => {
+        if (
+          !exchange
+            ?.activeLease
+        ) {
+          toast.error(
+            "Aucun bail actif n'est disponible pour cet envoi.",
+          );
+
+          return;
+        }
+
+        if (
+          !selectedFile
+        ) {
+          toast.error(
+            "Sélectionnez un document à envoyer.",
+          );
+
+          return;
+        }
+
+        try {
+          await sendDocument.mutateAsync(
+            {
+              file:
+                selectedFile,
+
+              category,
+
+              message,
+            },
+          );
+
+          toast.success(
+            "Document envoyé à votre agence.",
+          );
+
+          resetForm();
+
+          setDialogOpen(
+            false,
+          );
+
+          setActiveTab(
+            "sent",
+          );
+        } catch (
+          sendError:
+            unknown
+        ) {
+          toast.error(
+            sendError instanceof
+              Error
+              ? sendError.message
+              : "Impossible d'envoyer le document.",
+          );
+        }
+      };
+
+    if (
+      isLoading
+    ) {
       return (
         <div className="container flex min-h-[520px] items-center justify-center py-12">
           <div className="text-center">
@@ -370,9 +666,11 @@ const TenantDocumentsPage =
       );
     }
 
-    if (isError) {
+    if (
+      isError
+    ) {
       return (
-        <div className="container py-12">
+        <div className="container py-8">
           <div className="rounded-3xl border border-destructive/20 bg-card p-8 shadow-sm">
             <h1 className="text-xl font-semibold text-destructive">
               Impossible de charger vos documents
@@ -386,6 +684,7 @@ const TenantDocumentsPage =
             </p>
 
             <Button
+              type="button"
               variant="outline"
               className="mt-5 rounded-xl"
               onClick={() => {
@@ -401,11 +700,11 @@ const TenantDocumentsPage =
     }
 
     return (
-      <div className="container space-y-8 py-8 sm:py-10">
+      <div className="container space-y-8 py-6 sm:py-8">
         <Button
           asChild
           variant="ghost"
-          className="-ml-3"
+          className="rounded-xl"
         >
           <Link to="/tenant">
             <ArrowLeft className="h-4 w-4" />
@@ -418,26 +717,277 @@ const TenantDocumentsPage =
         <section className="relative overflow-hidden rounded-[2rem] gradient-primary p-7 text-primary-foreground shadow-xl sm:p-10">
           <div className="absolute -right-16 -top-20 h-64 w-64 rounded-full bg-secondary/20 blur-3xl" />
 
-          <div className="relative max-w-3xl">
-            <div className="inline-flex items-center gap-2 rounded-full bg-primary-foreground/10 px-4 py-2 text-sm ring-1 ring-primary-foreground/15">
-              <FolderOpen className="h-4 w-4 text-secondary" />
-              Coffre documentaire
+          <div className="relative flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+            <div className="min-w-0 flex-1">
+              <div className="inline-flex items-center gap-2 rounded-full bg-primary-foreground/10 px-4 py-2 text-sm ring-1 ring-primary-foreground/15">
+                <FolderOpen className="h-4 w-4 text-secondary" />
+                Coffre documentaire
+              </div>
+
+              <h1 className="mt-6 font-display text-3xl font-bold sm:text-4xl">
+                Mes documents
+              </h1>
+
+              <p className="mt-3 max-w-2xl text-primary-foreground/75">
+                Consultez les documents reçus et transmettez vos justificatifs directement à votre agence de gestion.
+              </p>
+
+              {exchange
+                ?.activeLease && (
+                <p className="mt-4 text-sm text-primary-foreground/70">
+                  Bail actif :{" "}
+                  <span className="font-semibold text-primary-foreground">
+                    {exchange.activeLease.reference ??
+                      "Bail en cours"}
+                  </span>
+
+                  {exchange.activeLease.property
+                    ?.title
+                    ? ` • ${exchange.activeLease.property.title}`
+                    : ""}
+                </p>
+              )}
             </div>
 
-            <h1 className="mt-6 font-display text-3xl font-bold sm:text-4xl">
-              Mes documents
-            </h1>
+            <Dialog
+              open={
+                dialogOpen
+              }
+              onOpenChange={(
+                open,
+              ) => {
+                setDialogOpen(
+                  open,
+                );
 
-            <p className="mt-3 max-w-2xl text-primary-foreground/75">
-              Consultez les documents mis à votre disposition
-              pour votre dossier locataire et votre bail.
-            </p>
+                if (
+                  !open &&
+                  !sendDocument.isPending
+                ) {
+                  resetForm();
+                }
+              }}
+            >
+              <DialogTrigger
+                asChild
+              >
+                <Button
+                  type="button"
+                  size="lg"
+                  variant="secondary"
+                  className="rounded-xl"
+                  disabled={
+                    !exchange
+                      ?.activeLease
+                  }
+                >
+                  <Upload className="h-4 w-4" />
+                  Envoyer un document
+                </Button>
+              </DialogTrigger>
+
+              <DialogContent className="sm:max-w-xl">
+                <DialogHeader>
+                  <DialogTitle>
+                    Envoyer un document
+                  </DialogTitle>
+
+                  <DialogDescription>
+                    Le document sera rattaché à votre bail actif et transmis à votre agence de gestion.
+                  </DialogDescription>
+                </DialogHeader>
+
+                <div className="space-y-5 py-2">
+                  <div className="space-y-2">
+                    <label
+                      htmlFor="tenant-document-file"
+                      className="text-sm font-medium text-foreground"
+                    >
+                      Fichier *
+                    </label>
+
+                    <input
+                      ref={
+                        fileInputRef
+                      }
+                      id="tenant-document-file"
+                      type="file"
+                      accept=".pdf,.png,.jpg,.jpeg,.webp"
+                      disabled={
+                        sendDocument.isPending
+                      }
+                      onChange={(
+                        event,
+                      ) => {
+                        setSelectedFile(
+                          event.target
+                            .files?.[0] ??
+                            null,
+                        );
+                      }}
+                      className="block w-full rounded-xl border bg-background px-3 py-2 text-sm file:mr-4 file:rounded-lg file:border-0 file:bg-primary/10 file:px-4 file:py-2 file:font-medium file:text-primary"
+                    />
+
+                    <p className="text-xs text-muted-foreground">
+                      PDF, JPG, JPEG, PNG ou WEBP — maximum 10 Mo.
+                    </p>
+
+                    {selectedFile && (
+                      <p className="text-xs font-medium text-foreground">
+                        {selectedFile.name}
+
+                        {formatFileSize(
+                          selectedFile.size,
+                        )
+                          ? ` • ${formatFileSize(
+                              selectedFile.size,
+                            )}`
+                          : ""}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <label
+                      htmlFor="tenant-document-category"
+                      className="text-sm font-medium text-foreground"
+                    >
+                      Catégorie
+                    </label>
+
+                    <select
+                      id="tenant-document-category"
+                      value={
+                        category
+                      }
+                      disabled={
+                        sendDocument.isPending
+                      }
+                      onChange={(
+                        event,
+                      ) =>
+                        setCategory(
+                          event.target
+                            .value as
+                            DocumentExchangeCategory,
+                        )
+                      }
+                      className="flex h-11 w-full rounded-xl border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    >
+                      {DOCUMENT_EXCHANGE_CATEGORY_OPTIONS.map(
+                        (
+                          option,
+                        ) => (
+                          <option
+                            key={
+                              option.value
+                            }
+                            value={
+                              option.value
+                            }
+                          >
+                            {
+                              option.label
+                            }
+                          </option>
+                        ),
+                      )}
+                    </select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label
+                      htmlFor="tenant-document-message"
+                      className="text-sm font-medium text-foreground"
+                    >
+                      Message{" "}
+                      <span className="font-normal text-muted-foreground">
+                        (facultatif)
+                      </span>
+                    </label>
+
+                    <textarea
+                      id="tenant-document-message"
+                      value={
+                        message
+                      }
+                      maxLength={
+                        2000
+                      }
+                      rows={
+                        4
+                      }
+                      disabled={
+                        sendDocument.isPending
+                      }
+                      onChange={(
+                        event,
+                      ) =>
+                        setMessage(
+                          event.target
+                            .value,
+                        )
+                      }
+                      placeholder="Ajoutez une précision pour votre agence..."
+                      className="flex min-h-[110px] w-full rounded-xl border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    />
+
+                    <p className="text-right text-xs text-muted-foreground">
+                      {message.length}
+                      /2000
+                    </p>
+                  </div>
+                </div>
+
+                <DialogFooter>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="rounded-xl"
+                    disabled={
+                      sendDocument.isPending
+                    }
+                    onClick={() =>
+                      setDialogOpen(
+                        false,
+                      )
+                    }
+                  >
+                    Annuler
+                  </Button>
+
+                  <Button
+                    type="button"
+                    className="rounded-xl"
+                    disabled={
+                      sendDocument.isPending ||
+                      !selectedFile
+                    }
+                    onClick={() => {
+                      void handleSend();
+                    }}
+                  >
+                    {sendDocument.isPending ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Envoi...
+                      </>
+                    ) : (
+                      <>
+                        <Send className="h-4 w-4" />
+                        Envoyer
+                      </>
+                    )}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
           </div>
         </section>
 
         {/* SUMMARY */}
 
-        <section className="grid gap-4 sm:grid-cols-2">
+        <section className="grid gap-4 sm:grid-cols-3">
           <div className="rounded-3xl border bg-card p-6 shadow-sm">
             <div className="flex items-center gap-4">
               <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
@@ -446,7 +996,7 @@ const TenantDocumentsPage =
 
               <div>
                 <p className="text-sm text-muted-foreground">
-                  Documents disponibles
+                  Tous
                 </p>
 
                 <p className="mt-1 text-2xl font-bold">
@@ -459,25 +1009,110 @@ const TenantDocumentsPage =
           <div className="rounded-3xl border bg-card p-6 shadow-sm">
             <div className="flex items-center gap-4">
               <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700">
-                <ShieldCheck className="h-6 w-6" />
+                <Inbox className="h-6 w-6" />
               </div>
 
               <div>
                 <p className="text-sm text-muted-foreground">
-                  Accès
+                  Reçus
                 </p>
 
-                <p className="mt-1 font-semibold text-foreground">
-                  Privé et sécurisé
+                <p className="mt-1 text-2xl font-bold">
+                  {receivedDocuments.length}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-3xl border bg-card p-6 shadow-sm">
+            <div className="flex items-center gap-4">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-50 text-blue-700">
+                <Send className="h-6 w-6" />
+              </div>
+
+              <div>
+                <p className="text-sm text-muted-foreground">
+                  Envoyés
+                </p>
+
+                <p className="mt-1 text-2xl font-bold">
+                  {sentDocuments.length}
                 </p>
               </div>
             </div>
           </div>
         </section>
 
+        {/* FILTERS */}
+
+        <section className="flex flex-wrap gap-2 rounded-2xl border bg-card p-2 shadow-sm">
+          {(
+            [
+              {
+                value:
+                  "all",
+
+                label:
+                  "Tous",
+
+                count:
+                  documents.length,
+              },
+              {
+                value:
+                  "received",
+
+                label:
+                  "Reçus",
+
+                count:
+                  receivedDocuments.length,
+              },
+              {
+                value:
+                  "sent",
+
+                label:
+                  "Envoyés",
+
+                count:
+                  sentDocuments.length,
+              },
+            ] as const
+          ).map(
+            (
+              tab,
+            ) => (
+              <button
+                key={
+                  tab.value
+                }
+                type="button"
+                onClick={() =>
+                  setActiveTab(
+                    tab.value,
+                  )
+                }
+                className={
+                  activeTab ===
+                  tab.value
+                    ? "rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-sm"
+                    : "rounded-xl px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                }
+              >
+                {tab.label}{" "}
+
+                <span className="ml-1 opacity-75">
+                  {tab.count}
+                </span>
+              </button>
+            ),
+          )}
+        </section>
+
         {/* DOCUMENTS */}
 
-        {documents.length ===
+        {filteredDocuments.length ===
         0 ? (
           <section className="rounded-3xl border bg-card p-10 text-center shadow-sm">
             <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-muted">
@@ -485,17 +1120,28 @@ const TenantDocumentsPage =
             </div>
 
             <h2 className="mt-5 font-display text-xl font-bold">
-              Aucun document disponible
+              {activeTab ===
+              "sent"
+                ? "Aucun document envoyé"
+                : activeTab ===
+                    "received"
+                  ? "Aucun document reçu"
+                  : "Aucun document disponible"}
             </h2>
 
-            <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-muted-foreground">
-              Les documents que l'agence rend visibles dans votre
-              dossier ou votre bail apparaîtront ici.
+            <p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-muted-foreground">
+              {activeTab ===
+              "sent"
+                ? "Les documents transmis à votre agence apparaîtront ici."
+                : activeTab ===
+                    "received"
+                  ? "Les documents mis à votre disposition par votre agence apparaîtront ici."
+                  : "Vos documents et vos échanges documentaires liés à votre dossier locataire apparaîtront ici."}
             </p>
           </section>
         ) : (
           <section className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-            {documents.map(
+            {filteredDocuments.map(
               (
                 document,
               ) => (
@@ -519,12 +1165,18 @@ const TenantDocumentsPage =
           </section>
         )}
 
+        {!exchange
+          ?.activeLease && (
+          <div className="rounded-3xl border border-amber-200 bg-amber-50 p-5 text-sm leading-6 text-amber-900">
+            L'envoi de nouveaux documents est désactivé car aucun bail actif n'est actuellement associé à votre compte. Les documents historiques restent consultables.
+          </div>
+        )}
+
         <div className="flex items-start gap-3 rounded-3xl border bg-muted/30 p-5">
-          <Download className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+          <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
 
           <p className="text-sm leading-6 text-muted-foreground">
-            Les liens d'accès aux fichiers stockés de manière privée
-            sont générés temporairement au moment de leur consultation.
+            Vos échanges documentaires sont centralisés par votre agence de gestion. Les fichiers privés sont accessibles au moyen de liens temporaires et restent protégés par les règles de sécurité de votre compte.
           </p>
         </div>
       </div>
