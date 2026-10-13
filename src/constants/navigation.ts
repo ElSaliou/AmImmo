@@ -47,7 +47,7 @@ export const adminNavItems: NavItem[] = [
   },
 
   {
-    label: "Unités",
+    label: "UnitÃ©s",
     path: "/admin/units",
     icon: DoorOpen,
   },
@@ -59,7 +59,7 @@ export const adminNavItems: NavItem[] = [
   },
 
   {
-    label: "Propriétaires",
+    label: "PropriÃ©taires",
     path: "/admin/owners",
     icon: Users,
   },
@@ -82,18 +82,24 @@ export const adminNavItems: NavItem[] = [
     icon: FileText,
   },
 
+    {
+        label: "États des lieux",
+        path: "/admin/inspections",
+        icon: FileText,
+    },
+
   // ==========================================================
   // LOCATION COURTE DUREE
   // ==========================================================
 
   {
-    label: "Courte durée",
+    label: "Courte durÃ©e",
     path: "/admin/short-rental",
     icon: CalendarDays,
   },
 
   {
-    label: "Réservations",
+    label: "RÃ©servations",
     path: "/admin/bookings",
     icon: CalendarCheck2,
   },
@@ -131,7 +137,7 @@ export const adminNavItems: NavItem[] = [
   },
 
   {
-    label: "Dépenses",
+    label: "DÃ©penses",
     path: "/admin/expenses",
     icon: ReceiptText,
   },
@@ -143,19 +149,19 @@ export const adminNavItems: NavItem[] = [
   },
 
   {
-    label: "Créances locataires",
+    label: "CrÃ©ances locataires",
     path: "/admin/receivables",
     icon: HandCoins,
   },
 
   {
-    label: "Reversements propriétaires",
+    label: "Reversements propriÃ©taires",
     path: "/admin/owner-settlements",
     icon: CircleDollarSign,
   },
 
   {
-    label: "Relevés propriétaires",
+    label: "RelevÃ©s propriÃ©taires",
     path: "/admin/owner-statements",
     icon: FileSpreadsheet,
   },
@@ -195,7 +201,7 @@ export const adminNavItems: NavItem[] = [
   },
 
   {
-    label: "Paramètres",
+    label: "ParamÃ¨tres",
     path: "/admin/settings",
     icon: Settings,
   },
@@ -208,12 +214,12 @@ export const publicNavItems = [
   },
 
   {
-    label: "Location courte durée",
+    label: "Location courte durÃ©e",
     path: "/short-rental",
   },
 
   {
-    label: "Location longue durée",
+    label: "Location longue durÃ©e",
     path: "/long-rental",
   },
 

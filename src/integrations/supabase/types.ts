@@ -10,32 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.5"
-  }
-  graphql_public: {
-    Tables: {
-      [_ in never]: never
-    }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      graphql: {
-        Args: {
-          extensions?: Json
-          operationName?: string
-          query?: string
-          variables?: Json
-        }
-        Returns: Json
-      }
-    }
-    Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
+    PostgrestVersion: "14.1"
   }
   public: {
     Tables: {
@@ -482,7 +457,7 @@ export type Database = {
           nightly_price: number
           notes: string
           option_expires_at: string | null
-          organization_id: string | null
+          organization_id: string
           payment_due_at: string | null
           payment_plan:
             | Database["public"]["Enums"]["short_rental_payment_plan"]
@@ -535,7 +510,7 @@ export type Database = {
           nightly_price?: number
           notes?: string
           option_expires_at?: string | null
-          organization_id?: string | null
+          organization_id: string
           payment_due_at?: string | null
           payment_plan?:
             | Database["public"]["Enums"]["short_rental_payment_plan"]
@@ -588,7 +563,7 @@ export type Database = {
           nightly_price?: number
           notes?: string
           option_expires_at?: string | null
-          organization_id?: string | null
+          organization_id?: string
           payment_due_at?: string | null
           payment_plan?:
             | Database["public"]["Enums"]["short_rental_payment_plan"]
@@ -633,6 +608,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "properties"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bookings_property_organization_fkey"
+            columns: ["property_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id", "organization_id"]
           },
           {
             foreignKeyName: "bookings_tenant_id_fkey"
@@ -863,45 +845,74 @@ export type Database = {
       }
       documents: {
         Row: {
+          category: string
+          communication_scope: string | null
           entity_id: string
           entity_type: string
           file_size: number | null
           file_type: string
           file_url: string | null
           id: string
+          message: string | null
           mime_type: string | null
           name: string
+          organization_id: string | null
           storage_bucket: string | null
           storage_path: string | null
           uploaded_at: string
+          uploaded_by: string | null
+          visible_to_owner: boolean
+          visible_to_tenant: boolean
         }
         Insert: {
+          category?: string
+          communication_scope?: string | null
           entity_id: string
           entity_type: string
           file_size?: number | null
           file_type?: string
           file_url?: string | null
           id?: string
+          message?: string | null
           mime_type?: string | null
           name: string
+          organization_id?: string | null
           storage_bucket?: string | null
           storage_path?: string | null
           uploaded_at?: string
+          uploaded_by?: string | null
+          visible_to_owner?: boolean
+          visible_to_tenant?: boolean
         }
         Update: {
+          category?: string
+          communication_scope?: string | null
           entity_id?: string
           entity_type?: string
           file_size?: number | null
           file_type?: string
           file_url?: string | null
           id?: string
+          message?: string | null
           mime_type?: string | null
           name?: string
+          organization_id?: string | null
           storage_bucket?: string | null
           storage_path?: string | null
           uploaded_at?: string
+          uploaded_by?: string | null
+          visible_to_owner?: boolean
+          visible_to_tenant?: boolean
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "documents_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       expense_documents: {
         Row: {
@@ -1616,51 +1627,436 @@ export type Database = {
           },
         ]
       }
+      inspection_documents: {
+        Row: {
+          category: string
+          created_at: string
+          document_id: string
+          finding_id: string | null
+          id: string
+          inspection_id: string
+          item_id: string | null
+          meter_reading_id: string | null
+          room_id: string | null
+        }
+        Insert: {
+          category?: string
+          created_at?: string
+          document_id: string
+          finding_id?: string | null
+          id?: string
+          inspection_id: string
+          item_id?: string | null
+          meter_reading_id?: string | null
+          room_id?: string | null
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          document_id?: string
+          finding_id?: string | null
+          id?: string
+          inspection_id?: string
+          item_id?: string | null
+          meter_reading_id?: string | null
+          room_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inspection_documents_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: true
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inspection_documents_finding_fkey"
+            columns: ["finding_id", "inspection_id"]
+            isOneToOne: false
+            referencedRelation: "inspection_findings"
+            referencedColumns: ["id", "inspection_id"]
+          },
+          {
+            foreignKeyName: "inspection_documents_inspection_id_fkey"
+            columns: ["inspection_id"]
+            isOneToOne: false
+            referencedRelation: "inspections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inspection_documents_item_fkey"
+            columns: ["item_id", "inspection_id"]
+            isOneToOne: false
+            referencedRelation: "inspection_items"
+            referencedColumns: ["id", "inspection_id"]
+          },
+          {
+            foreignKeyName: "inspection_documents_meter_fkey"
+            columns: ["meter_reading_id", "inspection_id"]
+            isOneToOne: false
+            referencedRelation: "inspection_meter_readings"
+            referencedColumns: ["id", "inspection_id"]
+          },
+          {
+            foreignKeyName: "inspection_documents_room_fkey"
+            columns: ["room_id", "inspection_id"]
+            isOneToOne: false
+            referencedRelation: "inspection_rooms"
+            referencedColumns: ["id", "inspection_id"]
+          },
+        ]
+      }
+      inspection_findings: {
+        Row: {
+          created_at: string
+          description: string
+          estimated_cost: number | null
+          id: string
+          inspection_id: string
+          item_id: string | null
+          maintenance_request_id: string | null
+          resolved: boolean
+          room_id: string | null
+          severity: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string
+          estimated_cost?: number | null
+          id?: string
+          inspection_id: string
+          item_id?: string | null
+          maintenance_request_id?: string | null
+          resolved?: boolean
+          room_id?: string | null
+          severity?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          estimated_cost?: number | null
+          id?: string
+          inspection_id?: string
+          item_id?: string | null
+          maintenance_request_id?: string | null
+          resolved?: boolean
+          room_id?: string | null
+          severity?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inspection_findings_inspection_id_fkey"
+            columns: ["inspection_id"]
+            isOneToOne: false
+            referencedRelation: "inspections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inspection_findings_item_fkey"
+            columns: ["item_id", "inspection_id"]
+            isOneToOne: false
+            referencedRelation: "inspection_items"
+            referencedColumns: ["id", "inspection_id"]
+          },
+          {
+            foreignKeyName: "inspection_findings_maintenance_request_id_fkey"
+            columns: ["maintenance_request_id"]
+            isOneToOne: false
+            referencedRelation: "maintenance_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inspection_findings_room_fkey"
+            columns: ["room_id", "inspection_id"]
+            isOneToOne: false
+            referencedRelation: "inspection_rooms"
+            referencedColumns: ["id", "inspection_id"]
+          },
+        ]
+      }
+      inspection_items: {
+        Row: {
+          condition: Database["public"]["Enums"]["inspection_condition"]
+          created_at: string
+          id: string
+          inspection_id: string
+          item_type: string
+          name: string
+          observations: string
+          position: number
+          quantity: number
+          room_id: string
+          updated_at: string
+        }
+        Insert: {
+          condition?: Database["public"]["Enums"]["inspection_condition"]
+          created_at?: string
+          id?: string
+          inspection_id: string
+          item_type?: string
+          name: string
+          observations?: string
+          position?: number
+          quantity?: number
+          room_id: string
+          updated_at?: string
+        }
+        Update: {
+          condition?: Database["public"]["Enums"]["inspection_condition"]
+          created_at?: string
+          id?: string
+          inspection_id?: string
+          item_type?: string
+          name?: string
+          observations?: string
+          position?: number
+          quantity?: number
+          room_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inspection_items_inspection_id_fkey"
+            columns: ["inspection_id"]
+            isOneToOne: false
+            referencedRelation: "inspections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inspection_items_room_fkey"
+            columns: ["room_id", "inspection_id"]
+            isOneToOne: false
+            referencedRelation: "inspection_rooms"
+            referencedColumns: ["id", "inspection_id"]
+          },
+        ]
+      }
+      inspection_meter_readings: {
+        Row: {
+          created_at: string
+          id: string
+          inspection_id: string
+          meter_number: string | null
+          meter_type: string
+          observations: string
+          reading: number
+          unit: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          inspection_id: string
+          meter_number?: string | null
+          meter_type: string
+          observations?: string
+          reading: number
+          unit?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          inspection_id?: string
+          meter_number?: string | null
+          meter_type?: string
+          observations?: string
+          reading?: number
+          unit?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inspection_meter_readings_inspection_id_fkey"
+            columns: ["inspection_id"]
+            isOneToOne: false
+            referencedRelation: "inspections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inspection_rooms: {
+        Row: {
+          condition: Database["public"]["Enums"]["inspection_condition"]
+          created_at: string
+          id: string
+          inspection_id: string
+          name: string
+          observations: string
+          position: number
+          room_type: string
+          updated_at: string
+        }
+        Insert: {
+          condition?: Database["public"]["Enums"]["inspection_condition"]
+          created_at?: string
+          id?: string
+          inspection_id: string
+          name: string
+          observations?: string
+          position?: number
+          room_type?: string
+          updated_at?: string
+        }
+        Update: {
+          condition?: Database["public"]["Enums"]["inspection_condition"]
+          created_at?: string
+          id?: string
+          inspection_id?: string
+          name?: string
+          observations?: string
+          position?: number
+          room_type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inspection_rooms_inspection_id_fkey"
+            columns: ["inspection_id"]
+            isOneToOne: false
+            referencedRelation: "inspections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inspection_signatures: {
+        Row: {
+          accepted_version: number
+          id: string
+          inspection_id: string
+          ip_address: unknown
+          signature_document_id: string | null
+          signature_method: string
+          signed_at: string
+          signer_name: string
+          signer_role: Database["public"]["Enums"]["inspection_signer_role"]
+          signer_user_id: string | null
+          user_agent: string | null
+        }
+        Insert: {
+          accepted_version: number
+          id?: string
+          inspection_id: string
+          ip_address?: unknown
+          signature_document_id?: string | null
+          signature_method?: string
+          signed_at?: string
+          signer_name: string
+          signer_role: Database["public"]["Enums"]["inspection_signer_role"]
+          signer_user_id?: string | null
+          user_agent?: string | null
+        }
+        Update: {
+          accepted_version?: number
+          id?: string
+          inspection_id?: string
+          ip_address?: unknown
+          signature_document_id?: string | null
+          signature_method?: string
+          signed_at?: string
+          signer_name?: string
+          signer_role?: Database["public"]["Enums"]["inspection_signer_role"]
+          signer_user_id?: string | null
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inspection_signatures_inspection_id_fkey"
+            columns: ["inspection_id"]
+            isOneToOne: false
+            referencedRelation: "inspections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inspection_signatures_signature_document_id_fkey"
+            columns: ["signature_document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       inspections: {
         Row: {
           agent_signature: string | null
           booking_id: string | null
           created_at: string
+          created_by: string | null
+          final_document_id: string | null
+          final_document_sha256: string | null
+          finalized_at: string | null
+          finalized_by: string | null
           id: string
           kind: Database["public"]["Enums"]["inspection_kind"]
           lease_id: string | null
           meters: Json
           observations: string
+          organization_id: string
           performed_at: string
           photos: string[]
-          property_id: string | null
+          property_id: string
+          reference: string | null
           rooms: Json
+          status: Database["public"]["Enums"]["inspection_status"]
           tenant_signature: string | null
+          updated_at: string
+          version: number
         }
         Insert: {
           agent_signature?: string | null
           booking_id?: string | null
           created_at?: string
+          created_by?: string | null
+          final_document_id?: string | null
+          final_document_sha256?: string | null
+          finalized_at?: string | null
+          finalized_by?: string | null
           id?: string
           kind?: Database["public"]["Enums"]["inspection_kind"]
           lease_id?: string | null
           meters?: Json
           observations?: string
+          organization_id: string
           performed_at?: string
           photos?: string[]
-          property_id?: string | null
+          property_id: string
+          reference?: string | null
           rooms?: Json
+          status?: Database["public"]["Enums"]["inspection_status"]
           tenant_signature?: string | null
+          updated_at?: string
+          version?: number
         }
         Update: {
           agent_signature?: string | null
           booking_id?: string | null
           created_at?: string
+          created_by?: string | null
+          final_document_id?: string | null
+          final_document_sha256?: string | null
+          finalized_at?: string | null
+          finalized_by?: string | null
           id?: string
           kind?: Database["public"]["Enums"]["inspection_kind"]
           lease_id?: string | null
           meters?: Json
           observations?: string
+          organization_id?: string
           performed_at?: string
           photos?: string[]
-          property_id?: string | null
+          property_id?: string
+          reference?: string | null
           rooms?: Json
+          status?: Database["public"]["Enums"]["inspection_status"]
           tenant_signature?: string | null
+          updated_at?: string
+          version?: number
         }
         Relationships: [
           {
@@ -1671,10 +2067,38 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "inspections_booking_organization_fkey"
+            columns: ["booking_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id", "organization_id"]
+          },
+          {
+            foreignKeyName: "inspections_final_document_id_fkey"
+            columns: ["final_document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "inspections_lease_id_fkey"
             columns: ["lease_id"]
             isOneToOne: false
             referencedRelation: "leases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inspections_lease_organization_fkey"
+            columns: ["lease_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "leases"
+            referencedColumns: ["id", "organization_id"]
+          },
+          {
+            foreignKeyName: "inspections_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
           {
@@ -1683,6 +2107,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "properties"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inspections_property_organization_fkey"
+            columns: ["property_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id", "organization_id"]
           },
         ]
       }
@@ -2140,6 +2571,109 @@ export type Database = {
           },
         ]
       }
+      lease_conversations: {
+        Row: {
+          agency_last_read_at: string | null
+          created_at: string
+          id: string
+          last_message_at: string | null
+          lease_id: string
+          organization_id: string
+          tenant_id: string
+          tenant_last_read_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          agency_last_read_at?: string | null
+          created_at?: string
+          id?: string
+          last_message_at?: string | null
+          lease_id: string
+          organization_id: string
+          tenant_id: string
+          tenant_last_read_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          agency_last_read_at?: string | null
+          created_at?: string
+          id?: string
+          last_message_at?: string | null
+          lease_id?: string
+          organization_id?: string
+          tenant_id?: string
+          tenant_last_read_at?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lease_conversations_lease_id_fkey"
+            columns: ["lease_id"]
+            isOneToOne: true
+            referencedRelation: "leases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lease_conversations_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lease_conversations_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lease_messages: {
+        Row: {
+          body: string | null
+          conversation_id: string
+          created_at: string
+          document_id: string | null
+          id: string
+          sender_role: string
+          sender_user_id: string | null
+        }
+        Insert: {
+          body?: string | null
+          conversation_id: string
+          created_at?: string
+          document_id?: string | null
+          id?: string
+          sender_role: string
+          sender_user_id?: string | null
+        }
+        Update: {
+          body?: string | null
+          conversation_id?: string
+          created_at?: string
+          document_id?: string | null
+          id?: string
+          sender_role?: string
+          sender_user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lease_messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "lease_conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lease_messages_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lease_term_versions: {
         Row: {
           amendment_id: string | null
@@ -2216,6 +2750,7 @@ export type Database = {
           management_commission_rate: number
           monthly_rent: number
           notes: string | null
+          organization_id: string
           owner_id: string | null
           periodicity: string
           property_id: string
@@ -2245,6 +2780,7 @@ export type Database = {
           management_commission_rate?: number
           monthly_rent?: number
           notes?: string | null
+          organization_id: string
           owner_id?: string | null
           periodicity?: string
           property_id: string
@@ -2274,6 +2810,7 @@ export type Database = {
           management_commission_rate?: number
           monthly_rent?: number
           notes?: string | null
+          organization_id?: string
           owner_id?: string | null
           periodicity?: string
           property_id?: string
@@ -2292,6 +2829,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "leases_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "leases_owner_id_fkey"
             columns: ["owner_id"]
@@ -2312,6 +2856,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "properties"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leases_property_organization_fkey"
+            columns: ["property_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id", "organization_id"]
           },
           {
             foreignKeyName: "leases_tenant_id_fkey"
@@ -2711,6 +3262,7 @@ export type Database = {
           body: string
           channel: Database["public"]["Enums"]["notification_channel"]
           created_at: string
+          event_key: string | null
           id: string
           kind: string
           link: string | null
@@ -2722,6 +3274,7 @@ export type Database = {
           body?: string
           channel?: Database["public"]["Enums"]["notification_channel"]
           created_at?: string
+          event_key?: string | null
           id?: string
           kind?: string
           link?: string | null
@@ -2733,6 +3286,7 @@ export type Database = {
           body?: string
           channel?: Database["public"]["Enums"]["notification_channel"]
           created_at?: string
+          event_key?: string | null
           id?: string
           kind?: string
           link?: string | null
@@ -2815,6 +3369,106 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      owner_agency_conversations: {
+        Row: {
+          agency_last_read_at: string | null
+          created_at: string
+          id: string
+          last_message_at: string | null
+          organization_id: string
+          owner_id: string
+          owner_last_read_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          agency_last_read_at?: string | null
+          created_at?: string
+          id?: string
+          last_message_at?: string | null
+          organization_id: string
+          owner_id: string
+          owner_last_read_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          agency_last_read_at?: string | null
+          created_at?: string
+          id?: string
+          last_message_at?: string | null
+          organization_id?: string
+          owner_id?: string
+          owner_last_read_at?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "owner_agency_conversations_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "owner_agency_conversations_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "owner_management_commission_configuration"
+            referencedColumns: ["owner_id"]
+          },
+          {
+            foreignKeyName: "owner_agency_conversations_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "owners"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      owner_agency_messages: {
+        Row: {
+          body: string | null
+          conversation_id: string
+          created_at: string
+          document_id: string | null
+          id: string
+          sender_role: string
+          sender_user_id: string | null
+        }
+        Insert: {
+          body?: string | null
+          conversation_id: string
+          created_at?: string
+          document_id?: string | null
+          id?: string
+          sender_role: string
+          sender_user_id?: string | null
+        }
+        Update: {
+          body?: string | null
+          conversation_id?: string
+          created_at?: string
+          document_id?: string | null
+          id?: string
+          sender_role?: string
+          sender_user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "owner_agency_messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "owner_agency_conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "owner_agency_messages_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       owner_payout_lines: {
         Row: {
@@ -4053,6 +4707,7 @@ export type Database = {
           latitude: number | null
           listing_type: Database["public"]["Enums"]["listing_type"]
           longitude: number | null
+          organization_id: string
           owner_id: string | null
           price: number
           property_type: Database["public"]["Enums"]["property_type"]
@@ -4093,6 +4748,7 @@ export type Database = {
           latitude?: number | null
           listing_type?: Database["public"]["Enums"]["listing_type"]
           longitude?: number | null
+          organization_id: string
           owner_id?: string | null
           price?: number
           property_type?: Database["public"]["Enums"]["property_type"]
@@ -4133,6 +4789,7 @@ export type Database = {
           latitude?: number | null
           listing_type?: Database["public"]["Enums"]["listing_type"]
           longitude?: number | null
+          organization_id?: string
           owner_id?: string | null
           price?: number
           property_type?: Database["public"]["Enums"]["property_type"]
@@ -4154,6 +4811,13 @@ export type Database = {
             columns: ["building_id"]
             isOneToOne: false
             referencedRelation: "buildings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "properties_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
           {
@@ -5205,7 +5869,7 @@ export type Database = {
           expected_amount: number
           id: string
           notes: string
-          organization_id: string | null
+          organization_id: string
           property_id: string
           released_amount: number
           status: string
@@ -5223,7 +5887,7 @@ export type Database = {
           expected_amount?: number
           id?: string
           notes?: string
-          organization_id?: string | null
+          organization_id: string
           property_id: string
           released_amount?: number
           status?: string
@@ -5241,7 +5905,7 @@ export type Database = {
           expected_amount?: number
           id?: string
           notes?: string
-          organization_id?: string | null
+          organization_id?: string
           property_id?: string
           released_amount?: number
           status?: string
@@ -6840,6 +7504,52 @@ export type Database = {
       }
     }
     Functions: {
+      add_inspection_finding: {
+        Args: {
+          p_description?: string
+          p_estimated_cost?: number
+          p_inspection_id: string
+          p_item_id?: string
+          p_room_id?: string
+          p_severity?: string
+          p_title: string
+        }
+        Returns: Json
+      }
+      add_inspection_item: {
+        Args: {
+          p_condition?: Database["public"]["Enums"]["inspection_condition"]
+          p_item_type?: string
+          p_name: string
+          p_observations?: string
+          p_position?: number
+          p_quantity?: number
+          p_room_id: string
+        }
+        Returns: Json
+      }
+      add_inspection_meter: {
+        Args: {
+          p_inspection_id: string
+          p_meter_number?: string
+          p_meter_type: string
+          p_observations?: string
+          p_reading: number
+          p_unit?: string
+        }
+        Returns: Json
+      }
+      add_inspection_room: {
+        Args: {
+          p_condition?: Database["public"]["Enums"]["inspection_condition"]
+          p_inspection_id: string
+          p_name: string
+          p_observations?: string
+          p_position?: number
+          p_room_type?: string
+        }
+        Returns: Json
+      }
       apply_lease_amendment: {
         Args: {
           p_changes: Json
@@ -6860,6 +7570,10 @@ export type Database = {
           version_no: number
         }[]
       }
+      apply_property_control_decision: {
+        Args: { p_decision: string; p_note?: string; p_property_id: string }
+        Returns: Json
+      }
       approve_expense: {
         Args: { p_expense_id: string; p_note?: string }
         Returns: Json
@@ -6879,8 +7593,20 @@ export type Database = {
           total_booking_amount: number
         }[]
       }
+      can_manage_inspection: {
+        Args: { p_inspection_id: string }
+        Returns: boolean
+      }
+      can_read_inspection: {
+        Args: { p_inspection_id: string }
+        Returns: boolean
+      }
       cancel_expense: {
         Args: { p_expense_id: string; p_reason: string }
+        Returns: Json
+      }
+      cancel_inspection: {
+        Args: { p_expected_version: number; p_inspection_id: string }
         Returns: Json
       }
       cancel_owner_statement: {
@@ -7036,6 +7762,16 @@ export type Database = {
         }
         Returns: Json
       }
+      create_inspection_draft: {
+        Args: {
+          p_booking_id?: string
+          p_kind: Database["public"]["Enums"]["inspection_kind"]
+          p_lease_id?: string
+          p_observations?: string
+          p_performed_at?: string
+        }
+        Returns: Json
+      }
       create_owner_statement: {
         Args: {
           p_end_date: string
@@ -7123,6 +7859,55 @@ export type Database = {
         }[]
       }
       current_org_id: { Args: never; Returns: string }
+      delete_inspection_finding: {
+        Args: { p_finding_id: string }
+        Returns: Json
+      }
+      delete_inspection_item: { Args: { p_item_id: string }; Returns: Json }
+      delete_inspection_meter: { Args: { p_meter_id: string }; Returns: Json }
+      delete_inspection_room: { Args: { p_room_id: string }; Returns: Json }
+      detach_inspection_document: {
+        Args: { p_inspection_document_id: string }
+        Returns: Json
+      }
+      enqueue_agency_notification: {
+        Args: {
+          p_body: string
+          p_event_key: string
+          p_exclude_user_id?: string
+          p_kind: string
+          p_link?: string
+          p_organization_id: string
+          p_title: string
+        }
+        Returns: number
+      }
+      enqueue_owner_notification: {
+        Args: {
+          p_body: string
+          p_event_key: string
+          p_kind: string
+          p_link?: string
+          p_owner_id: string
+          p_title: string
+        }
+        Returns: boolean
+      }
+      enqueue_tenant_notification: {
+        Args: {
+          p_body: string
+          p_event_key: string
+          p_kind: string
+          p_link?: string
+          p_tenant_id: string
+          p_title: string
+        }
+        Returns: boolean
+      }
+      ensure_lease_conversation: {
+        Args: { p_lease_id: string }
+        Returns: string
+      }
       ensure_lease_final_rent_invoice:
         | {
             Args: {
@@ -7155,6 +7940,10 @@ export type Database = {
         Args: { p_lease_id: string }
         Returns: string
       }
+      ensure_owner_agency_conversation: {
+        Args: { p_organization_id: string; p_owner_id: string }
+        Returns: string
+      }
       expire_lease_with_final_invoice: {
         Args: { p_lease_id: string }
         Returns: {
@@ -7167,6 +7956,17 @@ export type Database = {
           lease_reference: string
           lease_status: Database["public"]["Enums"]["lease_status"]
         }[]
+      }
+      finalize_inspection: {
+        Args: {
+          p_expected_version: number
+          p_file_size: number
+          p_inspection_id: string
+          p_name: string
+          p_sha256: string
+          p_storage_path: string
+        }
+        Returns: Json
       }
       finalize_short_rental_provider_payment: {
         Args: {
@@ -7276,10 +8076,50 @@ export type Database = {
         Returns: number
       }
       generate_owner_statement_reference: { Args: never; Returns: string }
+      get_agency_conversation_counts: {
+        Args: never
+        Returns: {
+          owner_conversations: number
+          tenant_conversations: number
+          total_conversations: number
+          unread_conversations: number
+        }[]
+      }
+      get_agency_conversation_inbox: {
+        Args: {
+          p_before_channel?: string
+          p_before_conversation_id?: string
+          p_before_sort_at?: string
+          p_channel?: string
+          p_limit?: number
+          p_search?: string
+          p_unread_only?: boolean
+        }
+        Returns: {
+          channel: string
+          conversation_id: string
+          last_message_at: string
+          last_message_preview: string
+          last_message_sender_role: string
+          lease_id: string
+          lease_reference: string
+          organization_id: string
+          participant_email: string
+          participant_id: string
+          participant_name: string
+          participant_phone: string
+          property_id: string
+          property_reference: string
+          property_title: string
+          sort_at: string
+          unread_count: number
+        }[]
+      }
       get_finance_report: {
         Args: { p_end_date: string; p_start_date: string }
         Returns: Json
       }
+      get_inspection: { Args: { p_inspection_id: string }; Returns: Json }
       get_management_commission_rate: {
         Args: {
           p_effective_date?: string
@@ -7578,6 +8418,19 @@ export type Database = {
         Args: { p_owner_id: string; p_user_id: string }
         Returns: undefined
       }
+      mark_all_notifications_read: { Args: never; Returns: number }
+      mark_lease_conversation_read: {
+        Args: { p_conversation_id: string }
+        Returns: boolean
+      }
+      mark_notification_read: {
+        Args: { p_notification_id: string }
+        Returns: boolean
+      }
+      mark_owner_agency_conversation_read: {
+        Args: { p_conversation_id: string }
+        Returns: boolean
+      }
       mark_owner_statement_sent: {
         Args: {
           p_channel: string
@@ -7651,6 +8504,10 @@ export type Database = {
       post_short_rental_invoice_to_accounting: {
         Args: { p_invoice_id: string }
         Returns: string
+      }
+      prepare_inspection_for_signature: {
+        Args: { p_expected_version: number; p_inspection_id: string }
+        Returns: Json
       }
       preview_lease_expiration_billing: {
         Args: { p_lease_id: string }
@@ -7814,6 +8671,22 @@ export type Database = {
         Returns: undefined
       }
       refresh_overdue_rent_invoices: { Args: never; Returns: number }
+      register_inspection_document: {
+        Args: {
+          p_category?: string
+          p_file_size: number
+          p_finding_id?: string
+          p_inspection_id: string
+          p_item_id?: string
+          p_message?: string
+          p_meter_reading_id?: string
+          p_mime_type: string
+          p_name: string
+          p_room_id?: string
+          p_storage_path: string
+        }
+        Returns: Json
+      }
       reject_expense: {
         Args: { p_expense_id: string; p_reason: string }
         Returns: Json
@@ -7843,6 +8716,44 @@ export type Database = {
       }
       rent_due_date: {
         Args: { p_due_day: number; p_month: number; p_year: number }
+        Returns: string
+      }
+      require_editable_inspection: {
+        Args: { p_inspection_id: string }
+        Returns: {
+          agent_signature: string | null
+          booking_id: string | null
+          created_at: string
+          created_by: string | null
+          final_document_id: string | null
+          final_document_sha256: string | null
+          finalized_at: string | null
+          finalized_by: string | null
+          id: string
+          kind: Database["public"]["Enums"]["inspection_kind"]
+          lease_id: string | null
+          meters: Json
+          observations: string
+          organization_id: string
+          performed_at: string
+          photos: string[]
+          property_id: string
+          reference: string | null
+          rooms: Json
+          status: Database["public"]["Enums"]["inspection_status"]
+          tenant_signature: string | null
+          updated_at: string
+          version: number
+        }
+        SetofOptions: {
+          from: "*"
+          to: "inspections"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      resolve_lease_management_org: {
+        Args: { p_lease_id: string }
         Returns: string
       }
       resolve_lease_terms_at_date: {
@@ -7906,6 +8817,73 @@ export type Database = {
         Args: { p_access_id: string }
         Returns: boolean
       }
+      send_lease_message: {
+        Args: { p_body?: string; p_document_id?: string; p_lease_id: string }
+        Returns: {
+          conversation_id: string
+          message_id: string
+        }[]
+      }
+      send_lease_message_with_attachment: {
+        Args: {
+          p_body: string
+          p_category?: string
+          p_document_message?: string
+          p_file_size: number
+          p_lease_id: string
+          p_mime_type: string
+          p_name: string
+          p_storage_path: string
+        }
+        Returns: {
+          conversation_id: string
+          document_id: string
+          message_id: string
+        }[]
+      }
+      send_owner_agency_message: {
+        Args: {
+          p_body?: string
+          p_document_id?: string
+          p_organization_id: string
+          p_owner_id: string
+        }
+        Returns: {
+          conversation_id: string
+          message_id: string
+        }[]
+      }
+      send_owner_agency_message_with_attachment: {
+        Args: {
+          p_body: string
+          p_category?: string
+          p_document_message?: string
+          p_file_size: number
+          p_mime_type: string
+          p_name: string
+          p_organization_id: string
+          p_owner_id: string
+          p_storage_path: string
+        }
+        Returns: {
+          conversation_id: string
+          document_id: string
+          message_id: string
+        }[]
+      }
+      sign_inspection: {
+        Args: {
+          p_accepted_version?: number
+          p_inspection_id: string
+          p_ip_address?: unknown
+          p_signature_document_id?: string
+          p_signature_method?: string
+          p_signer_name: string
+          p_signer_role: Database["public"]["Enums"]["inspection_signer_role"]
+          p_user_agent?: string
+        }
+        Returns: Json
+      }
       submit_expense_for_approval: {
         Args: { p_expense_id: string }
         Returns: Json
@@ -7948,7 +8926,63 @@ export type Database = {
               termination_date: string
             }[]
           }
+      touch_inspection_version: {
+        Args: { p_inspection_id: string }
+        Returns: number
+      }
       unlink_owner_user: { Args: { p_owner_id: string }; Returns: undefined }
+      update_inspection_finding: {
+        Args: {
+          p_clear_estimated_cost?: boolean
+          p_description?: string
+          p_estimated_cost?: number
+          p_finding_id: string
+          p_resolved?: boolean
+          p_severity?: string
+          p_title?: string
+        }
+        Returns: Json
+      }
+      update_inspection_header: {
+        Args: {
+          p_inspection_id: string
+          p_observations?: string
+          p_performed_at?: string
+        }
+        Returns: Json
+      }
+      update_inspection_item: {
+        Args: {
+          p_condition?: Database["public"]["Enums"]["inspection_condition"]
+          p_item_id: string
+          p_item_type?: string
+          p_name?: string
+          p_observations?: string
+          p_quantity?: number
+        }
+        Returns: Json
+      }
+      update_inspection_meter: {
+        Args: {
+          p_meter_id: string
+          p_meter_number?: string
+          p_meter_type?: string
+          p_observations?: string
+          p_reading?: number
+          p_unit?: string
+        }
+        Returns: Json
+      }
+      update_inspection_room: {
+        Args: {
+          p_condition?: Database["public"]["Enums"]["inspection_condition"]
+          p_name?: string
+          p_observations?: string
+          p_room_id: string
+          p_room_type?: string
+        }
+        Returns: Json
+      }
       withhold_short_rental_deposit: {
         Args: {
           p_amount: number
@@ -8018,7 +9052,20 @@ export type Database = {
         | "cancelled"
       finance_transaction_status: "draft" | "posted" | "cancelled"
       finance_transaction_type: "income" | "expense"
+      inspection_condition:
+        | "excellent"
+        | "good"
+        | "fair"
+        | "poor"
+        | "damaged"
+        | "not_applicable"
       inspection_kind: "checkin" | "checkout"
+      inspection_signer_role: "tenant" | "guest" | "agency"
+      inspection_status:
+        | "draft"
+        | "ready_for_signature"
+        | "finalized"
+        | "cancelled"
       invoice_kind:
         | "rent"
         | "charges"
@@ -8259,9 +9306,6 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
-  graphql_public: {
-    Enums: {},
-  },
   public: {
     Enums: {
       account_kind: ["asset", "liability", "equity", "income", "expense"],
@@ -8312,7 +9356,22 @@ export const Constants = {
       ],
       finance_transaction_status: ["draft", "posted", "cancelled"],
       finance_transaction_type: ["income", "expense"],
+      inspection_condition: [
+        "excellent",
+        "good",
+        "fair",
+        "poor",
+        "damaged",
+        "not_applicable",
+      ],
       inspection_kind: ["checkin", "checkout"],
+      inspection_signer_role: ["tenant", "guest", "agency"],
+      inspection_status: [
+        "draft",
+        "ready_for_signature",
+        "finalized",
+        "cancelled",
+      ],
       invoice_kind: [
         "rent",
         "charges",

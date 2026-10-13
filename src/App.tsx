@@ -109,6 +109,12 @@ const TenantLeasePage = lazy(
       "@/pages/tenant/TenantLeasePage"
     ),
 );
+const TenantInspectionPage = lazy(
+    () =>
+        import(
+            "@/pages/tenant/TenantInspectionPage"
+        ),
+);
 const TenantInvoicesPage = lazy(
   () =>
     import(
@@ -262,6 +268,19 @@ const ContractsPage = lazy(
 // ============================================================
 // SHORT RENTAL
 // ============================================================
+const InspectionsPage = lazy(
+    () =>
+        import(
+            "@/pages/admin/InspectionsPage"
+        ),
+);
+
+const InspectionDetailPage = lazy(
+    () =>
+        import(
+            "@/pages/admin/InspectionDetailPage"
+        ),
+);
 const ShortRentalSettingsPage = lazy(
   () =>
     import(
@@ -529,6 +548,13 @@ const App = () => {
                     }
                   />
                   <Route
+                                        path="inspections/:inspectionId"
+                                        element={
+                                            <TenantInspectionPage />
+                                        }
+                                    />
+
+<Route
                     path="invoices"
                     element={
                       <TenantInvoicesPage />
@@ -708,6 +734,19 @@ const App = () => {
                   {/* SHORT RENTAL                              */}
                   {/* ========================================= */}
                   <Route
+                                        path="inspections"
+                                        element={
+                                            <InspectionsPage />
+                                        }
+                                    />
+                                    <Route
+                                        path="inspections/:inspectionId"
+                                        element={
+                                            <InspectionDetailPage />
+                                        }
+                                    />
+
+<Route
                     path="short-rental"
                     element={
                       <ShortRentalSettingsPage />
