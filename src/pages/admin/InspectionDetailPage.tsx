@@ -1,13 +1,51 @@
-import { useParams } from "react-router-dom";
+import {
+    Link,
+    useParams,
+} from "react-router-dom";
 
-import { useInspection } from "@/hooks/use-inspections";
+import { ArrowLeft } from "lucide-react";
+
+import { Button } from "@/components/ui/button";
+
+import { InspectionHeader } from "@/components/inspections/InspectionHeader";
+
+import {
+    useInspection,
+} from "@/hooks/use-inspections";
+
+import {
+    useLease,
+} from "@/hooks/use-leases";
+
+import {
+    useBooking,
+} from "@/hooks/use-bookings";
 
 export default function InspectionDetailPage() {
-    const { inspectionId } = useParams<{
-        inspectionId: string;
-    }>();
+    const { inspectionId } =
+        useParams<{
+            inspectionId: string;
+        }>();
 
-    const inspection = useInspection(inspectionId);
+    const inspection =
+        useInspection(inspectionId);
+
+    const snapshot =
+        inspection.data;
+
+    const leaseId =
+        snapshot?.inspection.lease_id ??
+        null;
+
+    const bookingId =
+        snapshot?.inspection.booking_id ??
+        null;
+
+    const lease =
+        useLease(leaseId);
+
+    const booking =
+        useBooking(bookingId);
 
     if (!inspectionId) {
         return (
@@ -17,7 +55,8 @@ export default function InspectionDetailPage() {
                 </h1>
 
                 <p className="mt-2 text-sm text-muted-foreground">
-                    Aucun identifiant d'état des lieux n'a été fourni.
+                    Aucun identifiant d’état des lieux
+                    n’a été fourni.
                 </p>
             </div>
         );
@@ -26,48 +65,95 @@ export default function InspectionDetailPage() {
     if (inspection.isLoading) {
         return (
             <div className="rounded-lg border bg-card p-6">
-                Chargement de l'état des lieux...
+                Chargement de l’état des lieux...
             </div>
         );
     }
 
-    if (inspection.isError) {
+    if (
+        inspection.isError ||
+        !snapshot
+    ) {
         return (
-            <div className="rounded-lg border border-destructive/50 bg-card p-6">
-                <h1 className="text-xl font-semibold">
-                    Impossible de charger l'état des lieux
-                </h1>
+            <div className="space-y-4">
+                <Button
+                    variant="ghost"
+                    size="sm"
+                    asChild
+                >
+                    <Link to="/admin/inspections">
+                        <ArrowLeft className="mr-2 h-4 w-4" />
+                        Retour aux états des lieux
+                    </Link>
+                </Button>
 
-                <p className="mt-2 text-sm text-muted-foreground">
-                    {inspection.error instanceof Error
-                        ? inspection.error.message
-                        : "Une erreur inconnue est survenue."}
-                </p>
+                <div className="rounded-lg border border-destructive/50 bg-card p-6">
+                    <h1 className="text-xl font-semibold">
+                        Impossible de charger
+                        l’état des lieux
+                    </h1>
+
+                    <p className="mt-2 text-sm text-muted-foreground">
+                        {inspection.error instanceof Error
+                            ? inspection.error.message
+                            : "L’état des lieux est indisponible."}
+                    </p>
+                </div>
             </div>
         );
     }
+
+    const sourceLoading =
+        leaseId
+            ? lease.isLoading
+            : booking.isLoading;
+
+    const sourceError =
+        leaseId
+            ? lease.isError
+            : booking.isError;
 
     return (
         <div className="space-y-6">
-            <div>
-                <h1 className="text-2xl font-semibold tracking-tight">
-                    État des lieux
-                </h1>
+            <Button
+                variant="ghost"
+                size="sm"
+                asChild
+            >
+                <Link to="/admin/inspections">
+                    <ArrowLeft className="mr-2 h-4 w-4" />
+                    Retour aux états des lieux
+                </Link>
+            </Button>
 
-                <p className="mt-1 text-sm text-muted-foreground">
-                    Référence technique : {inspectionId}
-                </p>
-            </div>
+            <InspectionHeader
+                inspection={
+                    snapshot.inspection
+                }
+                lease={
+                    lease.data ?? null
+                }
+                booking={
+                    booking.data ?? null
+                }
+                sourceLoading={
+                    sourceLoading
+                }
+                sourceError={
+                    sourceError
+                }
+            />
 
-            <div className="rounded-lg border bg-card p-6">
+            <div className="rounded-lg border border-dashed bg-muted/20 p-6">
                 <h2 className="font-medium">
-                    Snapshot chargé
+                    Contenu de l’état des lieux
                 </h2>
 
                 <p className="mt-2 text-sm text-muted-foreground">
-                    Les données ont été chargées via la RPC sécurisée
-                    get_inspection. L'éditeur métier sera ajouté dans
-                    la phase suivante.
+                    Les pièces, équipements,
+                    compteurs, constats et photos
+                    seront intégrés dans les étapes
+                    suivantes de l’éditeur.
                 </p>
             </div>
         </div>
