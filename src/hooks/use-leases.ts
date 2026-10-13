@@ -273,6 +273,68 @@ export const useLeases = () =>
     },
   });
 
+export const useLease = (
+    leaseId: string | null | undefined,
+) =>
+    useQuery({
+        queryKey: [
+            KEY,
+            "detail",
+            leaseId ?? null,
+        ],
+
+        enabled:
+            Boolean(leaseId),
+
+        queryFn: async () => {
+            if (!leaseId) {
+                throw new Error(
+                    "Identifiant bail manquant.",
+                );
+            }
+
+            const {
+                data,
+                error,
+            } = await supabase
+                .from("leases")
+                .select(`
+                    *,
+                    property:properties(
+                        id,
+                        title,
+                        price,
+                        currency,
+                        charges,
+                        status,
+                        listing_type,
+                        owner_id
+                    ),
+                    tenant:tenants(
+                        id,
+                        full_name,
+                        email,
+                        phone
+                    ),
+                    owner:owners(
+                        id,
+                        full_name
+                    )
+                `)
+                .eq(
+                    "id",
+                    leaseId,
+                )
+                .single();
+
+            if (error) {
+                throw error;
+            }
+
+            return data;
+        },
+    });
+
 export const useLeaseTermVersions = (
   leaseId: string | null | undefined,
 ) =>
