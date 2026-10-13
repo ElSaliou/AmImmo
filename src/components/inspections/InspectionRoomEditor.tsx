@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { InspectionItemEditor } from "@/components/inspections/InspectionItemEditor";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -757,6 +758,18 @@ export function InspectionRoomEditor({
                                                 }
                                             </div>
                                         )}
+
+                                        <InspectionItemEditor
+                                            roomId={
+                                                room.id
+                                            }
+                                            status={
+                                                status
+                                            }
+                                            items={
+                                                room.items
+                                            }
+                                        />
                                     </div>
                                 )}
                             </div>
