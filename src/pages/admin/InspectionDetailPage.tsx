@@ -11,6 +11,7 @@ import { InspectionHeader } from "@/components/inspections/InspectionHeader";
 import { InspectionRoomEditor } from "@/components/inspections/InspectionRoomEditor";
 import { InspectionMeterEditor } from "@/components/inspections/InspectionMeterEditor";
 import { InspectionFindingEditor } from "@/components/inspections/InspectionFindingEditor";
+import { InspectionDocumentEditor } from "@/components/inspections/InspectionDocumentEditor";
 
 import {
     useInspection,
@@ -183,6 +184,30 @@ export default function InspectionDetailPage() {
                 }
                 rooms={
                     snapshot.rooms
+                }
+            />
+
+            <InspectionDocumentEditor
+                inspectionId={
+                    snapshot.inspection.id
+                }
+                organizationId={
+                    snapshot.inspection.organization_id
+                }
+                status={
+                    snapshot.inspection.status
+                }
+                documents={
+                    snapshot.documents
+                }
+                rooms={
+                    snapshot.rooms
+                }
+                meters={
+                    snapshot.meters
+                }
+                findings={
+                    snapshot.findings
                 }
             />
         </div>
