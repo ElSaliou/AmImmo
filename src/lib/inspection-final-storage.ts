@@ -119,37 +119,6 @@ const getWebCrypto = () => {
 };
 
 
-const createStorageNonce = () => {
-    const cryptoApi =
-        getWebCrypto();
-
-    if (
-        typeof cryptoApi.randomUUID ===
-        "function"
-    ) {
-        return cryptoApi.randomUUID();
-    }
-
-    const bytes =
-        new Uint8Array(16);
-
-    cryptoApi.getRandomValues(
-        bytes,
-    );
-
-    return Array.from(
-        bytes,
-        (byte) =>
-            byte
-                .toString(16)
-                .padStart(
-                    2,
-                    "0",
-                ),
-    ).join("");
-};
-
-
 export const sha256Hex = async (
     arrayBuffer: ArrayBuffer,
 ) => {
@@ -203,7 +172,7 @@ export const buildInspectionFinalStoragePath =
         organizationId: string,
         userId: string,
         inspectionId: string,
-        fileName: string,
+        sha256: string,
     ) => {
         const organization =
             assertPathSegment(
@@ -220,22 +189,34 @@ export const buildInspectionFinalStoragePath =
         const inspection =
             assertPathSegment(
                 inspectionId,
-                "État des lieux",
+                "Etat des lieux",
             );
 
-        const storageFileName =
-            [
-                createStorageNonce(),
-                sanitizeFinalPdfFileName(
-                    fileName,
-                ),
-            ].join("-");
+        const normalizedSha256 =
+            sha256
+                .trim()
+                .toLowerCase();
+
+        if (
+            !/^[0-9a-f]{64}$/.test(
+                normalizedSha256,
+            )
+        ) {
+            throw new Error(
+                "Empreinte SHA-256 invalide pour le chemin Storage final.",
+            );
+        }
 
         /*
          * Backend canonical contract:
          *
          * agency/<org>/<auth.uid()>/inspection/<inspection>/final/<file.pdf>
+         *
+         * The final leaf is content-addressed.
          */
+        const storageFileName =
+            `${normalizedSha256}.pdf`;
+
         return [
             "agency",
             organization,
@@ -246,7 +227,6 @@ export const buildInspectionFinalStoragePath =
             storageFileName,
         ].join("/");
     };
-
 
 const validateArtifact = (
     artifact: InspectionFinalPdfArtifact,
@@ -325,6 +305,72 @@ const validateArtifact = (
 };
 
 
+const verifyExistingInspectionFinalPdfObject =
+    async (
+        storagePath: string,
+        expectedFileSize: number,
+        expectedSha256: string,
+    ) => {
+        const {
+            data:
+                existingBlob,
+            error:
+                downloadError,
+        } =
+            await supabase.storage
+                .from(
+                    FINAL_INSPECTION_PDF_BUCKET,
+                )
+                .download(
+                    storagePath,
+                );
+
+        if (
+            downloadError ||
+            !existingBlob
+        ) {
+            return false;
+        }
+
+        if (
+            existingBlob.size !==
+            expectedFileSize
+        ) {
+            throw new Error(
+                "Un objet existe déjà au chemin final avec une taille différente. Aucun écrasement n’a été effectué.",
+            );
+        }
+
+        const existingArrayBuffer =
+            await existingBlob
+                .arrayBuffer();
+
+        if (
+            existingArrayBuffer.byteLength !==
+            expectedFileSize
+        ) {
+            throw new Error(
+                "Les bytes de l’objet Storage existant ont une taille inattendue.",
+            );
+        }
+
+        const existingSha256 =
+            await sha256Hex(
+                existingArrayBuffer,
+            );
+
+        if (
+            existingSha256 !==
+            expectedSha256
+        ) {
+            throw new Error(
+                "Collision d’intégrité sur le chemin du PDF final. Aucun écrasement n’a été effectué.",
+            );
+        }
+
+        return true;
+    };
+
 export const uploadInspectionFinalPdf =
     async (
         input: UploadInspectionFinalPdfInput,
@@ -390,7 +436,7 @@ export const uploadInspectionFinalPdf =
                 organizationId,
                 user.id,
                 inspectionId,
-                fileName,
+                sha256,
             );
 
 
@@ -444,7 +490,26 @@ export const uploadInspectionFinalPdf =
                 );
 
         if (uploadError) {
-            throw uploadError;
+            /*
+             * The request may have reached Storage even when the browser
+             * receives an error (timeout / interrupted response).
+             *
+             * Because storagePath is content-addressed, verify the object
+             * already present at that exact path. Reuse it only when both
+             * size and SHA-256 match the bytes produced by 6B.
+             *
+             * Never overwrite or delete a conflicting final object here.
+             */
+            const recoveredExistingObject =
+                await verifyExistingInspectionFinalPdfObject(
+                    storagePath,
+                    fileSize,
+                    sha256,
+                );
+
+            if (!recoveredExistingObject) {
+                throw uploadError;
+            }
         }
 
 
