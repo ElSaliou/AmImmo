@@ -14,6 +14,7 @@ import { InspectionFindingEditor } from "@/components/inspections/InspectionFind
 import { InspectionDocumentEditor } from "@/components/inspections/InspectionDocumentEditor";
 import { InspectionPreview } from "@/components/inspections/InspectionPreview";
 import { InspectionSignaturePanel } from "@/components/inspections/InspectionSignaturePanel";
+import { InspectionFinalizationPanel } from "@/components/inspections/InspectionFinalizationPanel";
 
 import {
     useInspection,
@@ -157,6 +158,12 @@ export default function InspectionDetailPage() {
             />
 
             <InspectionSignaturePanel
+                snapshot={
+                    snapshot
+                }
+            />
+
+            <InspectionFinalizationPanel
                 snapshot={
                     snapshot
                 }
