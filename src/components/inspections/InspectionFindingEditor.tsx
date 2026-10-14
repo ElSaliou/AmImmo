@@ -59,7 +59,7 @@ const NONE_VALUE = "__none__";
 const EMPTY_FORM: FindingFormState = {
     title: "",
     description: "",
-    severity: "medium",
+    severity: "moderate",
     estimatedCost: "",
     roomId: NONE_VALUE,
     itemId: NONE_VALUE,
@@ -68,15 +68,15 @@ const EMPTY_FORM: FindingFormState = {
 
 const SEVERITY_OPTIONS = [
     {
-        value: "low",
+        value: "minor",
         label: "Faible",
     },
     {
-        value: "medium",
+        value: "moderate",
         label: "Moyenne",
     },
     {
-        value: "high",
+        value: "major",
         label: "Élevée",
     },
     {
@@ -160,7 +160,7 @@ const getFormFromFinding = (
 
         severity:
             finding.severity ||
-            "medium",
+            "moderate",
 
         estimatedCost:
             finding.estimated_cost === null
