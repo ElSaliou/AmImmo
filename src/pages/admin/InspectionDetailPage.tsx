@@ -12,6 +12,7 @@ import { InspectionRoomEditor } from "@/components/inspections/InspectionRoomEdi
 import { InspectionMeterEditor } from "@/components/inspections/InspectionMeterEditor";
 import { InspectionFindingEditor } from "@/components/inspections/InspectionFindingEditor";
 import { InspectionDocumentEditor } from "@/components/inspections/InspectionDocumentEditor";
+import { InspectionPreview } from "@/components/inspections/InspectionPreview";
 
 import {
     useInspection,
@@ -145,6 +146,12 @@ export default function InspectionDetailPage() {
                 }
                 sourceError={
                     sourceError
+                }
+            />
+
+            <InspectionPreview
+                snapshot={
+                    snapshot
                 }
             />
 
