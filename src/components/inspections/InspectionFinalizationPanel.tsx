@@ -283,6 +283,7 @@ export function InspectionFinalizationPanel({
 
     const finalDocumentMetadata =
         useInspectionDocumentMetadata(
+            inspection.id,
             finalDocumentLinks,
         );
 
