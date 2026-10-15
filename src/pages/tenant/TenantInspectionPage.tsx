@@ -9,6 +9,8 @@ import {
 import {
     BadgeCheck,
     Clock3,
+    Download,
+    ExternalLink,
     FileText,
     Gauge,
     Home,
@@ -28,6 +30,10 @@ import {
     useInspection,
     useSignInspection,
 } from "@/hooks/use-inspections";
+import {
+    createInspectionDocumentAccessUrl,
+    useInspectionDocumentMetadata,
+} from "@/hooks/use-inspection-documents";
 
 
 const conditionLabels: Record<
@@ -172,7 +178,189 @@ const InspectionReadOnlyView = ({
         findings,
         documents,
     } = snapshot;
+    const finalDocumentLinks =
+        inspection.status === "finalized" &&
+        inspection.final_document_id
+            ? documents.filter(
+                  (link) =>
+                      link.document_id ===
+                          inspection.final_document_id &&
+                      link.category ===
+                          "final_pdf",
+              )
+            : [];
 
+    const finalDocumentMetadata =
+        useInspectionDocumentMetadata(
+            finalDocumentLinks,
+        );
+
+    const finalDocument =
+        finalDocumentMetadata.data?.find(
+            (document) =>
+                document.documentId ===
+                inspection.final_document_id,
+        ) ?? null;
+
+    const [
+        finalDocumentAction,
+        setFinalDocumentAction,
+    ] =
+        useState<"open" | "download" | null>(
+            null,
+        );
+
+    const [
+        finalDocumentError,
+        setFinalDocumentError,
+    ] =
+        useState<string | null>(
+            null,
+        );
+
+    const handleOpenFinalDocument =
+        async () => {
+            if (
+                !finalDocument ||
+                finalDocumentAction
+            ) {
+                return;
+            }
+
+            setFinalDocumentError(
+                null,
+            );
+
+            const popup =
+                window.open(
+                    "about:blank",
+                    "_blank",
+                );
+
+            if (!popup) {
+                setFinalDocumentError(
+                    "Autorisez les fenetres contextuelles pour ouvrir le document final.",
+                );
+
+                return;
+            }
+
+            popup.opener =
+                null;
+
+            setFinalDocumentAction(
+                "open",
+            );
+
+            try {
+                const url =
+                    await createInspectionDocumentAccessUrl(
+                        finalDocument,
+                    );
+
+                popup.location.replace(
+                    url,
+                );
+            } catch (error) {
+                popup.close();
+
+                setFinalDocumentError(
+                    getErrorMessage(
+                        error,
+                    ),
+                );
+            } finally {
+                setFinalDocumentAction(
+                    null,
+                );
+            }
+        };
+
+    const handleDownloadFinalDocument =
+        async () => {
+            if (
+                !finalDocument ||
+                finalDocumentAction
+            ) {
+                return;
+            }
+
+            setFinalDocumentError(
+                null,
+            );
+
+            setFinalDocumentAction(
+                "download",
+            );
+
+            let objectUrl:
+                string | null =
+                null;
+
+            try {
+                const url =
+                    await createInspectionDocumentAccessUrl(
+                        finalDocument,
+                    );
+
+                const response =
+                    await fetch(
+                        url,
+                    );
+
+                if (!response.ok) {
+                    throw new Error(
+                        "Impossible de telecharger le document final.",
+                    );
+                }
+
+                const blob =
+                    await response.blob();
+
+                objectUrl =
+                    URL.createObjectURL(
+                        blob,
+                    );
+
+                const anchor =
+                    document.createElement(
+                        "a",
+                    );
+
+                anchor.href =
+                    objectUrl;
+
+                anchor.download =
+                    finalDocument.name ||
+                    "etat-des-lieux-final.pdf";
+
+                anchor.rel =
+                    "noopener";
+
+                document.body.appendChild(
+                    anchor,
+                );
+
+                anchor.click();
+                anchor.remove();
+            } catch (error) {
+                setFinalDocumentError(
+                    getErrorMessage(
+                        error,
+                    ),
+                );
+            } finally {
+                if (objectUrl) {
+                    URL.revokeObjectURL(
+                        objectUrl,
+                    );
+                }
+
+                setFinalDocumentAction(
+                    null,
+                );
+            }
+        };
     return (
         <div className="space-y-6">
             <section className="rounded-lg border bg-card p-5">
@@ -478,6 +666,112 @@ const InspectionReadOnlyView = ({
                 )}
             </section>
 
+            {inspection.status === "finalized" && (
+                <section className="space-y-4 rounded-lg border bg-card p-5">
+                    <div className="flex items-center gap-2">
+                        <FileText className="h-5 w-5" />
+
+                        <div>
+                            <h2 className="text-lg font-semibold">
+                                Document final
+                            </h2>
+
+                            <p className="mt-1 text-sm text-muted-foreground">
+                                Votre état des lieux finalisé est disponible.
+                            </p>
+                        </div>
+                    </div>
+
+                    {finalDocumentMetadata.isLoading && (
+                        <p className="text-sm text-muted-foreground">
+                            Chargement du document final...
+                        </p>
+                    )}
+
+                    {finalDocumentMetadata.isError && (
+                        <p className="text-sm text-destructive">
+                            Impossible de charger le document final.
+                        </p>
+                    )}
+
+                    {!finalDocumentMetadata.isLoading &&
+                        !finalDocumentMetadata.isError &&
+                        inspection.final_document_id &&
+                        !finalDocument && (
+                            <p className="text-sm text-destructive">
+                                Le document final est momentanément indisponible.
+                            </p>
+                        )}
+
+                    {finalDocument && (
+                        <>
+                            <div className="rounded-md border p-4">
+                                <p className="text-sm font-medium">
+                                    {finalDocument.name}
+                                </p>
+
+                                <p className="mt-1 text-xs text-muted-foreground">
+                                    {finalDocument.mimeType ??
+                                        "application/pdf"}
+
+                                    {typeof finalDocument.fileSize ===
+                                        "number" && (
+                                            <>
+                                                {" · "}
+                                                {Math.max(
+                                                    1,
+                                                    Math.round(
+                                                        finalDocument.fileSize /
+                                                            1024,
+                                                    ),
+                                                )}{" "}
+                                                Ko
+                                            </>
+                                        )}
+                                </p>
+                            </div>
+
+                            <div className="flex flex-wrap gap-2">
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    disabled={
+                                        finalDocumentAction !==
+                                        null
+                                    }
+                                    onClick={() =>
+                                        void handleOpenFinalDocument()
+                                    }
+                                >
+                                    <ExternalLink className="mr-2 h-4 w-4" />
+                                    Ouvrir le PDF
+                                </Button>
+
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    disabled={
+                                        finalDocumentAction !==
+                                        null
+                                    }
+                                    onClick={() =>
+                                        void handleDownloadFinalDocument()
+                                    }
+                                >
+                                    <Download className="mr-2 h-4 w-4" />
+                                    Télécharger le PDF
+                                </Button>
+                            </div>
+                        </>
+                    )}
+
+                    {finalDocumentError && (
+                        <p className="text-sm text-destructive">
+                            {finalDocumentError}
+                        </p>
+                    )}
+                </section>
+            )}
             <section className="rounded-lg border bg-card p-5">
                 <div className="flex items-center gap-2">
                     <FileText className="h-5 w-5" />
