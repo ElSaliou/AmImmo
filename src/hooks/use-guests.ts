@@ -55,7 +55,6 @@ export interface Guest {
 }
 
 export interface GuestInput {
-  organization_id?: string | null;
   user_id?: string | null;
 
   full_name: string;
@@ -270,10 +269,6 @@ export const useCreateGuest =
             );
 
           const payload = {
-            organization_id:
-              input.organization_id ??
-              null,
-
             user_id:
               input.user_id ??
               null,
@@ -402,14 +397,6 @@ export const useUpdateGuest =
             string,
             unknown
           > = {};
-
-          if (
-            input.organization_id !==
-            undefined
-          ) {
-            payload.organization_id =
-              input.organization_id;
-          }
 
           if (
             input.user_id !==
