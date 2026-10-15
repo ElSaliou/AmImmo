@@ -37,6 +37,12 @@ const LoginPage = lazy(
       "@/pages/auth/LoginPage"
     ),
 );
+const GuestAccessPage = lazy(
+  () =>
+    import(
+      "@/pages/guest/GuestAccessPage"
+    ),
+);
 // ============================================================
 // PUBLIC
 // ============================================================
@@ -449,6 +455,10 @@ const App = () => {
             }
           >
             <Routes>
+      <Route
+        path="/guest/access"
+        element={<GuestAccessPage />}
+      />
               {/* ============================================= */}
               {/* AUTH                                          */}
               {/* ============================================= */}
