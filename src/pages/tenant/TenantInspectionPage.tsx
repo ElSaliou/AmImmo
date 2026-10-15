@@ -192,6 +192,7 @@ const InspectionReadOnlyView = ({
 
     const finalDocumentMetadata =
         useInspectionDocumentMetadata(
+            inspection.id,
             finalDocumentLinks,
         );
 
