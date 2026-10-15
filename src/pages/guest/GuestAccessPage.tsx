@@ -502,14 +502,14 @@ const GuestAccessPage = () => {
               type="button"
               onClick={() => {
                 navigate(
-                  "/",
+                  "/guest",
                   {
                     replace: true,
                   },
                 );
               }}
             >
-              Retour à l'accueil
+              Accéder à mon espace voyageur
             </Button>
 
             <Button

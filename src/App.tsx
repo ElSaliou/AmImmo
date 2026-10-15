@@ -24,9 +24,11 @@ import PublicLayout from "@/layouts/PublicLayout";
 import AdminLayout from "@/layouts/AdminLayout";
 import OwnerLayout from "@/layouts/OwnerLayout";
 import TenantLayout from "@/layouts/TenantLayout";
+import GuestLayout from "@/layouts/GuestLayout";
 import RequireStaff from "@/components/auth/RequireStaff";
 import RequireOwner from "@/components/auth/RequireOwner";
 import RequireTenant from "@/components/auth/RequireTenant";
+import RequireGuest from "@/components/auth/RequireGuest";
 import NotFound from "./pages/NotFound";
 // ============================================================
 // AUTH
@@ -94,6 +96,16 @@ const ContactPage = lazy(
       "@/pages/public/ContactPage"
     ),
 );
+// ============================================================
+// GUEST PORTAL
+// ============================================================
+const GuestHomePage = lazy(
+  () =>
+    import(
+      "@/pages/guest/GuestHomePage"
+    ),
+);
+
 // ============================================================
 // TENANT PORTAL
 // ============================================================
@@ -459,6 +471,17 @@ const App = () => {
         path="/guest/access"
         element={<GuestAccessPage />}
       />
+      <Route element={<RequireGuest />}>
+        <Route
+          path="/guest"
+          element={<GuestLayout />}
+        >
+          <Route
+            index
+            element={<GuestHomePage />}
+          />
+        </Route>
+      </Route>
               {/* ============================================= */}
               {/* AUTH                                          */}
               {/* ============================================= */}
