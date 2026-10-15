@@ -1,11 +1,13 @@
 import {
+  ArrowRight,
   FileCheck2,
   ShieldCheck,
 } from "lucide-react";
 
-// ============================================================
-// GUEST HOME PAGE
-// ============================================================
+import {
+  Link,
+} from "react-router-dom";
+
 
 const GuestHomePage = () => {
   return (
@@ -20,14 +22,17 @@ const GuestHomePage = () => {
         </h1>
 
         <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground sm:text-base">
-          Votre compte est authentifié et associé à
-          votre profil voyageur AmImmo.
+          Votre compte est authentifié et associé à votre
+          profil voyageur AmImmo.
         </p>
       </section>
 
       <section className="grid gap-4 md:grid-cols-2">
-        <article className="rounded-2xl border bg-background p-6 shadow-sm">
-          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-muted">
+        <Link
+          to="/guest/inspections"
+          className="group rounded-2xl border bg-background p-6 shadow-sm transition hover:border-primary/40 hover:shadow-md"
+        >
+          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary">
             <FileCheck2 className="h-5 w-5" />
           </div>
 
@@ -36,15 +41,17 @@ const GuestHomePage = () => {
           </h2>
 
           <p className="mt-2 text-sm leading-6 text-muted-foreground">
-            Vos états des lieux de séjour, signatures
-            et documents finaux seront accessibles
-            depuis cet espace.
+            Consultez vos états des lieux de séjour,
+            signez les documents en attente et accédez
+            aux PDF finaux.
           </p>
 
-          <p className="mt-4 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            Activation à l'étape suivante
-          </p>
-        </article>
+          <span className="mt-4 inline-flex items-center gap-2 text-sm font-medium text-primary">
+            Voir mes états des lieux
+
+            <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
+          </span>
+        </Link>
 
         <article className="rounded-2xl border bg-background p-6 shadow-sm">
           <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-muted">
@@ -56,14 +63,15 @@ const GuestHomePage = () => {
           </h2>
 
           <p className="mt-2 text-sm leading-6 text-muted-foreground">
-            Votre accès repose sur votre compte
-            authentifié et sur le profil voyageur
-            auquel il est explicitement rattaché.
+            Votre accès repose sur votre compte authentifié
+            et sur le profil voyageur auquel il est
+            explicitement rattaché.
           </p>
         </article>
       </section>
     </div>
   );
 };
+
 
 export default GuestHomePage;

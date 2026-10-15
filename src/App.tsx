@@ -106,6 +106,20 @@ const GuestHomePage = lazy(
     ),
 );
 
+const GuestInspectionsPage = lazy(
+  () =>
+    import(
+      "@/pages/guest/GuestInspectionsPage"
+    ),
+);
+
+const GuestInspectionPage = lazy(
+  () =>
+    import(
+      "@/pages/guest/GuestInspectionPage"
+    ),
+);
+
 // ============================================================
 // TENANT PORTAL
 // ============================================================
@@ -479,6 +493,16 @@ const App = () => {
           <Route
             index
             element={<GuestHomePage />}
+          />
+
+          <Route
+            path="inspections"
+            element={<GuestInspectionsPage />}
+          />
+
+          <Route
+            path="inspections/:inspectionId"
+            element={<GuestInspectionPage />}
           />
         </Route>
       </Route>
