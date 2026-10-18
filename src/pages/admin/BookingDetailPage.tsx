@@ -87,6 +87,8 @@ import {
 } from "@/hooks/use-short-rental-deposit";
 
 import DepositResolutionCard from "@/components/admin/short-rental/DepositResolutionCard";
+import BookingCheckoutInspectionCard from "@/components/admin/short-rental/BookingCheckoutInspectionCard";
+import BookingGuestPortalCard from "@/components/admin/short-rental/BookingGuestPortalCard";
 
 import {
   Alert,
@@ -3289,6 +3291,34 @@ export default function BookingDetailPage() {
             </CardContent>
           </Card>
 
+          {/* ================================================== */}
+          {/* ESPACE VOYAGEUR                                   */}
+          {/* ================================================== */}
+
+          <BookingGuestPortalCard
+            guestId={booking.guest_id}
+            guestName={booking.guest_name}
+            guestEmail={booking.guest_email}
+          />
+
+          {/* ================================================== */}
+          {/* ETAT DES LIEUX DE SORTIE                          */}
+          {/* ================================================== */}
+
+          <BookingCheckoutInspectionCard
+            bookingId={
+              booking.id
+            }
+            bookingReference={
+              booking.reference
+            }
+            bookingStatus={
+              booking.status
+            }
+            checkedOutAt={
+              booking.checked_out_at
+            }
+          />
           {/* ================================================== */}
           {/* CAUTION DE SEJOUR                                 */}
           {/* ================================================== */}

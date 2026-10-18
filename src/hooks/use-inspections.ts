@@ -409,6 +409,67 @@ export const useInspection = (
     });
 
 // ============================================================
+// BOOKING INSPECTION LOOKUP
+//
+// One inspection of a given kind can be attached to a booking.
+// This reader is used by the booking operational workflow.
+// ============================================================
+
+export const useBookingInspection = (
+    bookingId:
+        | string
+        | null
+        | undefined,
+    kind: InspectionKind,
+) =>
+    useQuery<InspectionRow | null>({
+        queryKey: [
+            "inspections",
+            "booking",
+            bookingId ?? "__disabled__",
+            kind,
+        ],
+
+        enabled:
+            Boolean(bookingId),
+
+        queryFn: async () => {
+            if (!bookingId) {
+                return null;
+            }
+
+            const {
+                data,
+                error,
+            } = await supabase
+                .from("inspections")
+                .select("*")
+                .eq(
+                    "booking_id",
+                    bookingId,
+                )
+                .eq(
+                    "kind",
+                    kind,
+                )
+                .order(
+                    "created_at",
+                    {
+                        ascending: false,
+                    },
+                )
+                .limit(1)
+                .maybeSingle();
+
+            if (error) {
+                throw error;
+            }
+
+            return data;
+        },
+    });
+
+// ============================================================
 // RPC: create_inspection_draft
 // ============================================================
 

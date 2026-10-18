@@ -5,6 +5,10 @@ import {
 } from "react";
 
 import {
+    Link,
+} from "react-router-dom";
+
+import {
     AlertTriangle,
     CheckCircle2,
     Download,
@@ -12,6 +16,7 @@ import {
     FileCheck2,
     Loader2,
     RotateCcw,
+    UserRoundCheck,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -26,6 +31,7 @@ import {
     createInspectionDocumentAccessUrl,
     useInspectionDocumentMetadata,
 } from "@/hooks/use-inspection-documents";
+
 import {
     buildInspectionFinalPdf,
 } from "@/lib/inspection-final-pdf";
@@ -60,18 +66,75 @@ type PendingFinalizationAttempt = {
 };
 
 
+type RpcLikeError = {
+    message?: unknown;
+    details?: unknown;
+    hint?: unknown;
+    code?: unknown;
+};
+
+
+// ============================================================
+// PENDING FINALIZATION STORAGE
+// ============================================================
+
 const getPendingStorageKey = (
     inspectionId: string,
 ) =>
     `amimmo:inspection-finalization:${inspectionId}`;
 
 
+// ============================================================
+// ERROR NORMALIZATION
+//
+// Les erreurs Supabase/PostgREST ne sont pas toujours des
+// instances natives de Error.
+// ============================================================
+
 const getErrorMessage = (
     error: unknown,
-) =>
-    error instanceof Error
-        ? error.message
-        : "Une erreur est survenue.";
+): string => {
+    if (
+        error instanceof Error &&
+        error.message.trim()
+    ) {
+        return error.message;
+    }
+
+    if (
+        typeof error === "object" &&
+        error !== null
+    ) {
+        const candidate =
+            error as RpcLikeError;
+
+        if (
+            typeof candidate.message ===
+                "string" &&
+            candidate.message.trim()
+        ) {
+            return candidate.message;
+        }
+
+        if (
+            typeof candidate.details ===
+                "string" &&
+            candidate.details.trim()
+        ) {
+            return candidate.details;
+        }
+
+        if (
+            typeof candidate.hint ===
+                "string" &&
+            candidate.hint.trim()
+        ) {
+            return candidate.hint;
+        }
+    }
+
+    return "Une erreur est survenue.";
+};
 
 
 const isPendingFinalizationAttempt = (
@@ -88,27 +151,34 @@ const isPendingFinalizationAttempt = (
         value as Partial<PendingFinalizationAttempt>;
 
     return (
-        typeof candidate.inspectionId === "string" &&
-        typeof candidate.expectedVersion === "number" &&
+        typeof candidate.inspectionId ===
+            "string" &&
+        typeof candidate.expectedVersion ===
+            "number" &&
         Number.isInteger(
             candidate.expectedVersion,
         ) &&
-        typeof candidate.fileName === "string" &&
+        typeof candidate.fileName ===
+            "string" &&
         candidate.fileName
             .toLowerCase()
             .endsWith(".pdf") &&
-        typeof candidate.storagePath === "string" &&
+        typeof candidate.storagePath ===
+            "string" &&
         candidate.storagePath.length > 0 &&
-        typeof candidate.fileSize === "number" &&
+        typeof candidate.fileSize ===
+            "number" &&
         Number.isFinite(
             candidate.fileSize,
         ) &&
         candidate.fileSize > 0 &&
-        typeof candidate.sha256 === "string" &&
+        typeof candidate.sha256 ===
+            "string" &&
         /^[0-9a-f]{64}$/.test(
             candidate.sha256,
         ) &&
-        typeof candidate.uploadedAt === "string"
+        typeof candidate.uploadedAt ===
+            "string"
     );
 };
 
@@ -117,7 +187,8 @@ const clearPendingAttempt = (
     inspectionId: string,
 ) => {
     if (
-        typeof window === "undefined"
+        typeof window ===
+        "undefined"
     ) {
         return;
     }
@@ -138,7 +209,8 @@ const savePendingAttempt = (
     attempt: PendingFinalizationAttempt,
 ) => {
     if (
-        typeof window === "undefined"
+        typeof window ===
+        "undefined"
     ) {
         return;
     }
@@ -163,7 +235,8 @@ const loadPendingAttempt = (
     expectedVersion: number,
 ) => {
     if (
-        typeof window === "undefined"
+        typeof window ===
+        "undefined"
     ) {
         return null;
     }
@@ -220,14 +293,19 @@ const buildPendingAttempt = (
 ): PendingFinalizationAttempt => ({
     inspectionId,
     expectedVersion,
+
     fileName:
         uploaded.fileName,
+
     storagePath:
         uploaded.storagePath,
+
     fileSize:
         uploaded.fileSize,
+
     sha256:
         uploaded.sha256,
+
     uploadedAt:
         new Date().toISOString(),
 });
@@ -239,17 +317,25 @@ const getPhaseLabel = (
     switch (phase) {
         case "generating":
             return "Génération du PDF...";
+
         case "uploading":
             return "Téléversement du PDF...";
+
         case "finalizing":
             return "Finalisation...";
+
         case "verifying":
             return "Vérification...";
+
         default:
             return null;
     }
 };
 
+
+// ============================================================
+// COMPONENT
+// ============================================================
 
 export function InspectionFinalizationPanel({
     snapshot,
@@ -264,6 +350,11 @@ export function InspectionFinalizationPanel({
         useInspection(
             inspection.id,
         );
+
+
+    // ========================================================
+    // FINAL DOCUMENT
+    // ========================================================
 
     const finalDocumentLinks =
         useMemo(
@@ -281,11 +372,13 @@ export function InspectionFinalizationPanel({
             ],
         );
 
+
     const finalDocumentMetadata =
         useInspectionDocumentMetadata(
             inspection.id,
             finalDocumentLinks,
         );
+
 
     const finalDocument =
         useMemo(
@@ -301,24 +394,39 @@ export function InspectionFinalizationPanel({
             ],
         );
 
+
     const [
         finalDocumentAction,
         setFinalDocumentAction,
     ] =
-        useState<"open" | "download" | null>(
+        useState<
+            "open" |
+            "download" |
+            null
+        >(
             null,
         );
+
+
+    // ========================================================
+    // FINALIZATION STATE
+    // ========================================================
+
     const [
         pendingAttempt,
         setPendingAttempt,
     ] =
-        useState<PendingFinalizationAttempt | null>(
+        useState<
+            PendingFinalizationAttempt |
+            null
+        >(
             () =>
                 loadPendingAttempt(
                     inspection.id,
                     inspection.version,
                 ),
         );
+
 
     const [
         phase,
@@ -328,21 +436,30 @@ export function InspectionFinalizationPanel({
             "idle",
         );
 
+
     const [
         actionError,
         setActionError,
     ] =
-        useState<string | null>(
+        useState<
+            string |
+            null
+        >(
             null,
         );
+
 
     const [
         actionInfo,
         setActionInfo,
     ] =
-        useState<string | null>(
+        useState<
+            string |
+            null
+        >(
             null,
         );
+
 
     const [
         finalizationConfirmed,
@@ -354,12 +471,32 @@ export function InspectionFinalizationPanel({
                 "finalized",
         );
 
+
+    // ========================================================
+    // COUNTERPARTY
+    // ========================================================
+
     const counterpartyRole =
         inspection.lease_id
             ? "tenant"
             : inspection.booking_id
                 ? "guest"
                 : null;
+
+
+    const counterpartyLabel =
+        counterpartyRole ===
+            "tenant"
+            ? "locataire"
+            : counterpartyRole ===
+                  "guest"
+                ? "voyageur"
+                : "cocontractant";
+
+
+    // ========================================================
+    // SIGNATURES CURRENT VERSION
+    // ========================================================
 
     const agencySignature =
         useMemo(
@@ -377,6 +514,7 @@ export function InspectionFinalizationPanel({
                 inspection.version,
             ],
         );
+
 
     const counterpartySignature =
         useMemo(
@@ -402,6 +540,31 @@ export function InspectionFinalizationPanel({
                 inspection.version,
             ],
         );
+
+
+    const agencySignatureReady =
+        Boolean(
+            agencySignature,
+        );
+
+
+    const counterpartySignatureReady =
+        Boolean(
+            counterpartySignature,
+        );
+
+
+    const signaturesReady =
+        Boolean(
+            counterpartyRole &&
+            agencySignatureReady &&
+            counterpartySignatureReady,
+        );
+
+
+    // ========================================================
+    // SYNCHRONIZATION
+    // ========================================================
 
     useEffect(
         () => {
@@ -442,16 +605,16 @@ export function InspectionFinalizationPanel({
         ],
     );
 
+
+    // ========================================================
+    // ACTION AVAILABILITY
+    // ========================================================
+
     const isBusy =
-        phase !== "idle" ||
+        phase !==
+            "idle" ||
         finalize.isPending;
 
-    const signaturesReady =
-        Boolean(
-            counterpartyRole &&
-            agencySignature &&
-            counterpartySignature,
-        );
 
     const canStart =
         inspection.status ===
@@ -460,6 +623,7 @@ export function InspectionFinalizationPanel({
         !pendingAttempt &&
         !finalizationConfirmed &&
         !isBusy;
+
 
     const canRetry =
         inspection.status ===
@@ -471,10 +635,74 @@ export function InspectionFinalizationPanel({
         !finalizationConfirmed &&
         !isBusy;
 
+
     const phaseLabel =
         getPhaseLabel(
             phase,
         );
+
+
+    // ========================================================
+    // SIGNATURE WAITING MESSAGE
+    // ========================================================
+
+    const missingSignatureMessage =
+        useMemo(
+            () => {
+                if (
+                    inspection.status !==
+                    "ready_for_signature"
+                ) {
+                    return null;
+                }
+
+                if (
+                    agencySignatureReady &&
+                    counterpartySignatureReady
+                ) {
+                    return null;
+                }
+
+                if (
+                    !agencySignatureReady &&
+                    !counterpartySignatureReady
+                ) {
+                    return (
+                        "La finalisation attend encore la signature de " +
+                        "l’agence et celle du " +
+                        counterpartyLabel +
+                        " sur la version actuelle."
+                    );
+                }
+
+                if (
+                    !agencySignatureReady
+                ) {
+                    return (
+                        "La finalisation attend uniquement la signature " +
+                        "de l’agence sur la version actuelle."
+                    );
+                }
+
+                return (
+                    "La signature de l’agence est enregistrée. " +
+                    "La finalisation attend uniquement la signature du " +
+                    counterpartyLabel +
+                    " sur la version actuelle."
+                );
+            },
+            [
+                inspection.status,
+                agencySignatureReady,
+                counterpartySignatureReady,
+                counterpartyLabel,
+            ],
+        );
+
+
+    // ========================================================
+    // MARK FINALIZED
+    // ========================================================
 
     const markFinalized = (
         message: string,
@@ -499,6 +727,11 @@ export function InspectionFinalizationPanel({
             message,
         );
     };
+
+
+    // ========================================================
+    // VERIFY AMBIGUOUS FINALIZATION
+    // ========================================================
 
     const verifyAmbiguousFinalization =
         async (
@@ -552,6 +785,11 @@ export function InspectionFinalizationPanel({
             return true;
         };
 
+
+    // ========================================================
+    // FINALIZE UPLOADED ATTEMPT
+    // ========================================================
+
     const finalizeUploadedAttempt =
         async (
             attempt:
@@ -566,14 +804,19 @@ export function InspectionFinalizationPanel({
                     await finalize.mutateAsync({
                         p_inspection_id:
                             attempt.inspectionId,
+
                         p_expected_version:
                             attempt.expectedVersion,
+
                         p_name:
                             attempt.fileName,
+
                         p_storage_path:
                             attempt.storagePath,
+
                         p_file_size:
                             attempt.fileSize,
+
                         p_sha256:
                             attempt.sha256,
                     });
@@ -607,17 +850,19 @@ export function InspectionFinalizationPanel({
                             "",
                             "Le PDF déjà téléversé est conservé pour la prochaine tentative.",
                             "Le bouton de reprise ne générera ni ne téléversera un nouveau PDF.",
-                        ].join("\n"),
+                        ].join(
+                            "\n",
+                        ),
                     );
 
                     return false;
                 }
 
                 /*
-                 * A resolved finalize_inspection() call is authoritative.
-                 * Do not downgrade that success if the following refetch
-                 * fails because of a transient network/cache error.
+                 * finalize_inspection() réussi :
+                 * le serveur devient la source d'autorité.
                  */
+
                 markFinalized(
                     "Le document final a été enregistré avec succès.",
                 );
@@ -629,8 +874,10 @@ export function InspectionFinalizationPanel({
                 try {
                     await verification.refetch();
                 } catch {
-                    // The mutation already succeeded and invalidated inspections.
-                    // A later query refresh can reconcile the UI.
+                    /*
+                     * La mutation serveur a déjà réussi.
+                     * Un prochain refresh réconciliera l'UI.
+                     */
                 }
 
                 return true;
@@ -640,6 +887,11 @@ export function InspectionFinalizationPanel({
                 );
             }
         };
+
+
+    // ========================================================
+    // START FINALIZATION
+    // ========================================================
 
     const handleStart =
         async () => {
@@ -667,7 +919,9 @@ export function InspectionFinalizationPanel({
                         `Version : ${inspection.version}`,
                         "",
                         "Cette opération ne doit être lancée qu’après les deux signatures.",
-                    ].join("\n"),
+                    ].join(
+                        "\n",
+                    ),
                 );
 
             if (!confirmed) {
@@ -699,8 +953,10 @@ export function InspectionFinalizationPanel({
                 const uploaded =
                     await uploadInspectionFinalPdf({
                         organizationId,
+
                         inspectionId:
                             inspection.id,
+
                         artifact,
                     });
 
@@ -735,6 +991,11 @@ export function InspectionFinalizationPanel({
             }
         };
 
+
+    // ========================================================
+    // RETRY FINALIZATION
+    // ========================================================
+
     const handleRetry =
         async () => {
             if (
@@ -757,6 +1018,11 @@ export function InspectionFinalizationPanel({
             );
         };
 
+
+    // ========================================================
+    // OPEN FINAL DOCUMENT
+    // ========================================================
+
     const handleOpenFinalDocument =
         async () => {
             if (
@@ -771,9 +1037,10 @@ export function InspectionFinalizationPanel({
             );
 
             /*
-             * Open synchronously from the click so browsers do not
-             * classify the signed-URL navigation as a popup.
+             * Ouverture synchrone afin d'éviter le blocage popup
+             * du navigateur avant résolution de l'URL signée.
              */
+
             const previewWindow =
                 window.open(
                     "about:blank",
@@ -782,7 +1049,7 @@ export function InspectionFinalizationPanel({
 
             if (!previewWindow) {
                 setActionError(
-                    "Le navigateur a bloque ouverture du document final.",
+                    "Le navigateur a bloqué l’ouverture du document final.",
                 );
 
                 return;
@@ -819,6 +1086,11 @@ export function InspectionFinalizationPanel({
             }
         };
 
+
+    // ========================================================
+    // DOWNLOAD FINAL DOCUMENT
+    // ========================================================
+
     const handleDownloadFinalDocument =
         async () => {
             if (
@@ -837,7 +1109,8 @@ export function InspectionFinalizationPanel({
             );
 
             let objectUrl:
-                string | null =
+                string |
+                null =
                 null;
 
             try {
@@ -851,9 +1124,11 @@ export function InspectionFinalizationPanel({
                         url,
                     );
 
-                if (!response.ok) {
+                if (
+                    !response.ok
+                ) {
                     throw new Error(
-                        `Telechargement du PDF impossible (${response.status}).`,
+                        `Téléchargement du PDF impossible (${response.status}).`,
                     );
                 }
 
@@ -885,6 +1160,7 @@ export function InspectionFinalizationPanel({
                 );
 
                 anchor.click();
+
                 anchor.remove();
             } catch (error) {
                 setActionError(
@@ -904,6 +1180,12 @@ export function InspectionFinalizationPanel({
                 );
             }
         };
+
+
+    // ========================================================
+    // SERVER CONFIRMED / LOCAL SNAPSHOT NOT YET REFRESHED
+    // ========================================================
+
     if (
         finalizationConfirmed &&
         inspection.status !==
@@ -937,6 +1219,10 @@ export function InspectionFinalizationPanel({
     }
 
 
+    // ========================================================
+    // FINALIZED
+    // ========================================================
+
     if (
         inspection.status ===
         "finalized"
@@ -958,6 +1244,7 @@ export function InspectionFinalizationPanel({
                     </div>
                 </div>
 
+
                 <div className="grid gap-3 text-sm md:grid-cols-2">
                     <div>
                         <span className="text-muted-foreground">
@@ -969,6 +1256,7 @@ export function InspectionFinalizationPanel({
                                 "Non renseigné"}
                         </p>
                     </div>
+
 
                     <div>
                         <span className="text-muted-foreground">
@@ -982,6 +1270,7 @@ export function InspectionFinalizationPanel({
                     </div>
                 </div>
 
+
                 <div className="space-y-3 rounded-md border p-4">
                     {finalDocumentMetadata.isLoading && (
                         <p className="text-sm text-muted-foreground">
@@ -989,20 +1278,23 @@ export function InspectionFinalizationPanel({
                         </p>
                     )}
 
+
                     {finalDocumentMetadata.isError && (
                         <p className="text-sm text-destructive">
-                            Impossible de charger les metadonnees du document final.
+                            Impossible de charger les métadonnées du document final.
                         </p>
                     )}
+
 
                     {!finalDocumentMetadata.isLoading &&
                         !finalDocumentMetadata.isError &&
                         inspection.final_document_id &&
                         !finalDocument && (
                             <p className="text-sm text-destructive">
-                                Le document final reference est introuvable.
+                                Le document final référencé est introuvable.
                             </p>
                         )}
+
 
                     {finalDocument && (
                         <>
@@ -1014,6 +1306,7 @@ export function InspectionFinalizationPanel({
                                 <p className="text-xs text-muted-foreground">
                                     {finalDocument.mimeType ??
                                         "application/pdf"}
+
                                     {typeof finalDocument.fileSize ===
                                         "number" &&
                                         ` · ${Math.max(
@@ -1025,6 +1318,7 @@ export function InspectionFinalizationPanel({
                                         )} Ko`}
                                 </p>
                             </div>
+
 
                             <div className="flex flex-wrap gap-2">
                                 <Button
@@ -1048,6 +1342,7 @@ export function InspectionFinalizationPanel({
                                     Ouvrir le PDF
                                 </Button>
 
+
                                 <Button
                                     type="button"
                                     variant="outline"
@@ -1066,11 +1361,12 @@ export function InspectionFinalizationPanel({
                                         <Download className="mr-2 h-4 w-4" />
                                     )}
 
-                                    T&eacute;l&eacute;charger le PDF
+                                    Télécharger le PDF
                                 </Button>
                             </div>
                         </>
                     )}
+
 
                     {actionError && (
                         <p className="text-sm text-destructive">
@@ -1078,6 +1374,8 @@ export function InspectionFinalizationPanel({
                         </p>
                     )}
                 </div>
+
+
                 {actionInfo && (
                     <p className="text-sm text-emerald-700">
                         {actionInfo}
@@ -1086,6 +1384,11 @@ export function InspectionFinalizationPanel({
             </section>
         );
     }
+
+
+    // ========================================================
+    // NON FINALIZED
+    // ========================================================
 
     return (
         <section className="space-y-5 rounded-lg border bg-card p-6">
@@ -1104,37 +1407,202 @@ export function InspectionFinalizationPanel({
                 </div>
             </div>
 
-            {!signaturesReady &&
-                inspection.status ===
-                    "ready_for_signature" && (
-                    <div className="flex gap-3 rounded-md border border-amber-500/40 bg-amber-500/5 p-4">
-                        <AlertTriangle className="mt-0.5 h-4 w-4 text-amber-600" />
 
-                        <p className="text-sm">
-                            La finalisation attend la signature de
-                            l’agence et celle du{" "}
-                            {counterpartyRole === "tenant"
-                                ? "locataire"
-                                : counterpartyRole === "guest"
-                                    ? "voyageur"
-                                    : "cocontractant"}
-                            {" "}sur la version actuelle.
-                        </p>
+            {/* ================================================= */}
+            {/* SIGNATURE STATUS                                  */}
+            {/* ================================================= */}
+
+            {inspection.status ===
+                "ready_for_signature" && (
+                <div className="grid gap-3 sm:grid-cols-2">
+                    <div
+                        className={
+                            agencySignatureReady
+                                ? "rounded-md border border-emerald-500/40 bg-emerald-500/5 p-4"
+                                : "rounded-md border border-amber-500/40 bg-amber-500/5 p-4"
+                        }
+                    >
+                        <div className="flex items-start gap-3">
+                            {agencySignatureReady ? (
+                                <CheckCircle2 className="mt-0.5 h-4 w-4 text-emerald-600" />
+                            ) : (
+                                <AlertTriangle className="mt-0.5 h-4 w-4 text-amber-600" />
+                            )}
+
+                            <div>
+                                <p className="text-sm font-medium">
+                                    Signature agence
+                                </p>
+
+                                <p className="mt-1 text-xs text-muted-foreground">
+                                    {agencySignatureReady
+                                        ? `Enregistrée sur la version ${inspection.version}.`
+                                        : `En attente sur la version ${inspection.version}.`}
+                                </p>
+                            </div>
+                        </div>
                     </div>
-                )}
 
-            {inspection.status === "draft" && (
+
+                    <div
+                        className={
+                            counterpartySignatureReady
+                                ? "rounded-md border border-emerald-500/40 bg-emerald-500/5 p-4"
+                                : "rounded-md border border-amber-500/40 bg-amber-500/5 p-4"
+                        }
+                    >
+                        <div className="flex items-start gap-3">
+                            {counterpartySignatureReady ? (
+                                <CheckCircle2 className="mt-0.5 h-4 w-4 text-emerald-600" />
+                            ) : (
+                                <AlertTriangle className="mt-0.5 h-4 w-4 text-amber-600" />
+                            )}
+
+                            <div>
+                                <p className="text-sm font-medium">
+                                    Signature{" "}
+                                    {counterpartyRole ===
+                                    "guest"
+                                        ? "voyageur"
+                                        : counterpartyRole ===
+                                              "tenant"
+                                            ? "locataire"
+                                            : "cocontractant"}
+                                </p>
+
+                                <p className="mt-1 text-xs text-muted-foreground">
+                                    {counterpartySignatureReady
+                                        ? `Enregistrée sur la version ${inspection.version}.`
+                                        : `En attente sur la version ${inspection.version}.`}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+
+            {/* ================================================= */}
+            {/* MISSING SIGNATURE WARNING                         */}
+            {/* ================================================= */}
+
+            {missingSignatureMessage && (
+                <div className="space-y-4 rounded-md border border-amber-500/40 bg-amber-500/5 p-4">
+                    <div className="flex gap-3">
+                        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+
+                        <div>
+                            <p className="text-sm font-medium">
+                                Finalisation en attente
+                            </p>
+
+                            <p className="mt-1 text-sm">
+                                {missingSignatureMessage}
+                            </p>
+                        </div>
+                    </div>
+
+
+                    {counterpartyRole ===
+                        "guest" &&
+                        !counterpartySignatureReady && (
+                            <div className="space-y-3 border-t border-amber-500/20 pt-4">
+                                <div className="flex items-start gap-3">
+                                    <UserRoundCheck className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" />
+
+                                    <div>
+                                        <p className="text-sm font-medium">
+                                            Signature du voyageur
+                                        </p>
+
+                                        <p className="mt-1 text-sm text-muted-foreground">
+                                            Pour des raisons de sécurité,
+                                            l’agence ne signe pas à la place
+                                            du voyageur. La signature doit
+                                            être réalisée depuis son espace
+                                            voyageur authentifié.
+                                        </p>
+                                    </div>
+                                </div>
+
+
+                                {inspection.booking_id && (
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        asChild
+                                    >
+                                        <Link
+                                            to={`/admin/bookings/${inspection.booking_id}`}
+                                        >
+                                            <UserRoundCheck className="mr-2 h-4 w-4" />
+
+                                            Gérer l’accès voyageur
+                                        </Link>
+                                    </Button>
+                                )}
+                            </div>
+                        )}
+
+
+                    {counterpartyRole ===
+                        "tenant" &&
+                        !counterpartySignatureReady && (
+                            <div className="border-t border-amber-500/20 pt-4">
+                                <p className="text-sm text-muted-foreground">
+                                    La signature du locataire doit être
+                                    réalisée depuis son espace locataire
+                                    authentifié.
+                                </p>
+                            </div>
+                        )}
+                </div>
+            )}
+
+
+            {/* ================================================= */}
+            {/* DRAFT                                             */}
+            {/* ================================================= */}
+
+            {inspection.status ===
+                "draft" && (
                 <p className="text-sm text-muted-foreground">
                     Le document final sera disponible après préparation
                     et signature de l’état des lieux.
                 </p>
             )}
 
-            {inspection.status === "cancelled" && (
+
+            {/* ================================================= */}
+            {/* CANCELLED                                         */}
+            {/* ================================================= */}
+
+            {inspection.status ===
+                "cancelled" && (
                 <p className="text-sm text-muted-foreground">
                     Un état des lieux annulé ne peut pas être finalisé.
                 </p>
             )}
+
+
+            {/* ================================================= */}
+            {/* INVALID SOURCE                                    */}
+            {/* ================================================= */}
+
+            {inspection.status ===
+                "ready_for_signature" &&
+                !counterpartyRole && (
+                    <div className="rounded-md border border-destructive/40 bg-destructive/5 p-4 text-sm text-destructive">
+                        Impossible d’identifier la contrepartie de cet
+                        état des lieux. Aucun bail ni aucune réservation
+                        valide n’est rattaché.
+                    </div>
+                )}
+
+
+            {/* ================================================= */}
+            {/* PENDING RETRY                                     */}
+            {/* ================================================= */}
 
             {pendingAttempt && (
                 <div className="space-y-2 rounded-md border p-4">
@@ -1158,11 +1626,21 @@ export function InspectionFinalizationPanel({
                 </div>
             )}
 
+
+            {/* ================================================= */}
+            {/* ERROR                                             */}
+            {/* ================================================= */}
+
             {actionError && (
                 <div className="whitespace-pre-line rounded-md border border-destructive/40 bg-destructive/5 p-4 text-sm text-destructive">
                     {actionError}
                 </div>
             )}
+
+
+            {/* ================================================= */}
+            {/* INFO                                              */}
+            {/* ================================================= */}
 
             {actionInfo && (
                 <div className="rounded-md border border-emerald-500/40 bg-emerald-500/5 p-4 text-sm text-emerald-700">
@@ -1170,24 +1648,43 @@ export function InspectionFinalizationPanel({
                 </div>
             )}
 
+
+            {/* ================================================= */}
+            {/* BUSY                                              */}
+            {/* ================================================= */}
+
             {phaseLabel && (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <Loader2 className="h-4 w-4 animate-spin" />
+
                     {phaseLabel}
                 </div>
             )}
+
+
+            {/* ================================================= */}
+            {/* START                                             */}
+            {/* ================================================= */}
 
             {canStart && (
                 <Button
                     onClick={() =>
                         void handleStart()
                     }
-                    disabled={isBusy}
+                    disabled={
+                        isBusy
+                    }
                 >
                     <FileCheck2 className="mr-2 h-4 w-4" />
+
                     Générer et finaliser le PDF
                 </Button>
             )}
+
+
+            {/* ================================================= */}
+            {/* RETRY                                             */}
+            {/* ================================================= */}
 
             {canRetry && (
                 <Button
@@ -1195,9 +1692,12 @@ export function InspectionFinalizationPanel({
                     onClick={() =>
                         void handleRetry()
                     }
-                    disabled={isBusy}
+                    disabled={
+                        isBusy
+                    }
                 >
                     <RotateCcw className="mr-2 h-4 w-4" />
+
                     Réessayer la finalisation
                 </Button>
             )}
