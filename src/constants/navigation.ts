@@ -47,7 +47,7 @@ export const adminNavItems: NavItem[] = [
   },
 
   {
-    label: "UnitÃ©s",
+    label: "Unités",
     path: "/admin/units",
     icon: DoorOpen,
   },
@@ -59,7 +59,7 @@ export const adminNavItems: NavItem[] = [
   },
 
   {
-    label: "PropriÃ©taires",
+    label: "Propriétaires",
     path: "/admin/owners",
     icon: Users,
   },
@@ -93,13 +93,13 @@ export const adminNavItems: NavItem[] = [
   // ==========================================================
 
   {
-    label: "Courte durÃ©e",
+    label: "Courte durée",
     path: "/admin/short-rental",
     icon: CalendarDays,
   },
 
   {
-    label: "RÃ©servations",
+    label: "Réservations",
     path: "/admin/bookings",
     icon: CalendarCheck2,
   },
@@ -137,7 +137,7 @@ export const adminNavItems: NavItem[] = [
   },
 
   {
-    label: "DÃ©penses",
+    label: "Dépenses",
     path: "/admin/expenses",
     icon: ReceiptText,
   },
@@ -149,19 +149,19 @@ export const adminNavItems: NavItem[] = [
   },
 
   {
-    label: "CrÃ©ances locataires",
+    label: "Créances locataires",
     path: "/admin/receivables",
     icon: HandCoins,
   },
 
   {
-    label: "Reversements propriÃ©taires",
+    label: "Reversements propriétaires",
     path: "/admin/owner-settlements",
     icon: CircleDollarSign,
   },
 
   {
-    label: "RelevÃ©s propriÃ©taires",
+    label: "Relevés propriétaires",
     path: "/admin/owner-statements",
     icon: FileSpreadsheet,
   },
@@ -201,7 +201,7 @@ export const adminNavItems: NavItem[] = [
   },
 
   {
-    label: "ParamÃ¨tres",
+    label: "Paramètres",
     path: "/admin/settings",
     icon: Settings,
   },
@@ -214,12 +214,12 @@ export const publicNavItems = [
   },
 
   {
-    label: "Location courte durÃ©e",
+    label: "Location courte durée",
     path: "/short-rental",
   },
 
   {
-    label: "Location longue durÃ©e",
+    label: "Location longue durée",
     path: "/long-rental",
   },
 

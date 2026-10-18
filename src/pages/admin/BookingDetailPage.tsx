@@ -86,6 +86,8 @@ import {
   useShortRentalDeposit,
 } from "@/hooks/use-short-rental-deposit";
 
+import DepositResolutionCard from "@/components/admin/short-rental/DepositResolutionCard";
+
 import {
   Alert,
   AlertDescription,
@@ -3452,6 +3454,13 @@ export default function BookingDetailPage() {
                         </AlertDescription>
                       </Alert>
                     )}
+
+                  <DepositResolutionCard
+                    bookingId={
+                      bookingId ?? ""
+                    }
+                    deposit={deposit}
+                  />
 
                   <Separator />
 

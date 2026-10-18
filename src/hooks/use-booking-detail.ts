@@ -260,7 +260,7 @@ const BOOKING_DETAIL_SELECT = `
     email,
     phone
   ),
-  property:properties (
+  property:properties!bookings_property_organization_fkey (
     id,
     reference,
     title,
