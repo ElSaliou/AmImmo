@@ -6,6 +6,13 @@ import {
 
 import { supabase } from "@/integrations/supabase/client";
 
+import {
+  isValidGuestEmail,
+  isValidGuestPhone,
+  normalizeGuestEmail,
+  normalizeGuestPhone,
+} from "@/lib/guest-contact";
+
 const db = supabase as any;
 
 const PUBLIC_SHORT_RENTAL_KEY =
@@ -1119,6 +1126,26 @@ export const useCreatePublicShortRentalBooking =
             throw new Error("L'adresse e-mail est obligatoire.");
           }
 
+          if (
+            !isValidGuestEmail(
+              input.guest_email,
+            )
+          ) {
+            throw new Error(
+              "Saisissez une adresse e-mail valide et accessible.",
+            );
+          }
+
+          if (
+            !isValidGuestPhone(
+              input.guest_phone,
+            )
+          ) {
+            throw new Error(
+              "Saisissez un numéro de téléphone valide.",
+            );
+          }
+
           if (!input.guest_country_of_residence.trim()) {
             throw new Error("Le pays de résidence est obligatoire.");
           }
@@ -1168,11 +1195,11 @@ export const useCreatePublicShortRentalBooking =
                   input.guest_name.trim(),
 
                 p_guest_email:
-                  input.guest_email?.trim() ||
+                  normalizeGuestEmail(input.guest_email) ||
                   null,
 
                 p_guest_phone:
-                  input.guest_phone.trim(),
+                  normalizeGuestPhone(input.guest_phone),
 
                 p_guest_country_of_residence:
                   input.guest_country_of_residence.trim(),

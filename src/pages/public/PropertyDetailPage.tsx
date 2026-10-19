@@ -64,6 +64,17 @@ import {
   usePublicShortRental,
 } from "@/hooks/use-public-short-rental";
 
+import {
+  isValidGuestEmail,
+  isValidGuestPhone,
+  normalizeGuestEmail,
+  normalizeGuestPhone,
+} from "@/lib/guest-contact";
+
+import {
+  GUEST_COMMUNICATION_CHANNELS,
+} from "@/config/guest-communication";
+
 const toDateKey = (date: Date) => {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");
@@ -303,6 +314,26 @@ const PublicShortRentalBookingCard = ({
   const [formError, setFormError] = useState<string | null>(null);
   const [createdReference, setCreatedReference] = useState<string | null>(null);
 
+  const normalizedGuestEmail =
+    normalizeGuestEmail(
+      guestEmail,
+    );
+
+  const normalizedGuestPhone =
+    normalizeGuestPhone(
+      guestPhone,
+    );
+
+  const guestEmailValid =
+    isValidGuestEmail(
+      guestEmail,
+    );
+
+  const guestPhoneValid =
+    isValidGuestPhone(
+      guestPhone,
+    );
+
   const minDate = useMemo(() => {
     const now = new Date();
     const year = now.getFullYear();
@@ -366,6 +397,18 @@ const PublicShortRentalBookingCard = ({
     setCreatedReference(null);
 
     try {
+      if (!guestEmailValid) {
+        throw new Error(
+          "Saisissez une adresse e-mail valide et accessible. Elle sera utilisée pour les confirmations et les liens sécurisés de cette réservation.",
+        );
+      }
+
+      if (!guestPhoneValid) {
+        throw new Error(
+          "Saisissez un numéro de téléphone valide. Utilisez de préférence le numéro associé à WhatsApp.",
+        );
+      }
+
       const currentQuote = shortRental.calculateQuote(
         checkIn,
         checkOut,
@@ -376,8 +419,8 @@ const PublicShortRentalBookingCard = ({
       const booking = await createBooking.mutateAsync({
         property_id: propertyId,
         guest_name: guestName,
-        guest_email: guestEmail,
-        guest_phone: guestPhone,
+        guest_email: normalizedGuestEmail,
+        guest_phone: normalizedGuestPhone,
         guest_country_of_residence: guestCountryOfResidence,
         guest_special_request: guestSpecialRequest,
         guests_count: guestsCount,
@@ -453,8 +496,8 @@ const PublicShortRentalBookingCard = ({
   const canSubmit = Boolean(
     quote &&
       guestName.trim() &&
-      guestPhone.trim() &&
-      guestEmail.trim() &&
+      guestPhoneValid &&
+      guestEmailValid &&
       guestCountryOfResidence.trim() &&
       conditionsAccepted,
   );
@@ -646,10 +689,25 @@ const PublicShortRentalBookingCard = ({
         {quote && (
           <div className="space-y-5 border-t border-slate-100 pt-5">
             <section>
-              <h3 className="font-semibold text-slate-950">Vos coordonnées</h3>
+              <h3 className="font-semibold text-slate-950">Vos coordonnées de contact</h3>
               <p className="mt-1 text-xs leading-relaxed text-slate-500">
-                Indiquez votre nom, votre téléphone, votre e-mail et votre pays de résidence.
+                Utilisez une adresse e-mail valide et accessible. Pour le téléphone, indiquez de préférence votre numéro WhatsApp avec l'indicatif du pays.
               </p>
+
+              <div className="mt-3 flex flex-wrap gap-2">
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                  {GUEST_COMMUNICATION_CHANNELS.email.label} actif
+                </span>
+
+                <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-medium text-slate-500">
+                  {GUEST_COMMUNICATION_CHANNELS.whatsapp.label} prochainement
+                </span>
+
+                <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-medium text-slate-500">
+                  {GUEST_COMMUNICATION_CHANNELS.sms.label} prochainement
+                </span>
+              </div>
             </section>
 
             <label className="block space-y-1.5">
@@ -670,32 +728,52 @@ const PublicShortRentalBookingCard = ({
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <label className="space-y-1.5">
                 <span className="text-xs font-semibold text-slate-700">
-                  Téléphone <span className="text-red-500">*</span>
+                  Téléphone / WhatsApp <span className="text-red-500">*</span>
                 </span>
                 <input
                   type="tel"
                   value={guestPhone}
                   onChange={(event) => setGuestPhone(event.target.value)}
+                  onBlur={() =>
+                    setGuestPhone(
+                      normalizeGuestPhone(
+                        guestPhone,
+                      ),
+                    )
+                  }
                   className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
-                  placeholder="+224…"
+                  placeholder="+224 6XX XX XX XX"
                   autoComplete="tel"
                   maxLength={50}
                 />
+                <span className="block text-[11px] leading-relaxed text-slate-500">
+                  Utilisez de préférence votre numéro WhatsApp avec l'indicatif pays.
+                </span>
               </label>
 
               <label className="space-y-1.5">
                 <span className="text-xs font-semibold text-slate-700">
-                  E-mail <span className="text-red-500">*</span>
+                  Adresse e-mail <span className="text-red-500">*</span>
                 </span>
                 <input
                   type="email"
                   value={guestEmail}
                   onChange={(event) => setGuestEmail(event.target.value)}
+                  onBlur={() =>
+                    setGuestEmail(
+                      normalizeGuestEmail(
+                        guestEmail,
+                      ),
+                    )
+                  }
                   className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
-                  placeholder="nom@email.com"
+                  placeholder="nom@exemple.com"
                   autoComplete="email"
                   maxLength={320}
                 />
+                <span className="block text-[11px] leading-relaxed text-slate-500">
+                  Confirmation, paiement et liens de signature seront envoyés à cette adresse.
+                </span>
               </label>
             </div>
 

@@ -1491,13 +1491,13 @@ export default function BookingDetailPage() {
     "";
 
   const travelerPhone =
-    guest?.phone ||
     booking.guest_phone ||
+    guest?.phone ||
     "";
 
   const travelerEmail =
-    guest?.email ||
     booking.guest_email ||
+    guest?.email ||
     "";
 
   const canShareActivePaymentLink =
