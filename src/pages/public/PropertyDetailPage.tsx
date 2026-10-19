@@ -313,6 +313,7 @@ const PublicShortRentalBookingCard = ({
   const [quote, setQuote] = useState<ShortRentalQuote | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [createdReference, setCreatedReference] = useState<string | null>(null);
+  const [createdEmail, setCreatedEmail] = useState<string | null>(null);
 
   const normalizedGuestEmail =
     normalizeGuestEmail(
@@ -373,6 +374,7 @@ const PublicShortRentalBookingCard = ({
     setQuote(null);
     setFormError(null);
     setCreatedReference(null);
+    setCreatedEmail(null);
   };
 
   const handleCheckAvailability = () => {
@@ -431,7 +433,46 @@ const PublicShortRentalBookingCard = ({
         quote: currentQuote,
       });
 
-      setCreatedReference(booking.reference ?? "Réservation enregistrée");
+      const submittedEmail =
+        normalizedGuestEmail;
+
+      setCheckIn("");
+      setCheckOut("");
+      setGuestsCount(1);
+
+      setGuestName("");
+      setGuestPhone("");
+      setGuestEmail("");
+      setGuestCountryOfResidence("");
+      setGuestSpecialRequest("");
+
+      setPaymentPlan("half");
+      setConditionsAccepted(false);
+
+      setQuote(null);
+      setFormError(null);
+
+      setCreatedEmail(
+        submittedEmail,
+      );
+
+      setCreatedReference(
+        booking.reference ??
+          "Réservation enregistrée",
+      );
+
+      window.requestAnimationFrame(
+        () => {
+          document
+            .getElementById(
+              "short-rental-booking-success",
+            )
+            ?.scrollIntoView({
+              behavior: "smooth",
+              block: "center",
+            });
+        },
+      );
     } catch (error: any) {
       setFormError(error?.message ?? "Impossible d'enregistrer la réservation.");
     }
@@ -616,6 +657,58 @@ const PublicShortRentalBookingCard = ({
         {formError && (
           <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
             {formError}
+          </div>
+        )}
+
+        {createdReference && (
+          <div
+            id="short-rental-booking-success"
+            className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 shadow-sm"
+          >
+            <div className="flex items-start gap-3">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-100">
+                <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+              </div>
+
+              <div className="min-w-0">
+                <p className="font-semibold text-emerald-950">
+                  Demande envoyée avec succès
+                </p>
+
+                <p className="mt-1 text-sm leading-relaxed text-emerald-900/80">
+                  Votre demande de réservation a bien été transmise à l'agence.
+                </p>
+
+                <div className="mt-3 rounded-xl border border-emerald-200/80 bg-white/70 px-3 py-2.5">
+                  <p className="text-xs text-emerald-700">
+                    Référence de votre demande
+                  </p>
+
+                  <p className="mt-0.5 text-sm font-semibold text-emerald-950">
+                    {createdReference}
+                  </p>
+                </div>
+
+                <p className="mt-3 text-sm leading-relaxed text-emerald-900">
+                  Vous recevrez un e-mail
+                  {createdEmail ? (
+                    <>
+                      {" "}à{" "}
+                      <strong>
+                        {createdEmail}
+                      </strong>
+                    </>
+                  ) : null}
+                  {" "}dès que l'agence aura validé votre demande.
+                  Cet e-mail contiendra la confirmation et les prochaines
+                  étapes pour finaliser votre réservation.
+                </p>
+
+                <p className="mt-2 text-xs leading-relaxed text-emerald-700">
+                  Pensez également à vérifier votre dossier de courriers indésirables.
+                </p>
+              </div>
+            </div>
           </div>
         )}
 
@@ -910,19 +1003,7 @@ const PublicShortRentalBookingCard = ({
               Vos données sont sécurisées et confidentielles
             </p>
 
-            {createdReference && (
-              <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
-                <div className="flex items-start gap-2.5">
-                  <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" />
-                  <div>
-                    <p className="font-semibold text-emerald-900">Demande enregistrée</p>
-                    <p className="mt-1 text-sm leading-relaxed text-emerald-800/80">
-                      Référence : {createdReference}. La demande doit encore être confirmée par l'agence.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
+
           </div>
         )}
       </div>
