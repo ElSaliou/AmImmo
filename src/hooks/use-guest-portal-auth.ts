@@ -31,6 +31,7 @@ export type GuestInvitationRedeemResult = {
 type RequestMagicLinkInput = {
   email: string;
   invitationToken?: string | null;
+  nextPath?: string | null;
 };
 
 // ============================================================
@@ -64,6 +65,23 @@ const isInvitationTokenFormatValid = (
 ) =>
   /^[a-f0-9]{64}$/i.test(token);
 
+const normalizeGuestNextPath = (
+  value?: string | null,
+) => {
+  const nextPath =
+    value?.trim() ?? "";
+
+  if (
+    !nextPath ||
+    nextPath.startsWith("//") ||
+    !/^\/guest(?:\/|$)/.test(nextPath)
+  ) {
+    return "";
+  }
+
+  return nextPath;
+};
+
 const errorMessage = (
   error: RpcError | null,
   fallback: string,
@@ -79,6 +97,7 @@ export const requestGuestMagicLink =
   async ({
     email,
     invitationToken,
+    nextPath,
   }: RequestMagicLinkInput) => {
     const normalizedEmail =
       normalizeEmail(email);
@@ -86,6 +105,11 @@ export const requestGuestMagicLink =
     const normalizedToken =
       normalizeToken(
         invitationToken,
+      );
+
+    const normalizedNextPath =
+      normalizeGuestNextPath(
+        nextPath,
       );
 
     if (!normalizedEmail) {
@@ -115,6 +139,13 @@ export const requestGuestMagicLink =
       redirectUrl.searchParams.set(
         "token",
         normalizedToken,
+      );
+    }
+
+    if (normalizedNextPath) {
+      redirectUrl.searchParams.set(
+        "next",
+        normalizedNextPath,
       );
     }
 

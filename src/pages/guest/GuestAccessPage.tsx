@@ -117,6 +117,54 @@ const GuestAccessPage = () => {
       invitationToken,
     );
 
+  const requestedNextPath =
+    useMemo(() => {
+      const params =
+        new URLSearchParams(
+          location.search,
+        );
+
+      const queryNext =
+        params
+          .get("next")
+          ?.trim() ?? "";
+
+      const stateFrom =
+        typeof location.state === "object" &&
+        location.state !== null &&
+        "from" in location.state &&
+        typeof (
+          location.state as {
+            from?: unknown;
+          }
+        ).from === "string"
+          ? (
+              location.state as {
+                from: string;
+              }
+            ).from.trim()
+          : "";
+
+      const candidate =
+        queryNext ||
+        stateFrom;
+
+      if (
+        !candidate ||
+        candidate.startsWith("//") ||
+        !/^\/guest(?:\/|$)/.test(
+          candidate,
+        )
+      ) {
+        return "/guest";
+      }
+
+      return candidate;
+    }, [
+      location.search,
+      location.state,
+    ]);
+
   // ==========================================================
   // RESOLVE AUTHENTICATED ACCESS
   // ==========================================================
@@ -377,6 +425,9 @@ const GuestAccessPage = () => {
           invitationToken:
             invitationToken ||
             null,
+
+          nextPath:
+            requestedNextPath,
         });
 
         setStatus(
@@ -428,6 +479,24 @@ const GuestAccessPage = () => {
         );
       }
     };
+
+  useEffect(() => {
+    if (
+      status === "authorized" &&
+      requestedNextPath !== "/guest"
+    ) {
+      navigate(
+        requestedNextPath,
+        {
+          replace: true,
+        },
+      );
+    }
+  }, [
+    navigate,
+    requestedNextPath,
+    status,
+  ]);
 
   // ==========================================================
   // LOADING
@@ -502,7 +571,7 @@ const GuestAccessPage = () => {
               type="button"
               onClick={() => {
                 navigate(
-                  "/guest",
+                  requestedNextPath,
                   {
                     replace: true,
                   },
