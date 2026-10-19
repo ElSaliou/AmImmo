@@ -6,6 +6,7 @@ import {
 import {
     BadgeCheck,
     Clock3,
+    Mail,
     PenLine,
     ShieldCheck,
 } from "lucide-react";
@@ -20,6 +21,10 @@ import {
     type InspectionSnapshot,
     useSignInspection,
 } from "@/hooks/use-inspections";
+
+import {
+    sendGuestInspectionSignatureEmail,
+} from "@/lib/guest-inspection-signature-email";
 
 type InspectionSignaturePanelProps = {
     snapshot: InspectionSnapshot;
@@ -133,6 +138,20 @@ export function InspectionSignaturePanel({
             null,
         );
 
+    const [
+        deliveryPending,
+        setDeliveryPending,
+    ] =
+        useState(false);
+
+    const [
+        deliveryMessage,
+        setDeliveryMessage,
+    ] =
+        useState<string | null>(
+            null,
+        );
+
     const inspection =
         snapshot.inspection;
 
@@ -174,6 +193,12 @@ export function InspectionSignaturePanel({
             ],
         );
 
+    const isShortRentalInspection =
+        Boolean(
+            inspection.booking_id,
+        ) &&
+        !inspection.lease_id;
+
     const trimmedName =
         signerName.trim();
 
@@ -187,7 +212,61 @@ export function InspectionSignaturePanel({
         trimmedName.length > 0 &&
         trimmedName.length <= 255 &&
         accepted &&
-        !signInspection.isPending;
+        !signInspection.isPending &&
+        !deliveryPending;
+
+    const sendSignatureRequest =
+        async () => {
+            if (
+                !isShortRentalInspection
+            ) {
+                return;
+            }
+
+            setDeliveryPending(
+                true,
+            );
+
+            setDeliveryMessage(
+                null,
+            );
+
+            try {
+                const result =
+                    await sendGuestInspectionSignatureEmail(
+                        inspection.id,
+                    );
+
+                setDeliveryMessage(
+                    result.alreadySent
+                        ? "L'email de signature avait déjà été envoyé au voyageur pour cette version."
+                        : "L'email de signature a été envoyé au voyageur.",
+                );
+            } finally {
+                setDeliveryPending(
+                    false,
+                );
+            }
+        };
+
+
+    const handleGuestDeliveryRetry =
+        async () => {
+            setActionError(
+                null,
+            );
+
+            try {
+                await sendSignatureRequest();
+            } catch (error) {
+                setActionError(
+                    `Impossible d'envoyer l'email au voyageur : ${getErrorMessage(
+                        error,
+                    )}`,
+                );
+            }
+        };
+
 
     const handleAgencySignature =
         async () => {
@@ -232,15 +311,35 @@ export function InspectionSignaturePanel({
                     p_accepted_version:
                         inspection.version,
                 });
-
-                setSignerName("");
-                setAccepted(false);
             } catch (error) {
                 setActionError(
                     getErrorMessage(
                         error,
                     ),
                 );
+
+                return;
+            }
+
+            setSignerName("");
+            setAccepted(false);
+
+            if (
+                isShortRentalInspection
+            ) {
+                try {
+                    await sendSignatureRequest();
+                } catch (error) {
+                    setActionError(
+                        [
+                            "La signature de l'agence est bien enregistrée.",
+                            "En revanche, l'email au voyageur n'a pas pu être envoyé :",
+                            getErrorMessage(
+                                error,
+                            ),
+                        ].join(" "),
+                    );
+                }
             }
         };
 
@@ -267,6 +366,12 @@ export function InspectionSignaturePanel({
             {actionError && (
                 <div className="rounded-lg border border-destructive/40 bg-destructive/5 px-4 py-3 text-sm text-destructive">
                     {actionError}
+                </div>
+            )}
+
+            {deliveryMessage && (
+                <div className="rounded-lg border border-green-600/30 bg-green-600/5 px-4 py-3 text-sm">
+                    {deliveryMessage}
                 </div>
             )}
 
@@ -361,6 +466,37 @@ export function InspectionSignaturePanel({
                             </Button>
                         </div>
                     )}
+
+                    {agencySignature &&
+                        isShortRentalInspection &&
+                        inspection.status ===
+                            "ready_for_signature" &&
+                        !counterpartySignature && (
+                            <div className="space-y-2 border-t pt-4">
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    disabled={
+                                        deliveryPending
+                                    }
+                                    onClick={() =>
+                                        void handleGuestDeliveryRetry()
+                                    }
+                                >
+                                    <Mail className="mr-2 h-4 w-4" />
+
+                                    {deliveryPending
+                                        ? "Envoi..."
+                                        : "Envoyer le lien au voyageur"}
+                                </Button>
+
+                                <p className="text-xs text-muted-foreground">
+                                    L'envoi est idempotent : un email déjà
+                                    confirmé comme envoyé pour cette version
+                                    ne sera pas dupliqué.
+                                </p>
+                            </div>
+                        )}
 
                     {!agencySignature &&
                         inspection.status ===
