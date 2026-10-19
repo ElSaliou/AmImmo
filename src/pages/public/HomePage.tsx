@@ -30,21 +30,21 @@ const HomePage = () => {
   return (
     <div>
       {/* HERO */}
-      <section className="relative min-h-[85vh] flex items-center justify-center overflow-hidden">
+      <section className="relative flex min-h-[680px] items-center justify-center overflow-hidden sm:min-h-[640px] lg:min-h-[560px] xl:min-h-[580px]">
         <div className="absolute inset-0">
           <img src={heroImg} alt="Luxury interior" className="w-full h-full object-cover" />
           <div className="absolute inset-0 bg-gradient-to-b from-[hsl(220,25%,10%,0.65)] via-[hsl(220,25%,10%,0.5)] to-[hsl(220,25%,10%,0.75)]" />
         </div>
-        <div className="relative container text-center z-10 pt-20 pb-16">
+        <div className="relative z-10 container px-4 pb-8 pt-20 text-center sm:px-6 sm:pb-10 sm:pt-20 lg:pb-8 lg:pt-16">
           <motion.div {...fadeUp}>
-            <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-secondary/20 backdrop-blur-sm text-secondary text-sm font-medium mb-6">
+            <span className="mb-4 inline-flex items-center gap-2 rounded-full bg-secondary/20 px-4 py-1.5 text-xs font-medium text-secondary backdrop-blur-sm sm:text-sm">
               <Building2 className="h-3.5 w-3.5" /> Plateforme immobilière premium
             </span>
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-display font-bold text-[hsl(0,0%,100%)] mb-5 leading-tight">
-              Votre prochain chez-vous<br />
+            <h1 className="mx-auto mb-4 font-display text-3xl font-bold leading-[1.08] text-[hsl(0,0%,100%)] sm:text-4xl md:text-5xl lg:whitespace-nowrap lg:text-5xl xl:text-[3.5rem]">
+              Votre prochain chez-vous{" "}
               <span className="text-secondary">vous attend ici</span>
             </h1>
-            <p className="text-lg text-[hsl(0,0%,100%,0.75)] max-w-2xl mx-auto mb-10 leading-relaxed">
+            <p className="mx-auto mb-7 max-w-3xl text-sm leading-relaxed text-[hsl(0,0%,100%,0.75)] sm:text-base lg:max-w-none lg:whitespace-nowrap lg:text-[14px] xl:text-base">
               Découvrez des biens d'exception — location courte durée, longue durée ou achat.
               Une expérience immobilière moderne et transparente.
             </p>
@@ -57,7 +57,7 @@ const HomePage = () => {
           <motion.div
             {...fadeUp}
             transition={{ duration: 0.6, delay: 0.4 }}
-            className="flex flex-wrap justify-center gap-8 mt-14"
+            className="mt-8 flex flex-wrap justify-center gap-x-8 gap-y-4 sm:mt-9"
           >
             {[
               { value: "500+", label: "Biens disponibles" },
