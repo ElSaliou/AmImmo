@@ -24,27 +24,27 @@ const services = [
 ];
 
 const HomePage = () => {
-  const { data: featured } = useMarketplaceListings({ featured: true, limit: 6 });
-  const { data: latest } = useMarketplaceListings({ limit: 8 });
+  const { data: featured } = useMarketplaceListings({ featured: true, limit: 8 });
+  const { data: latest } = useMarketplaceListings({ limit: 5 });
 
   return (
     <div>
       {/* HERO */}
-      <section className="relative flex min-h-[680px] items-center justify-center overflow-hidden sm:min-h-[640px] lg:min-h-[560px] xl:min-h-[580px]">
+      <section className="relative overflow-hidden">
         <div className="absolute inset-0">
           <img src={heroImg} alt="Luxury interior" className="w-full h-full object-cover" />
           <div className="absolute inset-0 bg-gradient-to-b from-[hsl(220,25%,10%,0.65)] via-[hsl(220,25%,10%,0.5)] to-[hsl(220,25%,10%,0.75)]" />
         </div>
-        <div className="relative z-10 container px-4 pb-8 pt-20 text-center sm:px-6 sm:pb-10 sm:pt-20 lg:pb-8 lg:pt-16">
+        <div className="relative z-10 container px-4 pb-8 pt-28 text-center sm:px-6 sm:pb-8 sm:pt-24 lg:pb-6 lg:pt-24">
           <motion.div {...fadeUp}>
-            <span className="mb-4 inline-flex items-center gap-2 rounded-full bg-secondary/20 px-4 py-1.5 text-xs font-medium text-secondary backdrop-blur-sm sm:text-sm">
+            <span className="mb-3 inline-flex items-center gap-2 rounded-full bg-secondary/20 px-4 py-1.5 text-xs font-medium text-secondary backdrop-blur-sm sm:text-sm">
               <Building2 className="h-3.5 w-3.5" /> Plateforme immobilière premium
             </span>
-            <h1 className="mx-auto mb-4 font-display text-3xl font-bold leading-[1.08] text-[hsl(0,0%,100%)] sm:text-4xl md:text-5xl lg:whitespace-nowrap lg:text-5xl xl:text-[3.5rem]">
+            <h1 className="mx-auto mb-3 font-display text-3xl font-bold leading-[1.08] text-[hsl(0,0%,100%)] sm:text-4xl md:text-5xl lg:whitespace-nowrap lg:text-5xl xl:text-[3.5rem]">
               Votre prochain chez-vous{" "}
               <span className="text-secondary">vous attend ici</span>
             </h1>
-            <p className="mx-auto mb-7 max-w-3xl text-sm leading-relaxed text-[hsl(0,0%,100%,0.75)] sm:text-base lg:max-w-none lg:whitespace-nowrap lg:text-[14px] xl:text-base">
+            <p className="mx-auto mb-5 max-w-3xl text-sm leading-relaxed text-[hsl(0,0%,100%,0.75)] sm:text-base lg:max-w-none lg:whitespace-nowrap lg:text-[14px] xl:text-base">
               Découvrez des biens d'exception — location courte durée, longue durée ou achat.
               Une expérience immobilière moderne et transparente.
             </p>
@@ -57,7 +57,7 @@ const HomePage = () => {
           <motion.div
             {...fadeUp}
             transition={{ duration: 0.6, delay: 0.4 }}
-            className="mt-8 flex flex-wrap justify-center gap-x-8 gap-y-4 sm:mt-9"
+            className="mt-5 flex flex-wrap justify-center gap-x-8 gap-y-4 sm:mt-5 lg:mt-4"
           >
             {[
               { value: "500+", label: "Biens disponibles" },
@@ -75,9 +75,9 @@ const HomePage = () => {
       </section>
 
       {/* CATEGORIES */}
-      <section className="section-padding">
+      <section className="pt-10 pb-6 md:pt-12 md:pb-8">
         <div className="container">
-          <motion.div {...fadeUp} className="text-center mb-12">
+          <motion.div {...fadeUp} className="text-center mb-8">
             <h2 className="text-3xl md:text-4xl font-display font-bold mb-3">
               Explorez nos offres
             </h2>
@@ -111,9 +111,9 @@ const HomePage = () => {
 
       {/* FEATURED */}
       {(featured ?? []).length > 0 && (
-        <section className="section-padding bg-muted/50">
+        <section className="py-8 md:py-10 bg-muted/50">
           <div className="container">
-            <motion.div {...fadeUp} className="flex items-end justify-between mb-8">
+            <motion.div {...fadeUp} className="flex items-end justify-between mb-6">
               <div>
                 <h2 className="text-3xl font-display font-bold">Biens vedettes</h2>
                 <p className="text-muted-foreground mt-1">Sélection exclusive de nos meilleurs biens</p>
@@ -124,7 +124,7 @@ const HomePage = () => {
                 </Button>
               </Link>
             </motion.div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
               {featured!.map((l, i) => <ListingCard key={l.id} listing={l} index={i} />)}
             </div>
           </div>
@@ -132,9 +132,9 @@ const HomePage = () => {
       )}
 
       {/* LATEST */}
-      <section className="section-padding">
+      <section className="pt-10 pb-6 md:pt-12 md:pb-8">
         <div className="container">
-          <motion.div {...fadeUp} className="flex items-end justify-between mb-8">
+          <motion.div {...fadeUp} className="flex items-end justify-between mb-6">
             <div>
               <h2 className="text-3xl font-display font-bold">Dernières annonces</h2>
               <p className="text-muted-foreground mt-1">Les biens les plus récemment publiés</p>
@@ -146,7 +146,7 @@ const HomePage = () => {
               <p className="text-muted-foreground">Aucune annonce publiée pour le moment.</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-5">
               {latest!.map((l, i) => <ListingCard key={l.id} listing={l} index={i} />)}
             </div>
           )}
@@ -154,23 +154,23 @@ const HomePage = () => {
       </section>
 
       {/* SERVICES */}
-      <section className="section-padding bg-muted/50">
+      <section className="bg-muted/50 py-10 md:py-12">
         <div className="container">
-          <motion.div {...fadeUp} className="text-center mb-12">
+          <motion.div {...fadeUp} className="text-center mb-8">
             <h2 className="text-3xl md:text-4xl font-display font-bold mb-3">Nos services</h2>
             <p className="text-muted-foreground max-w-lg mx-auto">
               Un accompagnement complet pour tous vos projets immobiliers.
             </p>
           </motion.div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="mx-auto grid w-full max-w-[980px] grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {services.map((s, i) => (
               <motion.div key={s.title} {...fadeUp} transition={{ duration: 0.5, delay: i * 0.1 }}>
-                <div className="premium-card p-6 text-center h-full">
-                  <div className="h-12 w-12 rounded-xl gradient-primary flex items-center justify-center mx-auto mb-4">
+                <div className="premium-card h-full px-5 py-5 text-center">
+                  <div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-xl gradient-primary">
                     <s.icon className="h-6 w-6 text-primary-foreground" />
                   </div>
-                  <h3 className="font-semibold text-foreground mb-2">{s.title}</h3>
-                  <p className="text-sm text-muted-foreground leading-relaxed">{s.desc}</p>
+                  <h3 className="mb-1.5 font-semibold text-foreground">{s.title}</h3>
+                  <p className="text-sm leading-relaxed text-muted-foreground">{s.desc}</p>
                 </div>
               </motion.div>
             ))}
@@ -179,21 +179,21 @@ const HomePage = () => {
       </section>
 
       {/* CTA */}
-      <section className="section-padding">
+      <section className="pt-6 pb-2 md:pt-8 md:pb-3">
         <div className="container">
           <motion.div {...fadeUp}>
             <div className="relative rounded-3xl overflow-hidden">
-              <img src={villaImg} alt="CTA background" className="w-full h-64 md:h-80 object-cover" />
+              <img src={villaImg} alt="CTA background" className="h-52 w-full object-cover md:h-60" />
               <div className="absolute inset-0 gradient-primary opacity-85" />
               <div className="absolute inset-0 flex items-center justify-center text-center px-6">
                 <div>
-                  <h2 className="text-2xl md:text-4xl font-display font-bold text-primary-foreground mb-4">
+                  <h2 className="mb-2 font-display text-2xl font-bold text-primary-foreground md:text-4xl">
                     Prêt à trouver votre bien idéal ?
                   </h2>
-                  <p className="text-primary-foreground/75 mb-6 max-w-lg mx-auto">
+                  <p className="mx-auto mb-4 text-sm text-primary-foreground/75 sm:text-base lg:max-w-none lg:whitespace-nowrap">
                     Contactez notre équipe d'experts pour un accompagnement personnalisé.
                   </p>
-                  <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                  <div className="flex flex-col justify-center gap-2 sm:flex-row">
                     <Link to="/contact">
                       <Button variant="hero" size="lg">
                         Nous contacter

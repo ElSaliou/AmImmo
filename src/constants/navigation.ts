@@ -227,8 +227,4 @@ export const publicNavItems = [
     path: "/map",
   },
 
-  {
-    label: "Contact",
-    path: "/contact",
-  },
 ];
