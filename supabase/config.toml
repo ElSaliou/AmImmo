@@ -9,3 +9,9 @@ entrypoint = "./functions/send-owner-statement-email/index.ts"
 # Specifies static files to be bundled with the function. Supports glob patterns.
 # For example, if you want to serve static HTML pages in your function:
 # static_files = [ "./functions/send-owner-statement-email/*.html" ]
+
+[functions.send-guest-inspection-signature-email]
+enabled = true
+verify_jwt = true
+import_map = "./functions/send-guest-inspection-signature-email/deno.json"
+entrypoint = "./functions/send-guest-inspection-signature-email/index.ts"

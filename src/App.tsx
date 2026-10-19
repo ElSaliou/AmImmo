@@ -21,9 +21,11 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import PublicLayout from "@/layouts/PublicLayout";
 import AdminLayout from "@/layouts/AdminLayout";
 import OwnerLayout from "@/layouts/OwnerLayout";
+import GuestLayout from "@/layouts/GuestLayout";
 
 import RequireStaff from "@/components/auth/RequireStaff";
 import RequireOwner from "@/components/auth/RequireOwner";
+import RequireGuest from "@/components/auth/RequireGuest";
 
 import NotFound from "./pages/NotFound";
 
@@ -35,6 +37,38 @@ const LoginPage = lazy(
   () =>
     import(
       "@/pages/auth/LoginPage"
+    ),
+);
+
+const GuestAccessPage = lazy(
+  () =>
+    import(
+      "@/pages/guest/GuestAccessPage"
+    ),
+);
+
+// ============================================================
+// GUEST PORTAL
+// ============================================================
+
+const GuestHomePage = lazy(
+  () =>
+    import(
+      "@/pages/guest/GuestHomePage"
+    ),
+);
+
+const GuestInspectionsPage = lazy(
+  () =>
+    import(
+      "@/pages/guest/GuestInspectionsPage"
+    ),
+);
+
+const GuestInspectionPage = lazy(
+  () =>
+    import(
+      "@/pages/guest/GuestInspectionPage"
     ),
 );
 
@@ -436,6 +470,51 @@ const App = () => {
             }
           >
             <Routes>
+              {/* ============================================= */}
+              {/* GUEST PORTAL                                  */}
+              {/* ============================================= */}
+
+              <Route
+                path="/guest/access"
+                element={
+                  <GuestAccessPage />
+                }
+              />
+
+              <Route
+                element={
+                  <RequireGuest />
+                }
+              >
+                <Route
+                  path="/guest"
+                  element={
+                    <GuestLayout />
+                  }
+                >
+                  <Route
+                    index
+                    element={
+                      <GuestHomePage />
+                    }
+                  />
+
+                  <Route
+                    path="inspections"
+                    element={
+                      <GuestInspectionsPage />
+                    }
+                  />
+
+                  <Route
+                    path="inspections/:inspectionId"
+                    element={
+                      <GuestInspectionPage />
+                    }
+                  />
+                </Route>
+              </Route>
+
               {/* ============================================= */}
               {/* AUTH                                          */}
               {/* ============================================= */}
