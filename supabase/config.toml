@@ -15,3 +15,8 @@ enabled = true
 verify_jwt = true
 import_map = "./functions/send-guest-inspection-signature-email/deno.json"
 entrypoint = "./functions/send-guest-inspection-signature-email/index.ts"
+[functions.send-guest-booking-confirmation-email]
+enabled = true
+verify_jwt = true
+import_map = "./functions/send-guest-booking-confirmation-email/deno.json"
+entrypoint = "./functions/send-guest-booking-confirmation-email/index.ts"

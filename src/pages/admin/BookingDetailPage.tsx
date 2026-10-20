@@ -53,6 +53,10 @@ import { toast } from "sonner";
 
 import { supabase } from "@/integrations/supabase/client";
 
+import {
+  sendGuestBookingConfirmationEmail,
+} from "@/lib/guest-booking-confirmation-email";
+
 import PageShell from "@/components/PageShell";
 
 import {
@@ -1159,8 +1163,26 @@ export default function BookingDetailPage() {
   const cancelBooking =
     useCancelBooking();
 
+  const [
+    bookingConfirmationEmailPending,
+    setBookingConfirmationEmailPending,
+  ] = useState(false);
+
+  const [
+    bookingConfirmationEmailNotice,
+    setBookingConfirmationEmailNotice,
+  ] = useState<{
+    tone:
+      | "success"
+      | "warning";
+    text: string;
+  } | null>(
+    null,
+  );
+
   const workflowPending =
     confirmBooking.isPending ||
+    bookingConfirmationEmailPending ||
     checkInBooking.isPending ||
     checkOutBooking.isPending ||
     cancelBooking.isPending;
@@ -1624,6 +1646,95 @@ export default function BookingDetailPage() {
   // CONFIRM
   // ==========================================================
 
+  const sendBookingConfirmationEmail =
+    async () => {
+      if (
+        bookingConfirmationEmailPending
+      ) {
+        throw new Error(
+          "Un envoi de confirmation est déjà en cours.",
+        );
+      }
+
+      setBookingConfirmationEmailPending(
+        true,
+      );
+
+      try {
+        const delivery =
+          await sendGuestBookingConfirmationEmail(
+            booking.id,
+          );
+
+        const recipient =
+          delivery.recipient?.trim() ||
+          travelerEmail.trim() ||
+          "le voyageur";
+
+        setBookingConfirmationEmailNotice({
+          tone:
+            "success",
+
+          text:
+            delivery.alreadySent
+              ? `L'email de confirmation avait déjà été envoyé à ${recipient}.`
+              : `Email de confirmation envoyé à ${recipient}.`,
+        });
+
+        return delivery;
+      } catch (
+        deliveryError
+      ) {
+        const message =
+          deliveryError instanceof Error
+            ? deliveryError.message
+            : "Erreur inconnue lors de l'envoi.";
+
+        setBookingConfirmationEmailNotice({
+          tone:
+            "warning",
+
+          text:
+            `La réservation reste confirmée, mais l'email n'a pas pu être envoyé. ${message}`,
+        });
+
+        throw deliveryError;
+      } finally {
+        setBookingConfirmationEmailPending(
+          false,
+        );
+      }
+    };
+
+
+  const handleBookingConfirmationEmailRetry =
+    async () => {
+      try {
+        const delivery =
+          await sendBookingConfirmationEmail();
+
+        toast.success(
+          delivery.alreadySent
+            ? "L'email de confirmation avait déjà été envoyé."
+            : "Email de confirmation envoyé au voyageur.",
+        );
+      } catch (
+        deliveryError
+      ) {
+        console.error(
+          "[BookingDetailPage] Erreur email confirmation :",
+          deliveryError,
+        );
+
+        toast.error(
+          deliveryError instanceof Error
+            ? deliveryError.message
+            : "Impossible d'envoyer l'email de confirmation.",
+        );
+      }
+    };
+
+
   const handleConfirm =
     async () => {
       if (
@@ -1633,20 +1744,18 @@ export default function BookingDetailPage() {
         return;
       }
 
+      let confirmationResult:
+        Awaited<
+          ReturnType<
+            typeof confirmBooking.mutateAsync
+          >
+        >;
+
       try {
-        const result =
+        confirmationResult =
           await confirmBooking.mutateAsync(
             booking.id,
           );
-
-        toast.success(
-          `Réservation ${result.reference} confirmée avec succès.`,
-        );
-
-        await Promise.all([
-          refetch(),
-          refetchInvoice(),
-        ]);
       } catch (
         confirmationError
       ) {
@@ -1659,6 +1768,52 @@ export default function BookingDetailPage() {
           getConfirmationErrorMessage(
             confirmationError,
           ),
+        );
+
+        return;
+      }
+
+
+      // ======================================================
+      // BUSINESS CONFIRMATION IS NOW COMMITTED.
+      //
+      // Email delivery is deliberately outside the
+      // confirmation try/catch.
+      //
+      // An email failure must NEVER make the UI pretend that
+      // the booking confirmation itself failed.
+      // ======================================================
+
+      toast.success(
+        `Réservation ${confirmationResult.reference} confirmée avec succès.`,
+      );
+
+
+      await Promise.all([
+        refetch(),
+        refetchInvoice(),
+      ]);
+
+
+      try {
+        const delivery =
+          await sendBookingConfirmationEmail();
+
+        toast.success(
+          delivery.alreadySent
+            ? "L'email de confirmation avait déjà été envoyé au voyageur."
+            : "L'email de confirmation et le lien de paiement ont été envoyés au voyageur.",
+        );
+      } catch (
+        deliveryError
+      ) {
+        console.error(
+          "[BookingDetailPage] Réservation confirmée mais email non envoyé :",
+          deliveryError,
+        );
+
+        toast.warning(
+          "La réservation est confirmée, mais l'email au voyageur n'a pas pu être envoyé. Vous pouvez relancer l'envoi.",
         );
       }
     };
@@ -2678,6 +2833,76 @@ export default function BookingDetailPage() {
                 La confirmation sécurisée vérifie la disponibilité,
                 les blocages, la capacité du logement et fige le
                 tarif nuit par nuit.
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {(booking.status === "confirmed" ||
+            booking.status === "in_progress") && (
+            <Alert
+              className={
+                bookingConfirmationEmailNotice?.tone ===
+                "warning"
+                  ? "border-amber-300 bg-amber-50 text-amber-950"
+                  : bookingConfirmationEmailNotice?.tone ===
+                      "success"
+                    ? "border-emerald-300 bg-emerald-50 text-emerald-950"
+                    : undefined
+              }
+            >
+              {bookingConfirmationEmailPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : bookingConfirmationEmailNotice?.tone ===
+                  "success" ? (
+                <CheckCircle2 className="h-4 w-4 text-emerald-700" />
+              ) : (
+                <Mail className="h-4 w-4" />
+              )}
+
+              <AlertDescription>
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="font-medium">
+                      Confirmation voyageur
+                    </p>
+
+                    <p className="mt-1">
+                      {bookingConfirmationEmailNotice?.text ??
+                        `Un email de confirmation avec le lien de paiement est envoyé à ${travelerEmail || "l'adresse enregistrée sur la réservation"}.`}
+                    </p>
+                  </div>
+
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      void handleBookingConfirmationEmailRetry();
+                    }}
+                    disabled={
+                      bookingConfirmationEmailPending
+                    }
+                    className="shrink-0 bg-background"
+                  >
+                    {bookingConfirmationEmailPending ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Vérification...
+                      </>
+                    ) : bookingConfirmationEmailNotice?.tone ===
+                        "warning" ? (
+                      <>
+                        <RefreshCw className="mr-2 h-4 w-4" />
+                        Réessayer l'envoi
+                      </>
+                    ) : (
+                      <>
+                        <Mail className="mr-2 h-4 w-4" />
+                        Vérifier l'envoi
+                      </>
+                    )}
+                  </Button>
+                </div>
               </AlertDescription>
             </Alert>
           )}
@@ -4457,7 +4682,7 @@ export default function BookingDetailPage() {
                   <Alert>
                     <ShieldCheck className="h-4 w-4" />
                     <AlertDescription>
-                      Le token brut n'est jamais stocké en base. Il est visible uniquement après sa génération dans cette session. Après un rechargement de page, générez un nouveau lien si nécessaire : la RPC révoquera automatiquement l'ancien accès actif.
+                      Le token brut n'est jamais stocké en base. La régénération crée un nouveau lien et révoque immédiatement l'ancien accès, y compris un lien déjà envoyé au voyageur par email. Ne régénérez donc manuellement le lien que si vous comptez transmettre le nouveau lien au voyageur.
                     </AlertDescription>
                   </Alert>
                 </div>
