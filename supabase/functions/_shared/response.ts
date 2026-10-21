@@ -5,6 +5,8 @@ export type ApiErrorCode =
   | "INVALID_REQUEST"
   | "INVALID_PAYMENT_TOKEN"
   | "INVALID_PAYMENT_METHOD"
+  | "INVALID_PAYMENT_CHOICE"
+  | "PAYMENT_CHOICE_NOT_ALLOWED"
   | "PAYMENT_NOT_ALLOWED"
   | "PAYMENT_ALREADY_COMPLETED"
   | "PAYMENT_ATTEMPT_CONFLICT"
@@ -34,6 +36,7 @@ export function successResponse(
     amount: number;
     currency: string;
     payment_method: string;
+    payment_choice?: string;
     status: string;
     checkout_url: string;
     reused: boolean;
