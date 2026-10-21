@@ -16,17 +16,28 @@ import {
 } from "../_shared/payment-provider.ts";
 
 
+type PaymentChoice =
+  | "installment"
+  | "full";
+
+
 type InitRequestBody = {
   token?: unknown;
   payment_method?: unknown;
+  payment_choice?: unknown;
 };
 
 
 type PublicPaymentContext = {
   can_pay?: boolean;
   payment_block_reason?: string | null;
+
+  payment_plan?: string | null;
+
+  paid_amount?: number | string | null;
   amount_due_now?: number | string | null;
   remaining_amount?: number | string | null;
+
   currency?: string | null;
 };
 
@@ -43,6 +54,7 @@ type ProviderTransactionRpcRow = {
 
   provider: string;
   payment_method: string;
+  payment_choice: string;
 
   amount: number | string;
   currency: string;
@@ -60,6 +72,7 @@ type StoredProviderTransaction = {
   provider_reference: string | null;
   provider: string;
   payment_method: string | null;
+  payment_choice: string | null;
   amount: number | string;
   currency: string;
   status: string;
@@ -117,6 +130,27 @@ function normalizePaymentMethod(
   }
 
   return normalized as SupportedPaymentMethod;
+}
+
+
+function normalizePaymentChoice(
+  value: unknown,
+): PaymentChoice | null {
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const normalized =
+    value.trim().toLowerCase();
+
+  if (
+    normalized !== "installment" &&
+    normalized !== "full"
+  ) {
+    return null;
+  }
+
+  return normalized;
 }
 
 
@@ -271,6 +305,35 @@ function mapProviderTransactionRpcError(
 
   if (
     value.includes(
+      "choix de paiement invalide",
+    )
+  ) {
+    return errorResponse(
+      400,
+      "INVALID_PAYMENT_CHOICE",
+      "Le mode de règlement sélectionné est invalide.",
+    );
+  }
+
+
+  if (
+    value.includes(
+      "seul le règlement du solde est autorisé",
+    ) ||
+    value.includes(
+      "exige un paiement intégral",
+    )
+  ) {
+    return errorResponse(
+      409,
+      "PAYMENT_CHOICE_NOT_ALLOWED",
+      "Ce mode de règlement n'est plus disponible pour cette réservation.",
+    );
+  }
+
+
+  if (
+    value.includes(
       "ne peut pas recevoir de paiement",
     ) ||
     value.includes(
@@ -327,6 +390,7 @@ async function getStoredProviderTransaction(
         "provider_reference",
         "provider",
         "payment_method",
+        "payment_choice",
         "amount",
         "currency",
         "status",
@@ -495,7 +559,30 @@ Deno.serve(
 
     /*
      * =========================================================
-     * 7. CLIENT SUPABASE SERVEUR
+     * 7. PAYMENT CHOICE
+     *
+     * No amount is accepted from the browser.
+     * =========================================================
+     */
+
+    const paymentChoice =
+      normalizePaymentChoice(
+        body.payment_choice,
+      );
+
+
+    if (!paymentChoice) {
+      return errorResponse(
+        400,
+        "INVALID_PAYMENT_CHOICE",
+        "Sélectionnez un mode de règlement valide.",
+      );
+    }
+
+
+    /*
+     * =========================================================
+     * 8. CLIENT SUPABASE SERVEUR
      * =========================================================
      */
 
@@ -596,22 +683,103 @@ Deno.serve(
      * =========================================================
      */
 
-    const contextDueNow =
+    const contextInstallmentAmount =
       toPositiveNumber(
         context.amount_due_now,
       );
 
 
-    if (!contextDueNow) {
+    const contextRemainingAmount =
+      toPositiveNumber(
+        context.remaining_amount,
+      );
+
+
+    const parsedPaidAmount =
+      Number(
+        context.paid_amount ??
+        0,
+      );
+
+
+    const contextPaidAmount =
+      Number.isFinite(
+        parsedPaidAmount,
+      )
+        ? Math.max(
+            0,
+            parsedPaidAmount,
+          )
+        : 0;
+
+
+    const contextPaymentPlan =
+      String(
+        context.payment_plan ??
+        "",
+      )
+        .trim()
+        .toLowerCase();
+
+
+    if (!contextRemainingAmount) {
       console.error(
-        "[payment-init] Invalid amount_due_now in public payment context",
+        "[payment-init] Invalid remaining_amount in public payment context",
         {
-          can_pay:
-            context.can_pay,
+          paid_amount:
+            context.paid_amount,
 
-          due_now:
+          remaining_amount:
+            context.remaining_amount,
+        },
+      );
+
+      return errorResponse(
+        409,
+        "PAYMENT_NOT_ALLOWED",
+        "Aucun montant n'est actuellement exigible.",
+      );
+    }
+
+
+    if (
+      contextPaidAmount > 0 &&
+      paymentChoice !== "full"
+    ) {
+      return errorResponse(
+        409,
+        "PAYMENT_CHOICE_NOT_ALLOWED",
+        "Après un premier règlement, seul le paiement du solde est disponible.",
+      );
+    }
+
+
+    if (
+      contextPaidAmount <= 0 &&
+      contextPaymentPlan !== "half" &&
+      paymentChoice !== "full"
+    ) {
+      return errorResponse(
+        409,
+        "PAYMENT_CHOICE_NOT_ALLOWED",
+        "Cette réservation exige un paiement intégral.",
+      );
+    }
+
+
+    const expectedTransactionAmount =
+      paymentChoice === "full"
+        ? contextRemainingAmount
+        : contextInstallmentAmount;
+
+
+    if (!expectedTransactionAmount) {
+      console.error(
+        "[payment-init] Invalid expected payment amount",
+        {
+          paymentChoice,
+          amount_due_now:
             context.amount_due_now,
-
           remaining_amount:
             context.remaining_amount,
         },
@@ -678,7 +846,8 @@ Deno.serve(
      * create_short_rental_provider_transaction(
      *   p_token text,
      *   p_provider text,
-     *   p_payment_method text
+     *   p_payment_method text,
+     *   p_payment_choice text
      * )
      *
      * =========================================================
@@ -701,6 +870,9 @@ Deno.serve(
 
         p_payment_method:
           paymentMethod,
+
+        p_payment_choice:
+          paymentChoice,
       },
     );
 
@@ -785,11 +957,23 @@ Deno.serve(
       );
 
 
+    const transactionPaymentChoice =
+      typeof transaction
+        .payment_choice ===
+        "string"
+        ? transaction
+          .payment_choice
+          .trim()
+          .toLowerCase()
+        : "";
+
+
     if (
       !transactionId ||
       !merchantReference ||
       !transactionAmount ||
-      !transactionCurrency
+      !transactionCurrency ||
+      !transactionPaymentChoice
     ) {
       console.error(
         "[payment-init] Invalid 3D.3C.1 response",
@@ -813,13 +997,34 @@ Deno.serve(
      */
 
     if (
-      transactionAmount !==
-      contextDueNow
+      transactionPaymentChoice !==
+      paymentChoice
     ) {
       console.error(
-        "[payment-init] Amount changed between context and 3D.3C.1",
+        "[payment-init] Payment choice changed between request and SQL",
         {
-          contextDueNow,
+          paymentChoice,
+          transactionPaymentChoice,
+        },
+      );
+
+      return errorResponse(
+        409,
+        "PAYMENT_ATTEMPT_CONFLICT",
+        "Le mode de règlement a changé. Veuillez actualiser la page.",
+      );
+    }
+
+
+    if (
+      transactionAmount !==
+      expectedTransactionAmount
+    ) {
+      console.error(
+        "[payment-init] Amount changed between context and SQL",
+        {
+          paymentChoice,
+          expectedTransactionAmount,
           transactionAmount,
         },
       );
@@ -912,6 +1117,9 @@ Deno.serve(
 
         payment_method:
           paymentMethod,
+
+        payment_choice:
+          paymentChoice,
 
         status:
           storedTransaction.status,
@@ -1021,6 +1229,7 @@ Deno.serve(
           "provider_reference",
           "provider",
           "payment_method",
+          "payment_choice",
           "amount",
           "currency",
           "status",
@@ -1083,6 +1292,9 @@ Deno.serve(
 
       payment_method:
         paymentMethod,
+
+      payment_choice:
+        paymentChoice,
 
       status:
         updatedTransaction.status,

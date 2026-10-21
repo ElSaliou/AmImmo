@@ -1,4 +1,9 @@
 import {
+  useEffect,
+  useState,
+} from "react";
+
+import {
   AlertCircle,
   Ban,
   CalendarDays,
@@ -45,6 +50,10 @@ import {
 import {
   Separator,
 } from "@/components/ui/separator";
+
+type PaymentChoice =
+  | "installment"
+  | "full";
 
 // ============================================================
 // CONFIGURATION PAIEMENT
@@ -266,6 +275,45 @@ const ShortRentalPaymentPage =
         token,
       );
 
+
+    const [
+      paymentChoice,
+      setPaymentChoice,
+    ] =
+      useState<PaymentChoice>(
+        "installment",
+      );
+
+
+    useEffect(
+      () => {
+        if (!data) {
+          return;
+        }
+
+        if (
+          data.paid_amount > 0 ||
+          data.payment_plan !==
+            "half"
+        ) {
+          setPaymentChoice(
+            "full",
+          );
+
+          return;
+        }
+
+        setPaymentChoice(
+          "installment",
+        );
+      },
+      [
+        data?.booking_reference,
+        data?.paid_amount,
+        data?.payment_plan,
+      ],
+    );
+
     // ========================================================
     // TOKEN ABSENT
     // ========================================================
@@ -387,6 +435,43 @@ const ShortRentalPaymentPage =
         "half"
         ? `Paiement en 2 fois — ${data.initial_payment_percent}% au premier paiement`
         : "Paiement intégral";
+
+
+    const canChoosePaymentMode =
+      canPay &&
+      data.paid_amount <= 0 &&
+      data.payment_plan ===
+        "half";
+
+
+    const effectivePaymentChoice:
+      PaymentChoice =
+        canChoosePaymentMode
+          ? paymentChoice
+          : "full";
+
+
+    const installmentAmount =
+      data.amount_due_now;
+
+
+    const fullPaymentAmount =
+      data.remaining_amount;
+
+
+    const selectedPaymentAmount =
+      effectivePaymentChoice ===
+        "full"
+        ? fullPaymentAmount
+        : installmentAmount;
+
+
+    const balanceAfterInstallment =
+      Math.max(
+        fullPaymentAmount -
+          installmentAmount,
+        0,
+      );
 
     // ========================================================
     // RENDER
@@ -610,12 +695,21 @@ const ShortRentalPaymentPage =
 
                 <div className="rounded-lg border bg-background p-4">
                   <p className="text-sm text-muted-foreground">
-                    Formule de paiement
+                    Mode choisi lors de la réservation
                   </p>
 
                   <p className="mt-1 font-medium">
                     {paymentPlanLabel}
                   </p>
+
+                  {data.payment_plan ===
+                    "half" &&
+                    data.paid_amount <=
+                      0 && (
+                      <p className="mt-2 text-xs leading-5 text-muted-foreground">
+                        Vous pouvez conserver le paiement en 2 fois ou régler l'intégralité du séjour maintenant.
+                      </p>
+                    )}
                 </div>
 
                 {/* INVOICE */}
@@ -681,6 +775,123 @@ const ShortRentalPaymentPage =
 
                 <Separator className="my-4" />
 
+
+                {canChoosePaymentMode && (
+                  <div className="mb-5 space-y-3">
+                    <div>
+                      <p className="font-semibold">
+                        Choisissez votre mode de règlement
+                      </p>
+
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        Vous pouvez payer le premier versement prévu ou solder immédiatement votre séjour.
+                      </p>
+                    </div>
+
+
+                    <button
+                      type="button"
+                      aria-pressed={
+                        paymentChoice ===
+                        "installment"
+                      }
+                      onClick={() =>
+                        setPaymentChoice(
+                          "installment",
+                        )
+                      }
+                      className={`w-full rounded-xl border p-4 text-left transition ${
+                        paymentChoice ===
+                        "installment"
+                          ? "border-primary bg-primary/5 ring-1 ring-primary"
+                          : "bg-background hover:border-primary/40"
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-4">
+                        <div>
+                          <p className="font-semibold">
+                            Payer en 2 fois
+                          </p>
+
+                          <p className="mt-1 text-sm text-muted-foreground">
+                            Premier règlement maintenant
+                          </p>
+                        </div>
+
+                        {paymentChoice ===
+                          "installment" && (
+                          <CheckCircle2 className="h-5 w-5 shrink-0 text-primary" />
+                        )}
+                      </div>
+
+                      <p className="mt-3 text-xl font-bold text-primary">
+                        {formatMoney(
+                          installmentAmount,
+                          data.currency,
+                        )}
+                      </p>
+
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Puis{" "}
+                        {formatMoney(
+                          balanceAfterInstallment,
+                          data.currency,
+                        )}{" "}
+                        avant la remise des clés.
+                      </p>
+                    </button>
+
+
+                    <button
+                      type="button"
+                      aria-pressed={
+                        paymentChoice ===
+                        "full"
+                      }
+                      onClick={() =>
+                        setPaymentChoice(
+                          "full",
+                        )
+                      }
+                      className={`w-full rounded-xl border p-4 text-left transition ${
+                        paymentChoice ===
+                        "full"
+                          ? "border-primary bg-primary/5 ring-1 ring-primary"
+                          : "bg-background hover:border-primary/40"
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-4">
+                        <div>
+                          <p className="font-semibold">
+                            Payer l'intégralité
+                          </p>
+
+                          <p className="mt-1 text-sm text-muted-foreground">
+                            Réglez tout le séjour maintenant
+                          </p>
+                        </div>
+
+                        {paymentChoice ===
+                          "full" && (
+                          <CheckCircle2 className="h-5 w-5 shrink-0 text-primary" />
+                        )}
+                      </div>
+
+                      <p className="mt-3 text-xl font-bold text-primary">
+                        {formatMoney(
+                          fullPaymentAmount,
+                          data.currency,
+                        )}
+                      </p>
+
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Aucun solde du séjour à régler ensuite.
+                      </p>
+                    </button>
+                  </div>
+                )}
+
+
                 {canPay && (
                   <div className="rounded-xl bg-primary/5 p-4">
                     <p className="text-sm font-medium text-muted-foreground">
@@ -689,7 +900,7 @@ const ShortRentalPaymentPage =
 
                     <p className="mt-1 text-2xl font-bold tracking-tight text-primary sm:text-3xl">
                       {formatMoney(
-                        data.amount_due_now,
+                        selectedPaymentAmount,
                         data.currency,
                       )}
                     </p>
@@ -756,12 +967,16 @@ const ShortRentalPaymentPage =
                     >
                       <CreditCard className="mr-2 h-4 w-4" />
 
-                      Payer maintenant
+                      Payer{" "}
+                      {formatMoney(
+                        selectedPaymentAmount,
+                        data.currency,
+                      )}
                     </Button>
 
                     {!PAYMENT_PROVIDER_READY && (
                       <p className="mt-2 text-center text-xs text-muted-foreground">
-                        Votre paiement est autorisé. Le bouton sera activé dès l'intégration du prestataire de paiement en ligne.
+                        Votre choix est prêt. Le paiement en ligne sera activé dès la connexion du prestataire de paiement.
                       </p>
                     )}
                   </div>
