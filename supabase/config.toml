@@ -20,3 +20,12 @@ enabled = true
 verify_jwt = true
 import_map = "./functions/send-guest-booking-confirmation-email/deno.json"
 entrypoint = "./functions/send-guest-booking-confirmation-email/index.ts"
+[functions.short-rental-payment-init]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/short-rental-payment-init/index.ts"
+
+[functions.short-rental-payment-webhook]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/short-rental-payment-webhook/index.ts"
