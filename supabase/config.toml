@@ -15,3 +15,12 @@ enabled = true
 verify_jwt = true
 import_map = "./functions/send-guest-inspection-signature-email/deno.json"
 entrypoint = "./functions/send-guest-inspection-signature-email/index.ts"
+[functions.short-rental-payment-init]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/short-rental-payment-init/index.ts"
+
+[functions.short-rental-payment-webhook]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/short-rental-payment-webhook/index.ts"
