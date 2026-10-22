@@ -121,6 +121,10 @@ const normalizeInvoice = (
     : [],
 });
 
+// ============================================================
+// RPC RESULT
+// ============================================================
+
 const normalizeRpcResult = (
   data: unknown,
 ): CreateBookingInvoiceResult => {
@@ -197,6 +201,34 @@ export function useBookingInvoice(
       bookingId,
     ),
 
+    // ========================================================
+    // SYNCHRONISATION EXTERNE
+    //
+    // Une facture peut être modifiée par un paiement PSP
+    // finalisé par webhook hors du navigateur admin.
+    //
+    // Exemple :
+    // issued -> partially_paid -> paid
+    //
+    // On relit donc régulièrement la facture active pendant
+    // que la fiche réservation reste ouverte.
+    // ========================================================
+
+    refetchOnMount:
+      "always",
+
+    refetchOnWindowFocus:
+      true,
+
+    refetchOnReconnect:
+      true,
+
+    refetchInterval:
+      5000,
+
+    refetchIntervalInBackground:
+      false,
+
     queryFn:
       async (): Promise<
         BookingInvoice | null
@@ -209,39 +241,43 @@ export function useBookingInvoice(
           data,
           error,
         } = await db
-          .from("invoices")
-          .select(`
-            id,
-            organization_id,
-            number,
-            kind,
-            status,
-            booking_id,
-            lease_id,
-            tenant_id,
-            owner_id,
-            property_id,
-            issue_date,
-            due_date,
-            period_start,
-            period_end,
-            currency,
-            amount,
-            paid_amount,
-            notes,
-            accounting_entry_id,
-            created_at,
-            updated_at,
-            invoice_lines (
+          .from(
+            "invoices",
+          )
+          .select(
+            `
               id,
-              invoice_id,
-              label,
-              quantity,
-              unit_price,
+              organization_id,
+              number,
+              kind,
+              status,
+              booking_id,
+              lease_id,
+              tenant_id,
+              owner_id,
+              property_id,
+              issue_date,
+              due_date,
+              period_start,
+              period_end,
+              currency,
               amount,
-              created_at
-            )
-          `)
+              paid_amount,
+              notes,
+              accounting_entry_id,
+              created_at,
+              updated_at,
+              invoice_lines (
+                id,
+                invoice_id,
+                label,
+                quantity,
+                unit_price,
+                amount,
+                created_at
+              )
+            `,
+          )
           .eq(
             "booking_id",
             bookingId,
@@ -257,7 +293,8 @@ export function useBookingInvoice(
           .order(
             "created_at",
             {
-              ascending: false,
+              ascending:
+                false,
             },
           )
           .limit(1)

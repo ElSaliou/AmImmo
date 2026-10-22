@@ -95,6 +95,31 @@ export function useShortRentalPayments(
     enabled:
       Boolean(invoiceId),
 
+    // ========================================================
+    // SYNCHRONISATION EXTERNE
+    //
+    // Les paiements Mobile Money peuvent être finalisés par
+    // webhook côté serveur, donc hors du navigateur admin.
+    //
+    // La fiche admin doit régulièrement relire les paiements
+    // afin d'afficher rapidement les encaissements PSP.
+    // ========================================================
+
+    refetchOnMount:
+      "always",
+
+    refetchOnWindowFocus:
+      true,
+
+    refetchOnReconnect:
+      true,
+
+    refetchInterval:
+      5000,
+
+    refetchIntervalInBackground:
+      false,
+
     queryFn:
       async (): Promise<
         ShortRentalPayment[]
