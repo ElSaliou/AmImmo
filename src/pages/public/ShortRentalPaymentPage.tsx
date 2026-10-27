@@ -14,6 +14,7 @@ import {
   Loader2,
   ReceiptText,
   ShieldCheck,
+  Smartphone,
   Users,
 } from "lucide-react";
 
@@ -55,6 +56,30 @@ type PaymentChoice =
   | "installment"
   | "full";
 
+type PaymentInitTransaction = {
+  reference: string;
+  amount: number;
+  currency: string;
+  payment_method: string;
+  payment_choice: string;
+  status: string;
+  checkout_url?: string | null;
+  reused: boolean;
+};
+
+type PaymentInitResponse = {
+  success: boolean;
+
+  transaction?:
+    | PaymentInitTransaction
+    | null;
+
+  error?: {
+    code?: string;
+    message?: string;
+  };
+};
+
 // ============================================================
 // CONFIGURATION PAIEMENT
 // ============================================================
@@ -72,8 +97,13 @@ type PaymentChoice =
  *
  * Elle ne doit jamais remplacer can_pay.
  */
+const PAYMENT_SANDBOX_ENABLED =
+  import.meta.env
+    .VITE_SHORT_RENTAL_PAYMENT_SANDBOX ===
+  "true";
+
 const PAYMENT_PROVIDER_READY =
-  false;
+  PAYMENT_SANDBOX_ENABLED;
 
 // ============================================================
 // FORMATTERS
@@ -285,6 +315,37 @@ const ShortRentalPaymentPage =
       );
 
 
+    const [
+      isInitializingPayment,
+      setIsInitializingPayment,
+    ] =
+      useState(
+        false,
+      );
+
+
+    const [
+      paymentInitError,
+      setPaymentInitError,
+    ] =
+      useState<
+        string | null
+      >(
+        null,
+      );
+
+
+    const [
+      paymentInitResult,
+      setPaymentInitResult,
+    ] =
+      useState<
+        PaymentInitTransaction | null
+      >(
+        null,
+      );
+
+
     useEffect(
       () => {
         if (!data) {
@@ -472,6 +533,180 @@ const ShortRentalPaymentPage =
           installmentAmount,
         0,
       );
+
+
+    const handleOrangeMoneyPayment =
+      async () => {
+        if (
+          !token ||
+          !canPay ||
+          !PAYMENT_SANDBOX_ENABLED ||
+          isInitializingPayment
+        ) {
+          return;
+        }
+
+        setPaymentInitError(
+          null,
+        );
+
+        setPaymentInitResult(
+          null,
+        );
+
+        setIsInitializingPayment(
+          true,
+        );
+
+        try {
+          const supabaseUrl =
+            import.meta.env
+              .VITE_SUPABASE_URL;
+
+          const publishableKey =
+            import.meta.env
+              .VITE_SUPABASE_PUBLISHABLE_KEY;
+
+          if (
+            !supabaseUrl ||
+            !publishableKey
+          ) {
+            throw new Error(
+              "Configuration Supabase indisponible.",
+            );
+          }
+
+          const response =
+            await fetch(
+              `${supabaseUrl}/functions/v1/short-rental-payment-init`,
+              {
+                method:
+                  "POST",
+
+                headers: {
+                  "Content-Type":
+                    "application/json",
+
+                  apikey:
+                    publishableKey,
+                },
+
+                body:
+                  JSON.stringify({
+                    token,
+                    payment_method:
+                      "orange_money",
+                    payment_choice:
+                      effectivePaymentChoice,
+                  }),
+              },
+            );
+
+          let payload:
+            PaymentInitResponse;
+
+          try {
+            payload =
+              await response.json();
+          } catch {
+            throw new Error(
+              "Réponse invalide du service de paiement.",
+            );
+          }
+
+          if (
+            !response.ok ||
+            payload.success !==
+              true ||
+            !payload.transaction
+          ) {
+            throw new Error(
+              payload.error?.message ||
+                "Impossible de préparer le paiement Orange Money.",
+            );
+          }
+
+          const transaction =
+            payload.transaction;
+
+          const transactionAmount =
+            Number(
+              transaction.amount,
+            );
+
+          if (
+            !Number.isFinite(
+              transactionAmount,
+            ) ||
+            Math.abs(
+              transactionAmount -
+                selectedPaymentAmount,
+            ) >
+              0.000001
+          ) {
+            throw new Error(
+              "Le montant préparé par le serveur ne correspond pas au montant attendu.",
+            );
+          }
+
+          if (
+            transaction.currency
+              .trim()
+              .toUpperCase() !==
+            data.currency
+              .trim()
+              .toUpperCase()
+          ) {
+            throw new Error(
+              "La devise préparée par le serveur est incohérente.",
+            );
+          }
+
+          if (
+            transaction.payment_method !==
+              "orange_money"
+          ) {
+            throw new Error(
+              "Le moyen de paiement préparé est incohérent.",
+            );
+          }
+
+          if (
+            transaction.payment_choice !==
+              effectivePaymentChoice
+          ) {
+            throw new Error(
+              "Le mode de règlement préparé est incohérent.",
+            );
+          }
+
+          if (
+            transaction.status !==
+              "processing"
+          ) {
+            throw new Error(
+              "La transaction Orange Money n'est pas dans l'état attendu.",
+            );
+          }
+
+          setPaymentInitResult({
+            ...transaction,
+
+            amount:
+              transactionAmount,
+          });
+        } catch (error) {
+          setPaymentInitError(
+            error instanceof Error
+              ? error.message
+              : "Impossible de préparer le paiement Orange Money.",
+          );
+        } finally {
+          setIsInitializingPayment(
+            false,
+          );
+        }
+      };
 
     // ========================================================
     // RENDER
@@ -795,11 +1030,19 @@ const ShortRentalPaymentPage =
                         paymentChoice ===
                         "installment"
                       }
-                      onClick={() =>
+                      onClick={() => {
+                        setPaymentInitError(
+                          null,
+                        );
+
+                        setPaymentInitResult(
+                          null,
+                        );
+
                         setPaymentChoice(
                           "installment",
-                        )
-                      }
+                        );
+                      }}
                       className={`w-full rounded-xl border p-4 text-left transition ${
                         paymentChoice ===
                         "installment"
@@ -848,11 +1091,19 @@ const ShortRentalPaymentPage =
                         paymentChoice ===
                         "full"
                       }
-                      onClick={() =>
+                      onClick={() => {
+                        setPaymentInitError(
+                          null,
+                        );
+
+                        setPaymentInitResult(
+                          null,
+                        );
+
                         setPaymentChoice(
                           "full",
-                        )
-                      }
+                        );
+                      }}
                       className={`w-full rounded-xl border p-4 text-left transition ${
                         paymentChoice ===
                         "full"
@@ -953,6 +1204,91 @@ const ShortRentalPaymentPage =
                     </div>
                   )}
 
+                {/* PAYMENT METHOD */}
+
+                {canPay && (
+                  <div className="mt-5">
+                    <p className="mb-2 text-sm font-medium">
+                      Moyen de paiement
+                    </p>
+
+                    <div
+                      className={`rounded-xl border p-4 ${
+                        PAYMENT_SANDBOX_ENABLED
+                          ? "border-orange-200 bg-orange-50/60"
+                          : "bg-muted/30"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-4">
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-orange-100">
+                            <Smartphone className="h-5 w-5 text-orange-700" />
+                          </div>
+
+                          <div>
+                            <p className="font-semibold">
+                              Orange Money
+                            </p>
+
+                            <p className="mt-0.5 text-xs text-muted-foreground">
+                              {PAYMENT_SANDBOX_ENABLED
+                                ? "Mode sandbox — aucun débit réel"
+                                : "Activation production à venir"}
+                            </p>
+                          </div>
+                        </div>
+
+                        <Badge variant="secondary">
+                          {PAYMENT_SANDBOX_ENABLED
+                            ? "Sandbox"
+                            : "Bientôt"}
+                        </Badge>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+
+                {paymentInitError && (
+                  <Alert
+                    variant="destructive"
+                    className="mt-5"
+                  >
+                    <AlertCircle className="h-4 w-4" />
+
+                    <AlertTitle>
+                      Initialisation impossible
+                    </AlertTitle>
+
+                    <AlertDescription>
+                      {paymentInitError}
+                    </AlertDescription>
+                  </Alert>
+                )}
+
+
+                {paymentInitResult && (
+                  <Alert className="mt-5 border-orange-200 bg-orange-50/70">
+                    <CheckCircle2 className="h-4 w-4 text-orange-700" />
+
+                    <AlertTitle className="text-orange-900">
+                      Transaction Orange Money sandbox préparée
+                    </AlertTitle>
+
+                    <AlertDescription className="text-orange-800">
+                      {formatMoney(
+                        paymentInitResult.amount,
+                        paymentInitResult.currency,
+                      )}{" "}
+                      a été préparé sans débit réel.
+                      Référence :{" "}
+                      <span className="break-all font-medium">
+                        {paymentInitResult.reference}
+                      </span>
+                    </AlertDescription>
+                  </Alert>
+                )}
+
                 {/* CTA */}
 
                 {canPay && (
@@ -961,16 +1297,42 @@ const ShortRentalPaymentPage =
                       type="button"
                       className="w-full"
                       size="lg"
+                      onClick={
+                        handleOrangeMoneyPayment
+                      }
                       disabled={
-                        !paymentActionEnabled
+                        !paymentActionEnabled ||
+                        isInitializingPayment ||
+                        Boolean(
+                          paymentInitResult,
+                        )
                       }
                     >
-                      <CreditCard className="mr-2 h-4 w-4" />
+                      {isInitializingPayment ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
 
-                      Payer{" "}
-                      {formatMoney(
-                        selectedPaymentAmount,
-                        data.currency,
+                          Initialisation Orange Money…
+                        </>
+                      ) : paymentInitResult ? (
+                        <>
+                          <CheckCircle2 className="mr-2 h-4 w-4" />
+
+                          Transaction sandbox préparée
+                        </>
+                      ) : (
+                        <>
+                          <Smartphone className="mr-2 h-4 w-4" />
+
+                          {PAYMENT_SANDBOX_ENABLED
+                            ? "Tester Orange Money — "
+                            : "Payer avec Orange Money — "}
+
+                          {formatMoney(
+                            selectedPaymentAmount,
+                            data.currency,
+                          )}
+                        </>
                       )}
                     </Button>
 
