@@ -106,6 +106,13 @@ const GuestHomePage = lazy(
     ),
 );
 
+const GuestBookingsPage = lazy(
+  () =>
+    import(
+      "@/pages/guest/GuestBookingsPage"
+    ),
+);
+
 const GuestInspectionsPage = lazy(
   () =>
     import(
@@ -493,6 +500,11 @@ const App = () => {
           <Route
             index
             element={<GuestHomePage />}
+          />
+
+          <Route
+            path="bookings"
+            element={<GuestBookingsPage />}
           />
 
           <Route

@@ -1,4 +1,5 @@
 import {
+  CalendarDays,
   FileCheck2,
   Home,
   LogOut,
@@ -106,6 +107,14 @@ export default function GuestLayout() {
             </NavLink>
 
             <NavLink
+              to="/guest/bookings"
+              className={desktopNavClassName}
+            >
+              <CalendarDays className="h-4 w-4" />
+              Mes réservations
+            </NavLink>
+
+            <NavLink
               to="/guest/inspections"
               className={desktopNavClassName}
             >
@@ -155,6 +164,14 @@ export default function GuestLayout() {
           >
             <Home className="h-5 w-5" />
             Accueil
+          </NavLink>
+
+          <NavLink
+            to="/guest/bookings"
+            className={mobileNavClassName}
+          >
+            <CalendarDays className="h-5 w-5" />
+            Réservations
           </NavLink>
 
           <NavLink
