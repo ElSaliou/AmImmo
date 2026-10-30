@@ -5080,6 +5080,98 @@ export type Database = {
           },
         ]
       }
+      quote_requests: {
+        Row: {
+          agency_response: string | null
+          assigned_to: string | null
+          booking_id: string | null
+          closed_at: string | null
+          created_at: string
+          customer_email: string | null
+          customer_name: string
+          customer_phone: string | null
+          id: string
+          internal_notes: string | null
+          lead_id: string | null
+          message: string
+          property_id: string | null
+          responded_at: string | null
+          service_id: string | null
+          status: Database["public"]["Enums"]["quote_request_status"]
+          subject: string | null
+          updated_at: string
+        }
+        Insert: {
+          agency_response?: string | null
+          assigned_to?: string | null
+          booking_id?: string | null
+          closed_at?: string | null
+          created_at?: string
+          customer_email?: string | null
+          customer_name: string
+          customer_phone?: string | null
+          id?: string
+          internal_notes?: string | null
+          lead_id?: string | null
+          message: string
+          property_id?: string | null
+          responded_at?: string | null
+          service_id?: string | null
+          status?: Database["public"]["Enums"]["quote_request_status"]
+          subject?: string | null
+          updated_at?: string
+        }
+        Update: {
+          agency_response?: string | null
+          assigned_to?: string | null
+          booking_id?: string | null
+          closed_at?: string | null
+          created_at?: string
+          customer_email?: string | null
+          customer_name?: string
+          customer_phone?: string | null
+          id?: string
+          internal_notes?: string | null
+          lead_id?: string | null
+          message?: string
+          property_id?: string | null
+          responded_at?: string | null
+          service_id?: string | null
+          status?: Database["public"]["Enums"]["quote_request_status"]
+          subject?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quote_requests_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quote_requests_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quote_requests_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quote_requests_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       rent_invoice_calculations: {
         Row: {
           billed_days: number
@@ -5684,6 +5776,104 @@ export type Database = {
             columns: ["property_id"]
             isOneToOne: false
             referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      service_categories: {
+        Row: {
+          created_at: string
+          description: string | null
+          display_order: number
+          icon: string | null
+          id: string
+          is_active: boolean
+          name: string
+          slug: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          display_order?: number
+          icon?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          slug: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          display_order?: number
+          icon?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          slug?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      services: {
+        Row: {
+          category_id: string | null
+          cover_image_url: string | null
+          created_at: string
+          currency: string
+          description: string | null
+          display_order: number
+          id: string
+          pricing_mode: Database["public"]["Enums"]["service_pricing_mode"]
+          published_at: string | null
+          short_description: string | null
+          slug: string
+          starting_price: number | null
+          status: Database["public"]["Enums"]["service_status"]
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          category_id?: string | null
+          cover_image_url?: string | null
+          created_at?: string
+          currency?: string
+          description?: string | null
+          display_order?: number
+          id?: string
+          pricing_mode?: Database["public"]["Enums"]["service_pricing_mode"]
+          published_at?: string | null
+          short_description?: string | null
+          slug: string
+          starting_price?: number | null
+          status?: Database["public"]["Enums"]["service_status"]
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          category_id?: string | null
+          cover_image_url?: string | null
+          created_at?: string
+          currency?: string
+          description?: string | null
+          display_order?: number
+          id?: string
+          pricing_mode?: Database["public"]["Enums"]["service_pricing_mode"]
+          published_at?: string | null
+          short_description?: string | null
+          slug?: string
+          starting_price?: number | null
+          status?: Database["public"]["Enums"]["service_status"]
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "services_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "service_categories"
             referencedColumns: ["id"]
           },
         ]
@@ -9139,6 +9329,12 @@ export type Database = {
         | "shop"
         | "warehouse"
         | "parking"
+      quote_request_status:
+        | "new"
+        | "in_progress"
+        | "answered"
+        | "closed"
+        | "cancelled"
       rent_billing_rule: "prorata" | "full_month"
       sale_commission_status: "pending" | "partial" | "paid" | "cancelled"
       sale_status:
@@ -9150,6 +9346,8 @@ export type Database = {
         | "sold"
         | "closed"
         | "cancelled"
+      service_pricing_mode: "quote" | "fixed" | "starting_from" | "free"
+      service_status: "draft" | "published" | "archived"
       short_rental_payment_plan: "half" | "full"
       treasury_account_type: "cash" | "bank" | "mobile_money"
       treasury_movement_type:
@@ -9452,6 +9650,13 @@ export const Constants = {
         "warehouse",
         "parking",
       ],
+      quote_request_status: [
+        "new",
+        "in_progress",
+        "answered",
+        "closed",
+        "cancelled",
+      ],
       rent_billing_rule: ["prorata", "full_month"],
       sale_commission_status: ["pending", "partial", "paid", "cancelled"],
       sale_status: [
@@ -9464,6 +9669,8 @@ export const Constants = {
         "closed",
         "cancelled",
       ],
+      service_pricing_mode: ["quote", "fixed", "starting_from", "free"],
+      service_status: ["draft", "published", "archived"],
       short_rental_payment_plan: ["half", "full"],
       treasury_account_type: ["cash", "bank", "mobile_money"],
       treasury_movement_type: [

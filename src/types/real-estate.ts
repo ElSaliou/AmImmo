@@ -19,6 +19,9 @@ export type MaintenanceRequest = Tables<"maintenance_requests">;
 export type Document = Tables<"documents">;
 export type Profile = Tables<"profiles">;
 export type UserRole = Tables<"user_roles">;
+export type ServiceCategory = Tables<"service_categories">;
+export type Service = Tables<"services">;
+export type QuoteRequest = Tables<"quote_requests">;
 
 // Insert types
 export type BuildingInsert = TablesInsert<"buildings">;
@@ -33,6 +36,9 @@ export type LeadActivityInsert = TablesInsert<"lead_activities">;
 export type VisitInsert = TablesInsert<"visits">;
 export type MaintenanceRequestInsert = TablesInsert<"maintenance_requests">;
 export type DocumentInsert = TablesInsert<"documents">;
+export type ServiceCategoryInsert = TablesInsert<"service_categories">;
+export type ServiceInsert = TablesInsert<"services">;
+export type QuoteRequestInsert = TablesInsert<"quote_requests">;
 
 // Update types
 export type BuildingUpdate = TablesUpdate<"buildings">;
@@ -43,6 +49,9 @@ export type TenantUpdate = TablesUpdate<"tenants">;
 export type LeaseUpdate = TablesUpdate<"leases">;
 export type LeadUpdate = TablesUpdate<"leads">;
 export type VisitUpdate = TablesUpdate<"visits">;
+export type ServiceCategoryUpdate = TablesUpdate<"service_categories">;
+export type ServiceUpdate = TablesUpdate<"services">;
+export type QuoteRequestUpdate = TablesUpdate<"quote_requests">;
 
 // Enum types
 export type ListingType = Enums<"listing_type">;
@@ -56,3 +65,6 @@ export type VisitStatus = Enums<"visit_status">;
 export type MaintenanceStatusEnum = Enums<"maintenance_status">;
 export type MaintenancePriority = Enums<"maintenance_priority">;
 export type AppRole = Enums<"app_role">;
+export type ServiceStatus = Enums<"service_status">;
+export type ServicePricingMode = Enums<"service_pricing_mode">;
+export type QuoteRequestStatus = Enums<"quote_request_status">;

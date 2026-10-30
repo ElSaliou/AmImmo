@@ -425,6 +425,19 @@ const DocumentsPage = lazy(
       "@/pages/admin/DocumentsPage"
     ),
 );
+const ServicesPage = lazy(
+  () =>
+    import(
+      "@/pages/admin/ServicesPage"
+    ),
+);
+
+const QuoteRequestsPage = lazy(
+  () =>
+    import(
+      "@/pages/admin/QuoteRequestsPage"
+    ),
+);
 const LeadsPage = lazy(
   () =>
     import(
@@ -920,6 +933,20 @@ const App = () => {
                       <DocumentsPage />
                     }
                   />
+                  <Route
+                    path="services"
+                    element={
+                      <ServicesPage />
+                    }
+                  />
+
+                  <Route
+                    path="quote-requests"
+                    element={
+                      <QuoteRequestsPage />
+                    }
+                  />
+
                   <Route
                     path="leads"
                     element={

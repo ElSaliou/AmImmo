@@ -189,6 +189,16 @@ export const adminNavItems: NavItem[] = [
   },
 
   {
+    label: "Prestations",
+    path: "/admin/services",
+    icon: Wrench,
+  },
+  {
+    label: "Demandes de devis",
+    path: "/admin/quote-requests",
+    icon: MessageSquare,
+  },
+  {
     label: "Leads",
     path: "/admin/leads",
     icon: MessageSquare,

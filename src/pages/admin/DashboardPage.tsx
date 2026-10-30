@@ -8,6 +8,7 @@ import { useLeases } from "@/hooks/use-leases";
 import { useBuildings } from "@/hooks/use-buildings";
 import { useOwners } from "@/hooks/use-owners";
 import { useMaintenanceRequests } from "@/hooks/use-maintenance";
+import { useNewQuoteRequestsCount } from "@/hooks/use-quote-requests";
 import {
   Home, Users, FileText, MessageSquare, TrendingUp, Eye,
   Building2, Wallet, Percent, Wrench, UserCheck, ArrowUpRight,
@@ -30,6 +31,7 @@ const DashboardPage = () => {
   const { data: buildings } = useBuildings();
   const { data: owners } = useOwners();
   const { data: maintenance } = useMaintenanceRequests();
+  const { data: newQuoteRequestsCount = 0 } = useNewQuoteRequestsCount();
 
   // ── Computed KPIs ──
   const totalProperties = (properties ?? []).length;
@@ -171,13 +173,28 @@ const DashboardPage = () => {
       </div>
 
       {/* Row 2: Secondary KPIs */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-4 mb-8">
         <KPICard label="Immeubles" value={(buildings ?? []).length} icon={Building2} color="primary" index={4} />
         <KPICard label="Propriétaires" value={(owners ?? []).length} icon={Users} color="secondary" index={5} />
         <KPICard label="Locataires" value={(tenants ?? []).length} icon={UserCheck} color="info" index={6} />
         <KPICard label="Leads" value={(leads ?? []).length} icon={MessageSquare} color="warning" index={7} />
         <KPICard label="Nouveaux leads" value={newLeads} icon={TrendingUp} color="destructive" trend={newLeads > 0 ? "À traiter" : undefined} index={8} />
-        <KPICard label="Maintenance" value={openMaintenance} icon={Wrench} color={openMaintenance > 0 ? "warning" : "success"} trend={openMaintenance > 0 ? "En cours" : "RAS"} index={9} />
+
+        <Link
+          to="/admin/quote-requests"
+          className="block"
+          aria-label="Ouvrir les nouvelles demandes de devis"
+        >
+          <KPICard
+            label="Nouveaux devis"
+            value={newQuoteRequestsCount}
+            icon={MessageSquare}
+            color={newQuoteRequestsCount > 0 ? "warning" : "success"}
+            trend={newQuoteRequestsCount > 0 ? "À traiter" : "À jour"}
+            index={9}
+          />
+        </Link>
+        <KPICard label="Maintenance" value={openMaintenance} icon={Wrench} color={openMaintenance > 0 ? "warning" : "success"} trend={openMaintenance > 0 ? "En cours" : "RAS"} index={10} />
       </div>
 
       {/* Charts Row 1: Revenue + Occupation */}
