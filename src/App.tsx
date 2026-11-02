@@ -96,6 +96,19 @@ const ContactPage = lazy(
       "@/pages/public/ContactPage"
     ),
 );
+const ServicesPublicPage = lazy(
+  () =>
+    import(
+      "@/pages/public/ServicesPage"
+    ),
+);
+const ServiceDetailPublicPage = lazy(
+  () =>
+    import(
+      "@/pages/public/ServiceDetailPage"
+    ),
+);
+
 // ============================================================
 // GUEST PORTAL
 // ============================================================
@@ -596,6 +609,21 @@ const App = () => {
                     <ContactPage />
                   }
                 />
+
+                <Route
+                  path="/services"
+                  element={
+                    <ServicesPublicPage />
+                  }
+                />
+                <Route
+                  path="/services/:slug"
+                  element={
+                    <ServiceDetailPublicPage />
+                  }
+                />
+
+
               </Route>
               {/* ============================================= */}
               {/* TENANT PORTAL                                 */}

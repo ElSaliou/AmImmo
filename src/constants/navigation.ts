@@ -237,6 +237,10 @@ export const publicNavItems = [
     label: "Vente",
     path: "/sale",
   },
+{
+    label: "Prestations",
+    path: "/services",
+  },
 
   {
     label: "Carte",
